@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="JAMES — Autonomous AI Pentesting Agent Remote Control">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>JAMES — Remote Agent</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+        <div class="login-card">
+            <div class="login-logo">⚡</div>
+            <h1 class="login-title">JAMES</h1>
+            <p class="login-subtitle">Autonomous Pentesting Agent</p>
+            <input type="password" id="api-key-input" placeholder="API Key (leave blank if none set)" autocomplete="off">
+            <button id="login-btn" onclick="doLogin()">Connect</button>
+            <p id="login-error" class="error-text"></p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-screen" class="screen hidden">
+        <!-- Header -->
+        <header id="app-header">
+            <div class="header-left">
+                <span class="header-logo">⚡</span>
+                <span class="header-title">JAMES</span>
+                <span class="header-subtitle">Remote Agent</span>
+            </div>
+            <div class="header-right">
+                <span id="ws-status" class="status-dot disconnected" title="WebSocket status"></span>
+                <span id="clock"></span>
+            </div>
+        </header>
+
+        <!-- Tab Bar -->
+        <nav id="tab-bar">
+            <button class="tab active" data-tab="chat" onclick="switchTab('chat')">🤖 Agent</button>
+            <button class="tab" data-tab="recon" onclick="switchTab('recon')">🔍 Recon</button>
+            <button class="tab" data-tab="wifi" onclick="switchTab('wifi')">📡 Wi-Fi</button>
+            <button class="tab" data-tab="crack" onclick="switchTab('crack')">🔓 Crack</button>
+            <button class="tab" data-tab="log" onclick="switchTab('log')">📋 Log</button>
+        </nav>
+
+        <!-- Tab Panels -->
+        <main id="tab-content">
+            <!-- Agent Chat -->
+            <div id="panel-chat" class="panel active">
+                <div id="chat-messages"></div>
+                <div id="chat-input-bar">
+                    <span class="prompt-icon">❯</span>
+                    <input type="text" id="chat-input" placeholder="Talk to JAMES…" autocomplete="off">
+                    <button onclick="sendChat()">Send</button>
+                </div>
+            </div>
+
+            <!-- Recon -->
+            <div id="panel-recon" class="panel hidden">
+                <div class="control-row">
+                    <input type="text" id="recon-target" placeholder="Target (e.g. 192.168.1.0/24)">
+                    <button onclick="doQuickScan()">Quick Scan</button>
+                    <button onclick="doFullScan()">Full Scan</button>
+                </div>
+                <div id="recon-results" class="results-area">
+                    <p class="placeholder-text">Enter a target and run a scan.</p>
+                </div>
+            </div>
+
+            <!-- Wi-Fi -->
+            <div id="panel-wifi" class="panel hidden">
+                <div class="control-row">
+                    <select id="wifi-iface"><option>— select interface —</option></select>
+                    <button onclick="refreshInterfaces()">Refresh</button>
+                    <button onclick="toggleMonitor()">Toggle Monitor</button>
+                </div>
+                <div class="control-row">
+                    <input type="text" id="deauth-bssid" placeholder="BSSID (AA:BB:CC:DD:EE:FF)">
+                    <input type="number" id="deauth-count" value="10" min="1" max="100" style="width:70px">
+                    <button class="danger-btn" onclick="doDeauth()">Deauth</button>
+                </div>
+                <div id="wifi-output" class="output-area"></div>
+            </div>
+
+            <!-- Cracking -->
+            <div id="panel-crack" class="panel hidden">
+                <div class="card">
+                    <h3>WPA Handshake Crack</h3>
+                    <div class="form-row">
+                        <label>Capture file:</label>
+                        <input type="text" id="crack-cap" placeholder="/path/to/capture.cap">
+                    </div>
+                    <div class="form-row">
+                        <label>Wordlist:</label>
+                        <input type="text" id="crack-wl" value="/home/malcolm/Desktop/rockyou.txt">
+                    </div>
+                    <button onclick="doCrackWpa()">⚡ Crack WPA</button>
+                </div>
+                <div class="card">
+                    <h3>Hash Crack</h3>
+                    <div class="form-row">
+                        <label>Hash file:</label>
+                        <input type="text" id="hash-file" placeholder="/path/to/hashes.txt">
+                    </div>
+                    <div class="form-row">
+                        <label>Mode:</label>
+                        <select id="hash-mode">
+                            <option value="0">0 — MD5</option>
+                            <option value="100">100 — SHA1</option>
+                            <option value="1400">1400 — SHA256</option>
+                            <option value="1800">1800 — sha512crypt</option>
+                            <option value="2500">2500 — WPA/WPA2</option>
+                            <option value="3200">3200 — bcrypt</option>
+                        </select>
+                    </div>
+                    <button onclick="doCrackHash()">⚡ Crack Hash</button>
+                </div>
+                <div id="crack-output" class="output-area"></div>
+            </div>
+
+            <!-- Log -->
+            <div id="panel-log" class="panel hidden">
+                <div class="control-row">
+                    <button onclick="refreshLog()">Refresh Log</button>
+                    <button onclick="exportLog()">Export JSON</button>
+                </div>
+                <div id="log-entries" class="results-area">
+                    <p class="placeholder-text">No tasks logged yet.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
