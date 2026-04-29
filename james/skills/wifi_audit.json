@@ -1,0 +1,63 @@
+{
+  "name": "wifi_audit",
+  "description": "Full Wi-Fi audit workflow: enable monitor mode, scan for networks, capture handshake, crack with wordlist.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Put interface into monitor mode"
+    },
+    {
+      "id": "scan_networks",
+      "action": "aircrack.start_airodump",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Scan for nearby access points",
+      "duration_seconds": 30
+    },
+    {
+      "id": "target_capture",
+      "action": "aircrack.start_airodump",
+      "params": {
+        "interface": "{{monitor_interface}}",
+        "channel": "{{target_channel}}",
+        "bssid": "{{target_bssid}}",
+        "write_prefix": "{{capture_prefix}}"
+      },
+      "description": "Capture handshake from target AP"
+    },
+    {
+      "id": "deauth",
+      "action": "aircrack.deauth",
+      "params": {
+        "interface": "{{monitor_interface}}",
+        "bssid": "{{target_bssid}}",
+        "count": 5
+      },
+      "description": "Send deauth to force handshake re-negotiation"
+    },
+    {
+      "id": "crack",
+      "action": "aircrack.crack_wpa",
+      "params": {
+        "capture_file": "{{capture_file}}",
+        "wordlist": "{{wordlist}}"
+      },
+      "description": "Crack captured handshake"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

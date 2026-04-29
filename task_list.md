@@ -1,6 +1,6 @@
-- [ ] Initialize `james-linux` Git repository and push to GitHub.
-- [ ] Scaffold `james/gui/` with basic PyQt6 application structure.
-- [ ] Implement `james/layers/native.py` exclusively for Linux bash execution.
-- [ ] Create `james/tools/parrot.py` wrappers for `airmon-ng`, `airodump-ng`, and `nmap`.
-- [ ] Define initial JSON skills in `james/skills/` (monitor mode, scan, deauth).
-- [ ] Test application components and mock CLI outputs on Windows before Linux deployment.
+- [x] Initialize `james-linux` Git repository and push to GitHub.
+- [x] Scaffold `james/gui/` with basic PyQt5 application structure.
+- [x] Implement `james/layers/native.py` exclusively for Linux bash execution.
+- [x] Create `james/tools/parrot.py` wrappers for `airmon-ng`, `airodump-ng`, and `nmap`.
+- [x] Define initial JSON skills in `james/skills/` (monitor mode, scan, deauth).
+- [x] Test application components and mock CLI outputs on Windows before Linux deployment.
