@@ -22,6 +22,7 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QTextCursor, QColor
 
 from james.core.orchestrator import Orchestrator
+from james.gui.chat_panel import ChatPanel
 
 
 # ── worker thread for non-blocking operations ───────────────────
@@ -80,6 +81,10 @@ class MainWindow(QMainWindow):
         # tab widget
         self.tabs = QTabWidget()
         root.addWidget(self.tabs)
+
+        # AI Agent chat — the primary interface
+        self.chat_panel = ChatPanel(self.orch)
+        self.tabs.addTab(self.chat_panel, "🤖 Agent")
 
         self.tabs.addTab(self._make_dashboard_tab(), "⚡ Dashboard")
         self.tabs.addTab(self._make_recon_tab(), "🔍 Recon")
