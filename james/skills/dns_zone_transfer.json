@@ -1,0 +1,45 @@
+{
+  "name": "dns_zone_transfer",
+  "description": "DNS zone transfer attempt + full DNS enumeration (AXFR, subdomain brute-force via fierce-like logic).",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "ns_lookup",
+      "action": "layer.run",
+      "params": {
+        "command": "dig {{domain}} NS +short",
+        "timeout": 10
+      },
+      "description": "Get authoritative nameservers"
+    },
+    {
+      "id": "zone_transfer",
+      "action": "layer.run",
+      "params": {
+        "command": "for ns in $(dig {{domain}} NS +short); do echo \"--- AXFR from $ns ---\"; dig @$ns {{domain}} AXFR 2>/dev/null; done",
+        "timeout": 30
+      },
+      "description": "Attempt zone transfer from each nameserver"
+    },
+    {
+      "id": "subdomain_brute",
+      "action": "layer.run",
+      "params": {
+        "command": "for sub in www mail ftp admin portal vpn dev staging test api app shop blog wiki git svn cdn mx ns1 ns2 pop imap smtp cpanel webmail intranet internal beta; do result=$(dig +short $sub.{{domain}} A); [ -n \"$result\" ] && echo \"$sub.{{domain}} -> $result\"; done",
+        "timeout": 30
+      },
+      "description": "Common subdomain brute-force via DNS"
+    },
+    {
+      "id": "dns_txt",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '=== SPF/DKIM/DMARC ===' && dig {{domain}} TXT +short && dig _dmarc.{{domain}} TXT +short && dig default._domainkey.{{domain}} TXT +short",
+        "timeout": 10
+      },
+      "description": "Check SPF, DKIM, DMARC records"
+    }
+  ]
+}

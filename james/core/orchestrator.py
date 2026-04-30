@@ -86,8 +86,16 @@ class Orchestrator:
 
     def system_check(self) -> dict:
         """Verify that required tools are installed."""
-        tools = ["nmap", "aircrack-ng", "airmon-ng", "airodump-ng",
-                 "aireplay-ng", "hashcat", "john", "iwconfig"]
+        tools = [
+            "nmap", "masscan", "aircrack-ng", "airmon-ng", "airodump-ng",
+            "aireplay-ng", "hashcat", "john", "iwconfig",
+            "hydra", "medusa", "ncrack", "sqlmap", "nikto",
+            "gobuster", "whatweb", "wafw00f", "sslscan",
+            "theHarvester", "responder", "ettercap",
+            "msfconsole", "netcat", "socat", "tcpdump", "tshark",
+            "reaver", "bully", "mdk4", "wifite", "hcxdumptool",
+            "enum4linux", "smbclient", "arp-scan", "netdiscover",
+        ]
         status = {}
         for t in tools:
             status[t] = self.layer.check_tool(t)

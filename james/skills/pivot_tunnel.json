@@ -1,0 +1,36 @@
+{
+  "name": "pivot_tunnel",
+  "description": "Network pivoting: set up port forwards and SOCKS proxies using socat and SSH for lateral movement.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "info",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '=== PIVOT SETUP ===' && echo 'Local IP:' && hostname -I && echo 'Target: {{target}}' && echo 'Internal net: {{internal_subnet}}'",
+        "timeout": 5
+      },
+      "description": "Display pivot configuration"
+    },
+    {
+      "id": "socat_forward",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '[+] Starting port forward: localhost:{{local_port}} -> {{target}}:{{remote_port}}' && socat TCP-LISTEN:{{local_port}},fork TCP:{{target}}:{{remote_port}} &",
+        "timeout": 5
+      },
+      "description": "Socat TCP port forward to internal target"
+    },
+    {
+      "id": "show_commands",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '=== LATERAL MOVEMENT COMMANDS ===' && echo '' && echo '[SSH Dynamic SOCKS]' && echo '  ssh -D 1080 -N -f user@{{target}}' && echo '' && echo '[SSH Local Forward]' && echo '  ssh -L {{local_port}}:{{internal_target}}:{{remote_port}} user@{{target}}' && echo '' && echo '[Socat Reverse]' && echo '  socat TCP-LISTEN:{{local_port}},reuseaddr,fork TCP:{{target}}:{{remote_port}}' && echo '' && echo '[Netcat Relay]' && echo '  mkfifo /tmp/bp; nc -l {{local_port}} < /tmp/bp | nc {{target}} {{remote_port}} > /tmp/bp'",
+        "timeout": 5
+      },
+      "description": "Display lateral movement command reference"
+    }
+  ]
+}
