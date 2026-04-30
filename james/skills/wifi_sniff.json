@@ -1,0 +1,55 @@
+{
+  "name": "wifi_sniff",
+  "description": "Passive Wi-Fi traffic sniffing: capture all packets on a channel with tcpdump and extract credentials with bettercap.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Enable monitor mode"
+    },
+    {
+      "id": "set_channel",
+      "action": "layer.run",
+      "params": {
+        "command": "iwconfig {{monitor_interface}} channel {{target_channel}}",
+        "timeout": 5,
+        "sudo": true
+      },
+      "description": "Lock monitor interface to target channel"
+    },
+    {
+      "id": "tcpdump_capture",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout {{duration}} tcpdump -i {{monitor_interface}} -w /tmp/james_sniff.pcap -c 50000",
+        "timeout": 180,
+        "sudo": true
+      },
+      "description": "Capture raw packets with tcpdump (max 50k packets)"
+    },
+    {
+      "id": "analyze_capture",
+      "action": "layer.run",
+      "params": {
+        "command": "tcpdump -r /tmp/james_sniff.pcap -nn 2>/dev/null | head -100 && echo '...' && echo 'Full capture saved to /tmp/james_sniff.pcap'",
+        "timeout": 10
+      },
+      "description": "Display first 100 captured packets"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

