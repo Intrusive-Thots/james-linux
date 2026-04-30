@@ -1,0 +1,64 @@
+{
+  "name": "packet_analysis",
+  "description": "Deep packet capture and analysis: tcpdump + tshark protocol breakdown with credential extraction.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "capture",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout {{duration}} tcpdump -i {{interface}} -w /tmp/james_packets.pcap -c 100000",
+        "timeout": 120,
+        "sudo": true
+      },
+      "description": "Capture up to 100k packets with tcpdump"
+    },
+    {
+      "id": "protocol_stats",
+      "action": "layer.run",
+      "params": {
+        "command": "tshark -r /tmp/james_packets.pcap -q -z io,phs 2>/dev/null | head -50",
+        "timeout": 30
+      },
+      "description": "Protocol hierarchy statistics"
+    },
+    {
+      "id": "conversations",
+      "action": "layer.run",
+      "params": {
+        "command": "tshark -r /tmp/james_packets.pcap -q -z conv,ip 2>/dev/null | head -30",
+        "timeout": 30
+      },
+      "description": "IP conversation pairs"
+    },
+    {
+      "id": "http_requests",
+      "action": "layer.run",
+      "params": {
+        "command": "tshark -r /tmp/james_packets.pcap -Y http.request -T fields -e ip.src -e http.host -e http.request.uri 2>/dev/null | head -50",
+        "timeout": 30
+      },
+      "description": "Extract HTTP requests with hosts and URIs"
+    },
+    {
+      "id": "dns_queries",
+      "action": "layer.run",
+      "params": {
+        "command": "tshark -r /tmp/james_packets.pcap -Y dns.qr==0 -T fields -e ip.src -e dns.qry.name 2>/dev/null | sort -u | head -50",
+        "timeout": 30
+      },
+      "description": "Unique DNS queries"
+    },
+    {
+      "id": "credentials",
+      "action": "layer.run",
+      "params": {
+        "command": "tshark -r /tmp/james_packets.pcap -Y 'http.authbasic or ftp.request.command==PASS or ftp.request.command==USER' -T fields -e ip.src -e ip.dst -e http.authbasic -e ftp.request.arg 2>/dev/null | head -20",
+        "timeout": 15
+      },
+      "description": "Extract cleartext credentials (HTTP Basic Auth, FTP)"
+    }
+  ]
+}

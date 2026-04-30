@@ -1,0 +1,38 @@
+{
+  "name": "masscan_sweep",
+  "description": "Ultra-fast full port scan of an entire subnet using masscan, then service fingerprint open ports with nmap.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "masscan_full",
+      "action": "masscan.scan",
+      "params": {
+        "target": "{{target}}",
+        "ports": "1-65535",
+        "rate": 5000
+      },
+      "description": "Masscan full 65535 port sweep at 5000 pps"
+    },
+    {
+      "id": "save_results",
+      "action": "layer.run",
+      "params": {
+        "command": "masscan {{target}} -p1-65535 --rate=5000 -oL /tmp/james_masscan.txt",
+        "timeout": 300,
+        "sudo": true
+      },
+      "description": "Save masscan results to file"
+    },
+    {
+      "id": "nmap_services",
+      "action": "layer.run",
+      "params": {
+        "command": "grep 'open' /tmp/james_masscan.txt 2>/dev/null | awk '{print $4}' | sort -u | head -10 | while read ip; do ports=$(grep $ip /tmp/james_masscan.txt | awk '{print $3}' | tr '\\n' ',' | sed 's/,$//'); echo \"Scanning $ip ports $ports\"; nmap -sV -p$ports $ip; done",
+        "timeout": 300
+      },
+      "description": "Service fingerprint on discovered open ports"
+    }
+  ]
+}

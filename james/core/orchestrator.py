@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Optional
 
 from james.layers.native import NativeLayer
-from james.tools.parrot import Nmap, AircrackSuite, Hashcat, John
+from james.tools.parrot import (
+    Nmap, AircrackSuite, Hashcat, John,
+    Masscan, Responder, TheHarvester, SSLScan, WafDetector, Ettercap,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,12 @@ class Orchestrator:
         self.aircrack = AircrackSuite(self.layer)
         self.hashcat = Hashcat(self.layer)
         self.john = John(self.layer)
+        self.masscan = Masscan(self.layer)
+        self.responder = Responder(self.layer)
+        self.harvester = TheHarvester(self.layer)
+        self.sslscan = SSLScan(self.layer)
+        self.wafdetect = WafDetector(self.layer)
+        self.ettercap = Ettercap(self.layer)
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates
@@ -273,6 +282,18 @@ class Orchestrator:
                         target_obj = self.hashcat
                     elif tool_name == "john":
                         target_obj = self.john
+                    elif tool_name == "masscan":
+                        target_obj = self.masscan
+                    elif tool_name == "responder":
+                        target_obj = self.responder
+                    elif tool_name == "harvester":
+                        target_obj = self.harvester
+                    elif tool_name == "sslscan":
+                        target_obj = self.sslscan
+                    elif tool_name == "wafdetect":
+                        target_obj = self.wafdetect
+                    elif tool_name == "ettercap":
+                        target_obj = self.ettercap
                     elif tool_name == "layer":
                         target_obj = self.layer
                     else:

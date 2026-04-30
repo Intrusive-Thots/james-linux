@@ -1,0 +1,45 @@
+{
+  "name": "waf_bypass_recon",
+  "description": "WAF detection and bypass reconnaissance: identify WAF vendor, test bypass techniques, and enumerate backend.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "waf_detect",
+      "action": "wafdetect.detect",
+      "params": {
+        "url": "{{target_url}}"
+      },
+      "description": "Detect WAF vendor using wafw00f"
+    },
+    {
+      "id": "whatweb_fingerprint",
+      "action": "layer.run",
+      "params": {
+        "command": "whatweb -v -a 3 {{target_url}}",
+        "timeout": 30
+      },
+      "description": "Deep web technology fingerprinting"
+    },
+    {
+      "id": "nmap_waf_bypass",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "--script http-waf-detect,http-waf-fingerprint",
+        "ports": "{{port}}"
+      },
+      "description": "Nmap WAF detection and fingerprint scripts"
+    },
+    {
+      "id": "header_analysis",
+      "action": "layer.run",
+      "params": {
+        "command": "curl -sI {{target_url}} | head -30",
+        "timeout": 10
+      },
+      "description": "Inspect HTTP response headers for WAF signatures"
+    }
+  ]
+}

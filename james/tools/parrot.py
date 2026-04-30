@@ -330,3 +330,223 @@ class John:
         """Show already-cracked passwords."""
         result = self.layer.run(f"john --show {hash_file}", timeout=30)
         return {"output": result.stdout}
+
+
+class Masscan:
+    """Wrapper around masscan — ultra-fast port scanner."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(
+        self,
+        target: str,
+        *,
+        ports: str = "1-65535",
+        rate: int = 1000,
+        timeout: int = 300,
+    ) -> dict:
+        """Run masscan and return structured results."""
+        cmd = f"masscan {target} -p{ports} --rate={rate} -oJ -"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        if not result.success:
+            return {"error": result.stderr, "command": cmd}
+
+        hosts = []
+        try:
+            # masscan JSON output is an array
+            data = json.loads("[" + result.stdout.rstrip().rstrip(",") + "]")
+            for entry in data:
+                if isinstance(entry, dict):
+                    hosts.append({
+                        "ip": entry.get("ip", ""),
+                        "port": entry.get("ports", [{}])[0].get("port", 0),
+                        "proto": entry.get("ports", [{}])[0].get("proto", ""),
+                        "status": entry.get("ports", [{}])[0].get("status", ""),
+                    })
+        except (json.JSONDecodeError, IndexError):
+            return {"error": "Failed to parse masscan output", "raw": result.stdout[-2000:], "command": cmd}
+
+        return {"command": cmd, "hosts": hosts, "count": len(hosts)}
+
+
+class Responder:
+    """Wrapper around Responder — LLMNR/NBT-NS/MDNS poisoner."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def start(self, interface: str, *, timeout: int = 60) -> dict:
+        """Run Responder for a set duration and collect captured hashes."""
+        cmd = f"timeout {timeout} responder -I {interface} -dwPv"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+
+        hashes = []
+        for line in result.stdout.splitlines():
+            if "NTLMv" in line or "Hash" in line:
+                hashes.append(line.strip())
+
+        return {
+            "command": cmd,
+            "output": result.stdout[-3000:],
+            "captured_hashes": hashes,
+            "hash_count": len(hashes),
+        }
+
+    def check_logs(self) -> dict:
+        """Read captured hashes from Responder's log directory."""
+        result = self.layer.run(
+            "find /usr/share/responder/logs -name '*.txt' -exec cat {} + 2>/dev/null | tail -50",
+            timeout=10,
+        )
+        return {"output": result.stdout}
+
+
+class TheHarvester:
+    """Wrapper around theHarvester — OSINT email/subdomain collector."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def harvest(
+        self,
+        domain: str,
+        *,
+        sources: str = "all",
+        limit: int = 200,
+        timeout: int = 120,
+    ) -> dict:
+        """Gather emails, subdomains, and IPs for a domain."""
+        cmd = f"theHarvester -d {domain} -b {sources} -l {limit}"
+        result = self.layer.run(cmd, timeout=timeout)
+
+        emails = []
+        subdomains = []
+        ips = []
+        section = ""
+
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "Emails found:" in line:
+                section = "emails"
+                continue
+            elif "Hosts found:" in line or "Subdomains found:" in line:
+                section = "subdomains"
+                continue
+            elif "IPs found:" in line:
+                section = "ips"
+                continue
+            elif stripped.startswith("[") or stripped.startswith("*"):
+                continue
+
+            if section == "emails" and "@" in stripped:
+                emails.append(stripped)
+            elif section == "subdomains" and stripped:
+                subdomains.append(stripped)
+            elif section == "ips" and stripped:
+                ips.append(stripped)
+
+        return {
+            "command": cmd,
+            "domain": domain,
+            "emails": emails,
+            "subdomains": subdomains,
+            "ips": ips,
+            "email_count": len(emails),
+            "subdomain_count": len(subdomains),
+        }
+
+
+class SSLScan:
+    """Wrapper around sslscan — SSL/TLS analyzer."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(self, target: str, *, timeout: int = 30) -> dict:
+        """Scan a host for SSL/TLS configuration issues."""
+        cmd = f"sslscan --no-colour {target}"
+        result = self.layer.run(cmd, timeout=timeout)
+
+        vulns = []
+        ciphers = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "SSLv2" in stripped or "SSLv3" in stripped:
+                if "Enabled" in stripped:
+                    vulns.append(stripped)
+            if "Heartbleed" in stripped and "vulnerable" in stripped.lower():
+                vulns.append(stripped)
+            if "Accepted" in stripped or "Preferred" in stripped:
+                ciphers.append(stripped)
+
+        return {
+            "command": cmd,
+            "output": result.stdout[-3000:],
+            "vulnerabilities": vulns,
+            "ciphers_found": len(ciphers),
+        }
+
+
+class WafDetector:
+    """Wrapper around wafw00f — Web Application Firewall detector."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def detect(self, url: str, *, timeout: int = 30) -> dict:
+        """Detect if a URL is behind a WAF and identify it."""
+        cmd = f"wafw00f {url}"
+        result = self.layer.run(cmd, timeout=timeout)
+
+        waf_detected = False
+        waf_name = ""
+        for line in result.stdout.splitlines():
+            if "is behind" in line:
+                waf_detected = True
+                match = re.search(r"is behind\s+(.+)", line)
+                if match:
+                    waf_name = match.group(1).strip()
+            elif "No WAF" in line:
+                waf_detected = False
+
+        return {
+            "command": cmd,
+            "waf_detected": waf_detected,
+            "waf_name": waf_name,
+            "output": result.stdout,
+        }
+
+
+class Ettercap:
+    """Wrapper around ettercap — MITM and ARP poisoning."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def arp_poison(
+        self,
+        interface: str,
+        target1: str,
+        target2: str,
+        *,
+        timeout: int = 60,
+    ) -> dict:
+        """ARP poison between two targets (typically victim and gateway)."""
+        cmd = f"timeout {timeout} ettercap -T -i {interface} -M arp:remote /{target1}// /{target2}//"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        return {
+            "command": cmd,
+            "success": result.success,
+            "output": result.stdout[-3000:],
+        }
+
+    def sniff(self, interface: str, *, timeout: int = 60) -> dict:
+        """Passive sniffing with ettercap."""
+        cmd = f"timeout {timeout} ettercap -T -i {interface} -q"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        return {
+            "command": cmd,
+            "output": result.stdout[-3000:],
+        }
+

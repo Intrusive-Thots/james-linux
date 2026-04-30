@@ -1,0 +1,57 @@
+{
+  "name": "ad_domain_recon",
+  "description": "Active Directory domain reconnaissance: SMB shares, users, groups, password policy via enum4linux + nmap + responder.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "smb_enum",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "--script smb-enum-shares,smb-enum-users,smb-enum-groups,smb-os-discovery,smb-security-mode",
+        "ports": "139,445"
+      },
+      "description": "Nmap SMB enumeration scripts"
+    },
+    {
+      "id": "enum4linux",
+      "action": "layer.run",
+      "params": {
+        "command": "enum4linux -a {{target}}",
+        "timeout": 300
+      },
+      "description": "Full enum4linux extraction (shares, users, groups, policies)"
+    },
+    {
+      "id": "ldap_enum",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "--script ldap-rootdse,ldap-search,ldap-brute",
+        "ports": "389,636"
+      },
+      "description": "LDAP enumeration on domain controller"
+    },
+    {
+      "id": "kerberos_enum",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "--script krb5-enum-users",
+        "ports": "88"
+      },
+      "description": "Kerberos user enumeration"
+    },
+    {
+      "id": "null_session",
+      "action": "layer.run",
+      "params": {
+        "command": "smbclient -L //{{target}} -N 2>&1 | head -30",
+        "timeout": 15
+      },
+      "description": "Test null session SMB share listing"
+    }
+  ]
+}

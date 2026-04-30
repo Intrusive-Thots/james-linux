@@ -1,0 +1,39 @@
+{
+  "name": "arp_scan_discover",
+  "description": "Layer 2 host discovery: arp-scan + netdiscover for fast local network mapping.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "arp_scan",
+      "action": "layer.run",
+      "params": {
+        "command": "arp-scan -l -I {{interface}} 2>/dev/null",
+        "timeout": 30,
+        "sudo": true
+      },
+      "description": "ARP scan local subnet (fast L2 discovery)"
+    },
+    {
+      "id": "netdiscover",
+      "action": "layer.run",
+      "params": {
+        "command": "timeout 15 netdiscover -i {{interface}} -P 2>/dev/null",
+        "timeout": 20,
+        "sudo": true
+      },
+      "description": "Passive/active ARP reconnaissance with netdiscover"
+    },
+    {
+      "id": "mac_vendor",
+      "action": "layer.run",
+      "params": {
+        "command": "arp-scan -l -I {{interface}} 2>/dev/null | grep -E '^[0-9]' | awk '{print $1, $2, $3}' | sort",
+        "timeout": 15,
+        "sudo": true
+      },
+      "description": "Map IPs to MAC addresses and vendor identification"
+    }
+  ]
+}

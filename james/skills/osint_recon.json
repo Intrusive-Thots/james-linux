@@ -1,0 +1,37 @@
+{
+  "name": "osint_recon",
+  "description": "OSINT reconnaissance: harvest emails, subdomains, and IPs for a target domain using theHarvester and passive DNS.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "harvester",
+      "action": "harvester.harvest",
+      "params": {
+        "domain": "{{domain}}",
+        "sources": "all",
+        "limit": 200
+      },
+      "description": "theHarvester passive OSINT collection"
+    },
+    {
+      "id": "whois",
+      "action": "layer.run",
+      "params": {
+        "command": "whois {{domain}} | head -60",
+        "timeout": 15
+      },
+      "description": "WHOIS domain registration lookup"
+    },
+    {
+      "id": "dns_enum",
+      "action": "layer.run",
+      "params": {
+        "command": "dig {{domain}} ANY +noall +answer && dig {{domain}} MX +noall +answer && dig {{domain}} NS +noall +answer && dig {{domain}} TXT +noall +answer",
+        "timeout": 15
+      },
+      "description": "DNS record enumeration (A, MX, NS, TXT)"
+    }
+  ]
+}
