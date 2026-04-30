@@ -103,22 +103,54 @@ class MainWindow(QMainWindow):
 
     def _make_header(self) -> QWidget:
         w = QWidget()
-        w.setFixedHeight(56)
-        w.setStyleSheet("background-color: #0f1923; border-bottom: 2px solid #00f0ff;")
+        w.setFixedHeight(60)
+        w.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0b1120, stop:0.5 #0d1528, stop:1 #0b1120);
+                border-bottom: 2px solid qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #00f0ff00, stop:0.3 #00f0ff, stop:0.7 #00ff88, stop:1 #00f0ff00);
+            }
+        """)
         lay = QHBoxLayout(w)
-        lay.setContentsMargins(16, 0, 16, 0)
+        lay.setContentsMargins(20, 0, 20, 0)
 
         title = QLabel("⚡ JAMES")
         title.setObjectName("headerLabel")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #00f0ff; letter-spacing: 4px; background: transparent;")
         lay.addWidget(title)
 
-        subtitle = QLabel("Autonomous Pentesting Agent · Parrot OS")
-        subtitle.setStyleSheet("color: #5a7a9a; font-size: 12px;")
+        subtitle = QLabel("Autonomous Pentesting Agent")
+        subtitle.setStyleSheet("color: #3a5a7a; font-size: 11px; letter-spacing: 1px; background: transparent;")
         lay.addWidget(subtitle)
         lay.addStretch()
 
+        # version badge
+        ver = QLabel("v0.3.0")
+        ver.setStyleSheet("""
+            background-color: #00f0ff18;
+            color: #00f0ff;
+            border: 1px solid #00f0ff40;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: bold;
+        """)
+        lay.addWidget(ver)
+
+        # status indicator
+        self.status_indicator = QLabel("● ONLINE")
+        self.status_indicator.setStyleSheet("""
+            color: #00ff88;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: transparent;
+        """)
+        lay.addWidget(self.status_indicator)
+
         self.clock_label = QLabel()
-        self.clock_label.setStyleSheet("color: #5a7a9a;")
+        self.clock_label.setStyleSheet("color: #3a5a7a; font-size: 12px; background: transparent;")
         lay.addWidget(self.clock_label)
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._update_clock)

@@ -64,9 +64,9 @@ class ChatPanel(QWidget):
         self.chat_log.setFont(QFont("JetBrains Mono", 11))
         self.chat_log.setStyleSheet("""
             QTextEdit {
-                background-color: #080c14;
+                background-color: #060a12;
                 border: none;
-                padding: 12px;
+                padding: 16px;
                 color: #c8d6e5;
             }
         """)
@@ -75,19 +75,24 @@ class ChatPanel(QWidget):
         # ── divider ─────────────────────────────────────────────
         divider = QFrame()
         divider.setFrameShape(QFrame.HLine)
-        divider.setStyleSheet("background-color: #1a2940; max-height: 1px;")
+        divider.setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #141e3000, stop:0.5 #1a2940, stop:1 #141e3000); max-height: 1px;")
         layout.addWidget(divider)
 
         # ── input bar ───────────────────────────────────────────
         input_bar = QWidget()
-        input_bar.setFixedHeight(52)
-        input_bar.setStyleSheet("background-color: #0f1923;")
+        input_bar.setFixedHeight(56)
+        input_bar.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #0d1528, stop:1 #0b1120);
+            }
+        """)
         bar_layout = QHBoxLayout(input_bar)
-        bar_layout.setContentsMargins(12, 8, 12, 8)
+        bar_layout.setContentsMargins(16, 8, 16, 8)
 
         prompt_label = QLabel("❯")
-        prompt_label.setStyleSheet("color: #00f0ff; font-size: 18px; font-weight: bold;")
-        prompt_label.setFixedWidth(24)
+        prompt_label.setStyleSheet("color: #00f0ff; font-size: 20px; font-weight: bold; background: transparent;")
+        prompt_label.setFixedWidth(28)
         bar_layout.addWidget(prompt_label)
 
         self.input_field = QLineEdit()
@@ -104,8 +109,25 @@ class ChatPanel(QWidget):
         self.input_field.returnPressed.connect(self._on_send)
         bar_layout.addWidget(self.input_field)
 
-        send_btn = QPushButton("Send")
-        send_btn.setFixedWidth(70)
+        send_btn = QPushButton("Send ⚡")
+        send_btn.setFixedWidth(90)
+        send_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #00f0ff20, stop:1 #00ff8820);
+                border: 1px solid #00f0ff50;
+                border-radius: 6px;
+                color: #00f0ff;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #00f0ff35, stop:1 #00ff8835);
+                border-color: #00f0ff;
+            }
+        """)
         send_btn.clicked.connect(self._on_send)
         bar_layout.addWidget(send_btn)
 
@@ -115,10 +137,11 @@ class ChatPanel(QWidget):
 
     def _append_user_msg(self, text: str):
         html = (
-            '<div style="margin: 8px 0; padding: 8px 14px; '
-            'background-color: #0d2137; border-left: 3px solid #00f0ff; '
-            'border-radius: 4px;">'
-            f'<span style="color: #00f0ff; font-weight: bold;">YOU ❯</span> '
+            '<div style="margin: 10px 0 10px 60px; padding: 12px 16px; '
+            'background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0d2137, stop:1 #0a1a2e); '
+            'background-color: #0d2137; '
+            'border-left: 3px solid #00f0ff; border-radius: 8px;">'
+            f'<span style="color: #00f0ff; font-weight: bold; font-size: 11px; letter-spacing: 1px;">YOU ❯</span> '
             f'<span style="color: #e8f0f8;">{_escape(text)}</span>'
             '</div>'
         )
@@ -128,11 +151,11 @@ class ChatPanel(QWidget):
         # convert newlines and spaces for HTML rendering
         formatted = _escape(text).replace('\n', '<br>').replace('  ', '&nbsp;&nbsp;')
         html = (
-            '<div style="margin: 8px 0; padding: 8px 14px; '
-            'background-color: #0a1420; border-left: 3px solid #00ff88; '
-            'border-radius: 4px;">'
-            f'<span style="color: #00ff88; font-weight: bold;">JAMES ⚡</span><br>'
-            f'<span style="color: #c8d6e5;">{formatted}</span>'
+            '<div style="margin: 10px 40px 10px 0; padding: 14px 16px; '
+            'background-color: #081018; '
+            'border-left: 3px solid #00ff88; border-radius: 8px;">'
+            f'<span style="color: #00ff88; font-weight: bold; font-size: 11px; letter-spacing: 1px;">JAMES ⚡</span><br>'
+            f'<span style="color: #c8d6e5; line-height: 1.7;">{formatted}</span>'
             '</div>'
         )
         self.chat_log.append(html)
@@ -140,15 +163,16 @@ class ChatPanel(QWidget):
 
     def _append_system_msg(self, text: str):
         html = (
-            f'<div style="margin: 4px 0; text-align: center; color: #5a7a9a; '
-            f'font-size: 11px;">{_escape(text)}</div>'
+            f'<div style="margin: 12px 0; text-align: center; color: #2a4a5a; '
+            f'font-size: 11px; letter-spacing: 2px;">{_escape(text)}</div>'
         )
         self.chat_log.append(html)
 
     def _append_thinking(self):
         html = (
-            '<div id="thinking" style="margin: 8px 0; padding: 8px 14px; '
-            'color: #5a7a9a; font-style: italic;">'
+            '<div id="thinking" style="margin: 8px 40px 8px 0; padding: 12px 16px; '
+            'color: #3a5a7a; font-style: italic; border-left: 3px solid #1a2940; '
+            'border-radius: 8px; background-color: #0a0f18;">'
             '⏳ JAMES is working…</div>'
         )
         self.chat_log.append(html)
