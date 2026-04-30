@@ -241,6 +241,10 @@ class Orchestrator:
 
     def execute_skill_steps(self, skill: dict, context: dict):
         """Execute the steps of a skill sequentially using the provided context."""
+        from james.layers.native import CommandResult
+
+        self._print(f"[SKILL] Running: {skill.get('name', 'unknown')}")
+
         for step in skill.get("steps", []):
             action = step.get("action")
             params = {}
@@ -248,6 +252,13 @@ class Orchestrator:
                 if isinstance(v, str) and v.startswith("{{") and v.endswith("}}"):
                     var_name = v[2:-2].strip()
                     params[k] = context.get(var_name, v)
+                elif isinstance(v, str):
+                    # Also do inline {{var}} substitution within strings
+                    import re
+                    for match in re.finditer(r"\{\{(\w+)\}\}", v):
+                        vname = match.group(1)
+                        v = v.replace(match.group(0), context.get(vname, match.group(0)))
+                    params[k] = v
                 else:
                     params[k] = v
             
@@ -262,6 +273,8 @@ class Orchestrator:
                         target_obj = self.hashcat
                     elif tool_name == "john":
                         target_obj = self.john
+                    elif tool_name == "layer":
+                        target_obj = self.layer
                     else:
                         target_obj = self
                 else:
@@ -271,20 +284,30 @@ class Orchestrator:
                 method = getattr(target_obj, method_name)
                 
                 # Log step start
+                desc = step.get("description", action)
+                self._print(f"  → [{step.get('id', '?')}] {desc}")
                 entry = self._log(step.get("id", "step"), action, params)
                 
                 # Execute
                 result = method(**params)
                 
+                # Convert CommandResult to dict for logging
+                if isinstance(result, CommandResult):
+                    result = result.as_dict()
+                
                 # Log finish
                 self._finish(entry, result)
                 
                 if isinstance(result, dict) and "error" in result:
+                    self._print(f"  ✕ Step failed: {result['error']}")
                     break
             except Exception as e:
                 entry = self._log(step.get("id", "error"), action, params)
                 self._finish(entry, {"error": str(e)})
+                self._print(f"  ✕ Exception: {e}")
                 break
+
+        self._print(f"[SKILL] Finished: {skill.get('name', 'unknown')}")
 
     # ── task log internals ──────────────────────────────────────
 

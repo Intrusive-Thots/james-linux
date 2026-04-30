@@ -1,0 +1,36 @@
+{
+  "name": "sql_injection",
+  "description": "Automated SQL injection testing: crawl target URL and attempt SQLi with sqlmap.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "whatweb_fingerprint",
+      "action": "layer.run",
+      "params": {
+        "command": "whatweb -v {{target_url}}",
+        "timeout": 30
+      },
+      "description": "Fingerprint web technology stack"
+    },
+    {
+      "id": "sqlmap_crawl",
+      "action": "layer.run",
+      "params": {
+        "command": "sqlmap -u '{{target_url}}' --batch --crawl=2 --level=3 --risk=2 --threads=5 --output-dir=/tmp/james_sqlmap",
+        "timeout": 600
+      },
+      "description": "Crawl URL and test for SQL injection vulnerabilities"
+    },
+    {
+      "id": "sqlmap_dbs",
+      "action": "layer.run",
+      "params": {
+        "command": "sqlmap -u '{{target_url}}' --batch --dbs --output-dir=/tmp/james_sqlmap",
+        "timeout": 300
+      },
+      "description": "Enumerate databases if injection found"
+    }
+  ]
+}

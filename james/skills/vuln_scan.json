@@ -1,0 +1,29 @@
+{
+  "name": "vuln_scan",
+  "description": "Comprehensive vulnerability scan: nmap vuln scripts + nikto web audit.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": true,
+  "steps": [
+    {
+      "id": "nmap_vuln",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "-sV --script vuln -Pn",
+        "ports": "{{ports}}",
+        "sudo": true
+      },
+      "description": "Run nmap vulnerability detection scripts against all specified ports"
+    },
+    {
+      "id": "nikto_web",
+      "action": "layer.run",
+      "params": {
+        "command": "nikto -h http://{{target}} -o /tmp/james_nikto.html -Format htm",
+        "timeout": 600
+      },
+      "description": "Run Nikto web vulnerability scanner (output saved to /tmp/james_nikto.html)"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "name": "full_web_audit",
+  "description": "Complete web application audit: technology fingerprint, directory brute-force, nikto vuln scan, SQL injection test.",
+  "author": "james-linux",
+  "version": "1.0",
+  "requires_root": false,
+  "steps": [
+    {
+      "id": "whatweb",
+      "action": "layer.run",
+      "params": {
+        "command": "whatweb -v -a 3 {{target_url}}",
+        "timeout": 60
+      },
+      "description": "Aggressive web technology fingerprinting"
+    },
+    {
+      "id": "nmap_http",
+      "action": "nmap.scan",
+      "params": {
+        "target": "{{target}}",
+        "flags": "--script http-enum,http-title,http-headers,http-methods,http-robots.txt",
+        "ports": "{{port}}"
+      },
+      "description": "Nmap HTTP enumeration scripts"
+    },
+    {
+      "id": "gobuster",
+      "action": "layer.run",
+      "params": {
+        "command": "gobuster dir -u {{target_url}} -w /usr/share/wordlists/dirb/common.txt -t 20 -o /tmp/james_gobuster_audit.txt --no-error -q",
+        "timeout": 300
+      },
+      "description": "Directory brute-force with common wordlist"
+    },
+    {
+      "id": "nikto",
+      "action": "layer.run",
+      "params": {
+        "command": "nikto -h {{target_url}} -o /tmp/james_nikto_audit.html -Format htm",
+        "timeout": 600
+      },
+      "description": "Nikto vulnerability scan"
+    },
+    {
+      "id": "sqlmap",
+      "action": "layer.run",
+      "params": {
+        "command": "sqlmap -u '{{target_url}}' --batch --crawl=2 --level=2 --risk=1 --threads=5 --output-dir=/tmp/james_sqlmap_audit",
+        "timeout": 600
+      },
+      "description": "SQLmap automated SQL injection crawler"
+    }
+  ]
+}
