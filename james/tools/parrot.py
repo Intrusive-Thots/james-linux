@@ -5,6 +5,10 @@ from james.layers.native import NativeLayer
 class AircrackSuite:
     """Wrapper for the aircrack-ng suite tools commonly used on Parrot OS."""
 
+    # Pre-compiled regexes for performance
+    _BSSID_RE = re.compile(r"([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})")
+    _MONITOR_INTERFACE_RE = re.compile(r"enabled for \[phy\d+\](\w+)")
+
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
@@ -18,7 +22,7 @@ class AircrackSuite:
         new_interface = interface
         if "mac80211 monitor mode vif enabled for" in out:
              # Basic parse attempt to find the new interface name (e.g., wlan0mon)
-             match = re.search(r"enabled for \[phy\d+\](\w+)", out)
+             match = self._MONITOR_INTERFACE_RE.search(out)
              if match:
                  new_interface = match.group(1)
              elif f"{interface}mon" in out:
@@ -56,7 +60,7 @@ class AircrackSuite:
         for line in out.splitlines() + err.splitlines():
             # A very simplistic regex for matching BSSID and ESSID from airodump-ng output
             # Real implementation might parse the CSV output instead
-            bssid_match = re.search(r"([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})", line)
+            bssid_match = self._BSSID_RE.search(line)
             if bssid_match:
                 networks.append(line.strip())
 
