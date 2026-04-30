@@ -162,6 +162,52 @@ class AircrackSuite:
         parts.append(interface)
         return self.layer.run_background(" ".join(parts), sudo=True)
 
+    @staticmethod
+    def parse_airodump_csv(csv_content: str) -> dict:
+        """Parse the airodump-ng CSV format and return APs and Stations."""
+        aps = []
+        stations = []
+        section = 0  
+        
+        for line in csv_content.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+                
+            if line.startswith("BSSID,"):
+                section = 1
+                continue
+            elif line.startswith("Station MAC,"):
+                section = 3
+                continue
+                
+            parts = [p.strip() for p in line.split(',')]
+            if section == 1 and len(parts) >= 14:
+                bssid = parts[0]
+                try:
+                    power = int(parts[8])
+                except ValueError:
+                    power = -100
+                
+                aps.append({
+                    "bssid": bssid,
+                    "channel": parts[3],
+                    "privacy": parts[5],
+                    "power": power,
+                    "essid": parts[13] if len(parts) > 13 else ""
+                })
+            elif section == 3 and len(parts) >= 6:
+                station_mac = parts[0]
+                bssid = parts[5]
+                # Ignore unassociated clients
+                if bssid and bssid != "(not associated)":
+                    stations.append({
+                        "station_mac": station_mac,
+                        "bssid": bssid
+                    })
+                
+        return {"aps": aps, "stations": stations}
+
     # ── attacks ─────────────────────────────────────────────────
 
     def deauth(
@@ -211,6 +257,12 @@ class AircrackSuite:
             "returncode": result.returncode,
             "output": result.stdout[-2000:],  # last 2k chars
         }
+
+    def check_handshake(self, capture_file: str, bssid: str) -> bool:
+        """Check if a valid handshake exists in the capture file."""
+        cmd = f"aircrack-ng -b {bssid} {capture_file}"
+        result = self.layer.run(cmd, timeout=10)
+        return "1 handshake" in result.stdout or "WPA (1 handshake)" in result.stdout
 
 
 class Hashcat:

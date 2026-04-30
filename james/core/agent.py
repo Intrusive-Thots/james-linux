@@ -6,10 +6,19 @@ plans multi-step actions, and drives the orchestrator. Acts as the
 "AI" layer between user natural-language input and tool execution.
 """
 
+import os
 import re
+import json
 import shlex
 from dataclasses import dataclass, field
 from typing import Optional
+
+try:
+    from google import genai
+    from google.genai import types
+    HAS_GENAI = True
+except ImportError:
+    HAS_GENAI = False
 
 from james.core.orchestrator import Orchestrator
 
@@ -56,6 +65,7 @@ INTENT_PATTERNS = [
     (r"(?:system\s*check|check\s*tools?|status)", "system_check"),
     (r"(?:list|show)\s+skills?", "list_skills"),
     (r"(?:run|execute|load)\s+skill\s+(\S+)", "run_skill"),
+    (r"set\s+(\w+)\s+(.+)", "set_context"),
     (r"(?:help|commands?|what\s+can)", "help"),
     (r"(?:history|log|task\s*log)", "show_log"),
 
@@ -77,6 +87,10 @@ class Agent:
         self.orch = orchestrator
         self.context: dict = {}   # tracks session state (target, iface, etc.)
         self.history: list[dict] = []
+        self.genai_client = None
+        
+        if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
+            self.genai_client = genai.Client()
 
     def process(self, user_input: str) -> str:
         """
@@ -89,6 +103,14 @@ class Agent:
 
         self.history.append({"role": "user", "content": text})
 
+        # Try LLM first
+        if self.genai_client:
+            resp = self._process_with_llm(text)
+            if resp is not None:
+                self.history.append({"role": "agent", "content": resp})
+                return resp
+
+        # Fallback to Regex
         intent, match = self._match_intent(text)
         if intent is None:
             resp = self._fallback(text)
@@ -97,6 +119,106 @@ class Agent:
 
         self.history.append({"role": "agent", "content": resp})
         return resp
+
+    def _process_with_llm(self, text: str) -> Optional[str]:
+        try:
+            system_prompt = """You are JAMES, an autonomous pentesting agent running on Parrot OS.
+You control various pentesting tools. Map the user's natural language to the correct JSON action.
+Available Actions:
+- {"action": "quick_recon", "target": "<IP/Domain>"} -> Fast nmap scan
+- {"action": "full_scan", "target": "<IP/Domain>"} -> Deep nmap scan
+- {"action": "os_detect", "target": "<IP>"} -> OS fingerprinting
+- {"action": "list_interfaces"} -> List Wi-Fi interfaces
+- {"action": "monitor_on", "iface": "<interface>"} -> Start monitor mode
+- {"action": "monitor_off", "iface": "<interface>"} -> Stop monitor mode
+- {"action": "deauth", "bssid": "<mac>", "count": <int>} -> Send deauth frames
+- {"action": "crack_wpa", "file": "<capture_file>", "wordlist": "<path>"} -> Crack WPA
+- {"action": "crack_hash", "file": "<hash_file>", "wordlist": "<path>"} -> Crack hash
+- {"action": "run_skill", "name": "<skill_name>"} -> Run automated skill workflow (e.g., wifi_audit, full_recon, smb_audit, web_recon)
+- {"action": "set_context", "key": "<key>", "value": "<value>"} -> Set context variable
+- {"action": "chat", "message": "<text>"} -> Respond conversationally if no tool is needed
+
+Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
+"""
+            # Build conversation history for LLM context
+            contents = ""
+            for msg in self.history[-10:]:
+                role = "User" if msg["role"] == "user" else "Agent"
+                contents += f"{role}: {msg['content']}\\n"
+            
+            response = self.genai_client.models.generate_content(
+                model='gemini-2.5-pro',
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.0,
+                    response_mime_type="application/json",
+                )
+            )
+            
+            data = json.loads(response.text)
+            action = data.get("action")
+            
+            if action == "chat":
+                return data.get("message", "...")
+            elif action == "quick_recon":
+                target = data.get("target")
+                self.context["target"] = target
+                return self._format_scan(self.orch.quick_recon(target), target, "Quick")
+            elif action == "full_scan":
+                target = data.get("target")
+                self.context["target"] = target
+                return self._format_scan(self.orch.full_scan(target), target, "Full")
+            elif action == "os_detect":
+                class MockMatch:
+                    def group(self, i): return data.get("target")
+                return self._do_os_detect(MockMatch(), None)
+            elif action == "list_interfaces":
+                return self._do_list_interfaces(None, None)
+            elif action == "monitor_on":
+                class MockMatch:
+                    def group(self, i): return data.get("iface")
+                return self._do_monitor_on(MockMatch(), None)
+            elif action == "monitor_off":
+                class MockMatch:
+                    def group(self, i): return data.get("iface")
+                return self._do_monitor_off(MockMatch(), None)
+            elif action == "deauth":
+                class MockMatch:
+                    def group(self, i): 
+                        if i==1: return data.get("bssid")
+                        if i==2: return str(data.get("count", 10))
+                        return None
+                return self._do_deauth(MockMatch(), None)
+            elif action == "crack_wpa":
+                class MockMatch:
+                    def group(self, i): 
+                        if i==1: return data.get("file")
+                        if i==2: return data.get("wordlist")
+                        return None
+                return self._do_crack_wpa(MockMatch(), None)
+            elif action == "crack_hash":
+                class MockMatch:
+                    def group(self, i): 
+                        if i==1: return data.get("file")
+                        if i==2: return data.get("wordlist")
+                        return None
+                return self._do_crack_hash(MockMatch(), None)
+            elif action == "run_skill":
+                class MockMatch:
+                    def group(self, i): return data.get("name")
+                return self._do_run_skill(MockMatch(), None)
+            elif action == "set_context":
+                key = data.get("key")
+                val = data.get("value")
+                self.context[key] = val
+                return f"✅ Context updated (via AI): {key} = {val}"
+            else:
+                return None  # Let regex handle unknown actions
+        except Exception as e:
+            import logging
+            logging.error(f"LLM Error: {e}")
+            return None
 
     # ── intent matching ─────────────────────────────────────────
 
@@ -259,19 +381,42 @@ class Agent:
             lines.append(f"  ⚡ {s} — {desc}")
         return "\n".join(lines)
 
+    def _do_set_context(self, m, raw) -> str:
+        key = m.group(1).strip()
+        val = m.group(2).strip()
+        self.context[key] = val
+        return f"✅ Context updated: {key} = {val}"
+
     def _do_run_skill(self, m, raw) -> str:
         name = m.group(1).strip()
         skill = self.orch.load_skill(name)
         if "error" in skill:
             return f"[!] {skill['error']}"
-        lines = [f"⚡ Loaded skill: {skill['name']}\n"]
-        lines.append(f"  {skill.get('description', '')}\n")
-        lines.append("  Steps:")
-        for i, step in enumerate(skill.get("steps", []), 1):
-            lines.append(f"    {i}. {step['description']}")
-        lines.append("\n  ⚠️  Skill execution requires parameters.")
-        lines.append("  Use the Wi-Fi / Recon tabs or chat commands to run individual steps.")
-        return "\n".join(lines)
+        
+        # Check for required parameters
+        missing = []
+        for step in skill.get("steps", []):
+            for param_key, param_val in step.get("params", {}).items():
+                if isinstance(param_val, str) and param_val.startswith("{{") and param_val.endswith("}}"):
+                    var_name = param_val[2:-2].strip()
+                    if var_name not in self.context:
+                        missing.append(var_name)
+        
+        if missing:
+            missing = list(set(missing))
+            return (f"⚠️ Cannot start skill '{name}' because parameters are missing from context:\n"
+                    f"  {', '.join(missing)}\n\n"
+                    f"Please set them using: set <variable> <value>")
+        
+        # Launch the workflow in a separate thread so we don't block the agent
+        import threading
+        t = threading.Thread(target=self._execute_skill_steps, args=(skill,), daemon=True)
+        t.start()
+        
+        return f"⚡ Starting automated skill: {skill['name']}\n\nSwitch to the ⚡ Dashboard tab to monitor progress in the terminal."
+
+    def _execute_skill_steps(self, skill: dict):
+        self.orch.execute_skill_steps(skill, self.context)
 
     def _do_show_log(self, m, raw) -> str:
         log = self.orch.export_log()

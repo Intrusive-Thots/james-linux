@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QPlainTextEdit, QLineEdit, QPushButton, QLabel, QGroupBox,
     QGridLayout, QComboBox, QSplitter, QTableWidget, QTableWidgetItem,
-    QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame,
+    QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame, QScrollArea,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QTextCursor, QColor
@@ -61,9 +61,12 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self.append_output.connect(self._do_append)
+        
+        self.orch.on_print = self._term_print
 
-        # initial system check
+        # initial system check and load interfaces
         QTimer.singleShot(300, self._run_system_check)
+        QTimer.singleShot(400, self._refresh_interfaces)
 
     # ── UI construction ─────────────────────────────────────────
 
@@ -87,6 +90,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.chat_panel, "🤖 Agent")
 
         self.tabs.addTab(self._make_dashboard_tab(), "⚡ Dashboard")
+        self.tabs.addTab(self._make_oneclick_tab(), "🧪 One-Click Tests")
         self.tabs.addTab(self._make_recon_tab(), "🔍 Recon")
         self.tabs.addTab(self._make_wifi_tab(), "📡 Wi-Fi")
         self.tabs.addTab(self._make_cracking_tab(), "🔓 Cracking")
@@ -158,6 +162,86 @@ class MainWindow(QMainWindow):
         lay.addWidget(term_group, 2)
         return w
 
+    # ── One-Click Tests tab ─────────────────────────────────────
+
+    def _make_oneclick_tab(self) -> QWidget:
+        w = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        
+        container = QWidget()
+        lay = QVBoxLayout(container)
+        lay.setContentsMargins(12, 12, 12, 12)
+        lay.setSpacing(16)
+        
+        skills = self.orch.list_skills()
+        if not skills:
+            lay.addWidget(QLabel("No skills found in james/skills/ directory."))
+        else:
+            for skill_name in skills:
+                skill_data = self.orch.load_skill(skill_name)
+                if "error" in skill_data:
+                    continue
+                    
+                group = QGroupBox(f"{skill_data.get('name', skill_name).replace('_', ' ').title()}")
+                glay = QVBoxLayout(group)
+                
+                desc = QLabel(skill_data.get("description", ""))
+                desc.setWordWrap(True)
+                desc.setStyleSheet("color: #a0b0c0; font-style: italic;")
+                glay.addWidget(desc)
+                
+                # Extract variables
+                vars_needed = set()
+                for step in skill_data.get("steps", []):
+                    for _, v in step.get("params", {}).items():
+                        if isinstance(v, str) and v.startswith("{{") and v.endswith("}}"):
+                            vars_needed.add(v[2:-2].strip())
+                
+                input_fields = {}
+                if vars_needed:
+                    form_lay = QGridLayout()
+                    for idx, var in enumerate(sorted(vars_needed)):
+                        form_lay.addWidget(QLabel(f"{var}:"), idx, 0)
+                        inp = QLineEdit()
+                        inp.setPlaceholderText(f"Enter {var}...")
+                        form_lay.addWidget(inp, idx, 1)
+                        input_fields[var] = inp
+                    glay.addLayout(form_lay)
+                
+                btn = QPushButton("▶ Run Test")
+                btn.setStyleSheet("background-color: #2a4a3a; color: #00ff00; font-weight: bold;")
+                
+                # Use default args lambda binding trick
+                btn.clicked.connect(lambda checked=False, s=skill_data, fields=input_fields: self._run_oneclick_test(s, fields))
+                glay.addWidget(btn)
+                
+                lay.addWidget(group)
+        
+        lay.addStretch()
+        scroll.setWidget(container)
+        
+        main_lay = QVBoxLayout(w)
+        main_lay.setContentsMargins(0, 0, 0, 0)
+        main_lay.addWidget(scroll)
+        return w
+
+    def _run_oneclick_test(self, skill_data, fields):
+        context = {}
+        for var_name, line_edit in fields.items():
+            val = line_edit.text().strip()
+            if not val:
+                QMessageBox.warning(self, "Missing Input", f"Please provide a value for '{var_name}'.")
+                return
+            context[var_name] = val
+            
+        self._term_print(f"[TEST] Starting 1-click test: {skill_data.get('name')} ...")
+        w = WorkerThread(self.orch.execute_skill_steps, skill_data, context)
+        w.finished.connect(lambda _: self._term_print(f"[TEST] Finished 1-click test: {skill_data.get('name')}"))
+        w.error.connect(lambda e: self._term_print(f"[ERROR] Test failed: {e}"))
+        self._start_worker(w)
+
     # ── Recon tab ───────────────────────────────────────────────
 
     def _make_recon_tab(self) -> QWidget:
@@ -210,6 +294,11 @@ class MainWindow(QMainWindow):
         self.mon_btn = QPushButton("Enable Monitor")
         self.mon_btn.clicked.connect(self._toggle_monitor)
         iface_row.addWidget(self.mon_btn)
+
+        self.autopwn_btn = QPushButton("🔥 AutoPwn (End-to-End)")
+        self.autopwn_btn.setStyleSheet("background-color: #5a1a1a; color: #ff5555; font-weight: bold;")
+        self.autopwn_btn.clicked.connect(self._do_autopwn)
+        iface_row.addWidget(self.autopwn_btn)
 
         iface_row.addStretch()
         lay.addLayout(iface_row)
@@ -447,6 +536,26 @@ class MainWindow(QMainWindow):
         self.crack_output.setPlainText("Cracking in progress…\n")
         w = WorkerThread(self.orch.crack_handshake, cap, wl)
         w.finished.connect(self._show_crack_result)
+        self._start_worker(w)
+
+    def _do_autopwn(self):
+        iface_text = self.wifi_iface.currentText()
+        if not iface_text:
+            QMessageBox.warning(self, "No Interface", "Please select a Wi-Fi interface first.")
+            return
+        iface = iface_text.split()[0]
+        
+        # We need a wordlist
+        wordlist, _ = QFileDialog.getOpenFileName(self, "Select Wordlist for AutoPwn", "/home/malcolm/Desktop", "*")
+        if not wordlist:
+            return
+            
+        self._term_print(f"[AUTOPWN] Triggered on interface {iface} with wordlist {wordlist}")
+        self.autopwn_btn.setEnabled(False)
+        w = WorkerThread(self.orch.auto_wifi_pwn, iface, wordlist)
+        w.finished.connect(lambda r: self._term_print(f"[AUTOPWN] Workflow complete: {json.dumps(r)}"))
+        w.finished.connect(lambda _: self.autopwn_btn.setEnabled(True))
+        w.error.connect(lambda e: (self._term_print(f"[ERROR] AutoPwn failed: {e}"), self.autopwn_btn.setEnabled(True)))
         self._start_worker(w)
 
     def _do_crack_hash(self):
