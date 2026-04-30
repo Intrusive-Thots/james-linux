@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Any, List
 from james.layers.native import NativeLayer
 from james.tools.parrot import AircrackSuite
+from james.core.sedge import Node, Edge, DecisionGraph, SelfEvolvingAgent
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,24 @@ class PentestAgent:
         self.aircrack = AircrackSuite(self.layer)
         self.history: List[Dict[str, Any]] = []
         self.authorized = False
+
+        # Initialize SEDGE decision graph
+        self.graph = DecisionGraph()
+
+        # Add basic nodes for the workflow
+        self.graph.add_node(Node("START", "state"))
+        self.graph.add_node(Node("MONITOR_MODE", "action"))
+        self.graph.add_node(Node("SCAN", "action"))
+        self.graph.add_node(Node("STOP_MONITOR", "action"))
+        self.graph.add_node(Node("halt", "state"))
+
+        # Add basic edges defining the potential paths
+        self.graph.add_edge(Edge("START", "MONITOR_MODE"))
+        self.graph.add_edge(Edge("MONITOR_MODE", "SCAN"))
+        self.graph.add_edge(Edge("SCAN", "STOP_MONITOR"))
+        self.graph.add_edge(Edge("STOP_MONITOR", "halt"))
+
+        self.sedge_agent = SelfEvolvingAgent(self.graph)
 
     def request_authorization(self) -> bool:
         """Prompts the user to confirm authorization for the target scope."""
