@@ -56,6 +56,7 @@ INTENT_PATTERNS = [
     (r"(?:disable|stop|turn\s*off)\s+monitor(?:\s+(?:mode\s+)?(?:on\s+)?(\S+))?", "monitor_off"),
     (r"deauth(?:enticate)?\s+(\S+)(?:\s+(\d+))?", "deauth"),
     (r"(?:capture|sniff)\s+(?:handshake|packets?)\s+(?:on\s+)?(\S+)", "capture"),
+    (r"(?:auto\s*pwn|autopwn|auto\s*hack|auto\s*crack)(?:\s+(\S+))?", "autopwn"),
 
     # Cracking
     (r"crack\s+(?:wpa|handshake|cap)\s+(\S+)(?:\s+(?:with|using)\s+(\S+))?", "crack_wpa"),
@@ -134,6 +135,7 @@ Available Actions:
 - {"action": "deauth", "bssid": "<mac>", "count": <int>} -> Send deauth frames
 - {"action": "crack_wpa", "file": "<capture_file>", "wordlist": "<path>"} -> Crack WPA
 - {"action": "crack_hash", "file": "<hash_file>", "wordlist": "<path>"} -> Crack hash
+- {"action": "autopwn", "iface": "<interface>"} -> Fully autonomous Wi-Fi audit (recon, target, deauth, capture, crack)
 - {"action": "run_skill", "name": "<skill_name>"} -> Run automated skill workflow (e.g., wifi_audit, full_recon, smb_audit, web_recon)
 - {"action": "set_context", "key": "<key>", "value": "<value>"} -> Set context variable
 - {"action": "chat", "message": "<text>"} -> Respond conversationally if no tool is needed
@@ -256,6 +258,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     enable monitor [iface] Start monitor mode
     disable monitor [iface] Stop monitor mode
     deauth <BSSID> [count] Send deauth frames
+    autopwn [interface]    Full autonomous Wi-Fi crack (recon→target→deauth→capture→crack)
 
   🔓 Cracking
     crack wpa <file> [wordlist]   Crack WPA handshake
@@ -414,6 +417,27 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         t.start()
         
         return f"⚡ Starting automated skill: {skill['name']}\n\nSwitch to the ⚡ Dashboard tab to monitor progress in the terminal."
+
+    def _do_autopwn(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        if not iface:
+            return "[!] No interface specified. Use: autopwn <interface>\n    Or set one first: set interface wlan0"
+        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+        self.context["interface"] = iface
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.auto_wifi_pwn,
+            args=(iface, wordlist),
+            daemon=True
+        )
+        t.start()
+
+        return (f"🔥 AutoPwn launched on {iface}\n"
+                f"   Wordlist: {wordlist}\n\n"
+                f"   The workflow is running in the background.\n"
+                f"   Switch to the ⚡ Dashboard tab to watch progress in real-time.\n\n"
+                f"   💡 To change the wordlist: set wordlist /path/to/wordlist.txt")
 
     def _execute_skill_steps(self, skill: dict):
         self.orch.execute_skill_steps(skill, self.context)

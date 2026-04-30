@@ -57,6 +57,14 @@ class CrackHashRequest(BaseModel):
     wordlist: str = "/home/malcolm/Desktop/rockyou.txt"
     hash_mode: int = 0
 
+class AutoPwnRequest(BaseModel):
+    interface: str
+    wordlist: str = "/home/malcolm/Desktop/rockyou.txt"
+
+class RunSkillRequest(BaseModel):
+    name: str
+    context: dict = {}
+
 
 # ── route setup (called from app.py with dependencies) ──────────
 
@@ -147,6 +155,27 @@ def setup_routes(
             req.hash_file, req.wordlist, req.hash_mode
         )
 
+    # ── AutoPwn ──────────────────────────────────────────────────
+
+    @app_router.post("/wifi/autopwn")
+    async def wifi_autopwn(req: AutoPwnRequest, user=Depends(auth)):
+        import threading
+        result_holder = {}
+        error_holder = {}
+        done_event = threading.Event()
+
+        def _run():
+            try:
+                result_holder["data"] = orchestrator.auto_wifi_pwn(req.interface, req.wordlist)
+            except Exception as e:
+                error_holder["error"] = str(e)
+            done_event.set()
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        # For now return immediately; the client can poll /api/log for progress
+        return {"status": "started", "message": f"AutoPwn initiated on {req.interface}"}
+
     # ── Log & Skills ────────────────────────────────────────────
 
     @app_router.get("/log")
@@ -168,5 +197,19 @@ def setup_routes(
         if "error" in data:
             raise HTTPException(status_code=404, detail=data["error"])
         return data
+
+    @app_router.post("/skills/run")
+    async def run_skill(req: RunSkillRequest, user=Depends(auth)):
+        import threading
+        skill = orchestrator.load_skill(req.name)
+        if "error" in skill:
+            raise HTTPException(status_code=404, detail=skill["error"])
+        t = threading.Thread(
+            target=orchestrator.execute_skill_steps,
+            args=(skill, req.context),
+            daemon=True
+        )
+        t.start()
+        return {"status": "started", "skill": req.name}
 
     return app_router

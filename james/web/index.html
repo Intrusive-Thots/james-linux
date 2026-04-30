@@ -87,6 +87,15 @@
                     <button class="danger-btn" onclick="doDeauth()">Deauth</button>
                 </div>
                 <div id="wifi-output" class="output-area"></div>
+                <div class="card" style="margin-top:10px">
+                    <h3>🔥 AutoPwn (End-to-End)</h3>
+                    <div class="form-row">
+                        <label>Wordlist:</label>
+                        <input type="text" id="autopwn-wl" value="/home/malcolm/Desktop/rockyou.txt">
+                    </div>
+                    <button class="danger-btn" id="autopwn-btn" onclick="doAutoPwn()">🔥 Launch AutoPwn</button>
+                    <p id="autopwn-status" style="color:#ff5555;margin-top:8px"></p>
+                </div>
             </div>
 
             <!-- Cracking -->

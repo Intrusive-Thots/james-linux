@@ -279,6 +279,40 @@ function wifiLog(text) {
     el.scrollTop = el.scrollHeight;
 }
 
+async function doAutoPwn() {
+    const iface = document.getElementById('wifi-iface').value;
+    const wl = document.getElementById('autopwn-wl').value.trim();
+    if (!iface) { wifiLog('Select an interface first.'); return; }
+    if (!wl) { wifiLog('Enter a wordlist path.'); return; }
+
+    const btn = document.getElementById('autopwn-btn');
+    const status = document.getElementById('autopwn-status');
+    btn.disabled = true;
+    status.textContent = 'AutoPwn running… Check the Log tab for live progress.';
+    wifiLog('[AUTOPWN] Launching autonomous Wi-Fi audit…');
+
+    try {
+        const data = await apiFetch('/api/wifi/autopwn', 'POST', { interface: iface, wordlist: wl });
+        wifiLog('[AUTOPWN] ' + (data.message || 'Started'));
+        // Start polling the log
+        const pollId = setInterval(async () => {
+            try {
+                const log = await apiFetch('/api/log', 'GET');
+                const last = log[log.length - 1];
+                if (last) {
+                    status.textContent = `[${last.status}] ${last.action} (${last.tool})`;
+                }
+            } catch (_) {}
+        }, 3000);
+        // Stop polling after 3 minutes max
+        setTimeout(() => { clearInterval(pollId); btn.disabled = false; status.textContent += ' (monitoring stopped)'; }, 180000);
+    } catch (e) {
+        wifiLog('[ERROR] ' + e.message);
+        btn.disabled = false;
+        status.textContent = 'Failed: ' + e.message;
+    }
+}
+
 /* ── Cracking ──────────────────────────────────────────────── */
 
 async function doCrackWpa() {
