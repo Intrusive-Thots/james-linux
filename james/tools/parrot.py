@@ -6,10 +6,8 @@ Each wrapper executes via NativeLayer and parses raw output into
 dictionaries suitable for the AI orchestrator or the GUI.
 """
 
-import json
 import re
 import xml.etree.ElementTree as ET
-from typing import Optional
 
 from james.layers.native import NativeLayer, CommandResult
 
@@ -24,7 +22,7 @@ class Nmap:
         self,
         target: str,
         *,
-        ports: Optional[str] = None,
+        ports: str | None = None,
         flags: str = "-sV",
         sudo: bool = False,
         timeout: int = 300,
@@ -143,9 +141,9 @@ class AircrackSuite:
         self,
         interface: str,
         *,
-        channel: Optional[int] = None,
-        bssid: Optional[str] = None,
-        write_prefix: Optional[str] = None,
+        channel: int | None = None,
+        bssid: str | None = None,
+        write_prefix: str | None = None,
     ):
         """
         Start airodump-ng in the background. Returns the Popen handle.
@@ -170,7 +168,7 @@ class AircrackSuite:
         bssid: str,
         *,
         count: int = 10,
-        client: Optional[str] = None,
+        client: str | None = None,
     ) -> CommandResult:
         """Send deauthentication frames."""
         client_arg = f"-c {client}" if client else ""
@@ -184,7 +182,7 @@ class AircrackSuite:
         capture_file: str,
         wordlist: str,
         *,
-        bssid: Optional[str] = None,
+        bssid: str | None = None,
     ) -> dict:
         """
         Run aircrack-ng against a capture file.
@@ -225,7 +223,7 @@ class Hashcat:
         wordlist: str,
         *,
         hash_mode: int = 0,
-        rules: Optional[str] = None,
+        rules: str | None = None,
         timeout: int = 600,
     ) -> dict:
         rules_arg = f"-r {rules}" if rules else ""
@@ -256,8 +254,8 @@ class John:
         self,
         hash_file: str,
         *,
-        wordlist: Optional[str] = None,
-        fmt: Optional[str] = None,
+        wordlist: str | None = None,
+        fmt: str | None = None,
         timeout: int = 600,
     ) -> dict:
         parts = ["john"]
