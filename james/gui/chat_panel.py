@@ -5,12 +5,12 @@ Renders a scrollable chat log with user/agent message bubbles,
 a command input with history, and real-time streaming responses.
 """
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
     QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer
-from PyQt5.QtGui import QFont, QTextCursor, QColor
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer
+from PyQt6.QtGui import QFont, QTextCursor, QColor
 
 from james.core.agent import Agent
 from james.core.orchestrator import Orchestrator
@@ -74,7 +74,7 @@ class ChatPanel(QWidget):
 
         # ── divider ─────────────────────────────────────────────
         divider = QFrame()
-        divider.setFrameShape(QFrame.HLine)
+        divider.setFrameShape(QFrame.Shape.HLine)
         divider.setStyleSheet("background-color: #1a2940; max-height: 1px;")
         layout.addWidget(divider)
 
@@ -136,7 +136,7 @@ class ChatPanel(QWidget):
             '</div>'
         )
         self.chat_log.append(html)
-        self.chat_log.moveCursor(QTextCursor.End)
+        self.chat_log.moveCursor(QTextCursor.MoveOperation.End)
 
     def _append_system_msg(self, text: str):
         html = (
@@ -152,7 +152,7 @@ class ChatPanel(QWidget):
             '⏳ JAMES is working…</div>'
         )
         self.chat_log.append(html)
-        self.chat_log.moveCursor(QTextCursor.End)
+        self.chat_log.moveCursor(QTextCursor.MoveOperation.End)
 
     def _remove_thinking(self):
         """Remove the thinking indicator by clearing and re-rendering."""

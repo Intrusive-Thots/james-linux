@@ -25,8 +25,8 @@ logger = logging.getLogger("james")
 
 
 def run_gui():
-    """Launch the PyQt5 desktop GUI."""
-    from PyQt5.QtWidgets import QApplication
+    """Launch the PyQt6 desktop GUI."""
+    from PyQt6.QtWidgets import QApplication
     from james.gui.main_window import MainWindow
     from james.gui.theme import DARK_STYLESHEET
 
@@ -36,7 +36,7 @@ def run_gui():
 
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 def run_server():

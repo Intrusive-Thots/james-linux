@@ -8,11 +8,20 @@ dictionaries suitable for the AI orchestrator or the GUI.
 
 import json
 import re
+import shlex
 import xml.etree.ElementTree as ET
 from typing import Optional
 
 from james.layers.native import NativeLayer, CommandResult
-
+from james.tools.constants import (
+    BSSID_RE,
+    DEFAULT_TIMEOUT_NMAP,
+    DEFAULT_TIMEOUT_QUICK_NMAP,
+    DEFAULT_TIMEOUT_AIRCRACK,
+    DEFAULT_TIMEOUT_HASHCAT,
+    DEFAULT_TIMEOUT_JOHN,
+    DEFAULT_DEAUTH_COUNT,
+)
 
 class Nmap:
     """Wrapper around nmap with XML-based structured output."""
@@ -27,15 +36,15 @@ class Nmap:
         ports: Optional[str] = None,
         flags: str = "-sV",
         sudo: bool = False,
-        timeout: int = 300,
+        timeout: int = DEFAULT_TIMEOUT_NMAP,
     ) -> dict:
         """
         Run an nmap scan and return structured results.
 
         Returns dict with keys: command, hosts[], scan_info.
         """
-        port_arg = f"-p {ports}" if ports else ""
-        cmd = f"nmap {flags} {port_arg} -oX - {target}"
+        port_arg = f"-p {shlex.quote(ports)}" if ports else ""
+        cmd = f"nmap {flags} {port_arg} -oX - {shlex.quote(target)}"
         result = self.layer.run(cmd, sudo=sudo, timeout=timeout)
         if not result.success:
             return {"error": result.stderr, "raw": result.stdout, "command": cmd}
@@ -43,11 +52,11 @@ class Nmap:
 
     def quick_scan(self, target: str, sudo: bool = False) -> dict:
         """Fast top-100 port scan."""
-        return self.scan(target, flags="-T4 -F", sudo=sudo, timeout=120)
+        return self.scan(target, flags="-T4 -F", sudo=sudo, timeout=DEFAULT_TIMEOUT_QUICK_NMAP)
 
     def os_detect(self, target: str) -> dict:
         """OS detection scan (requires root)."""
-        return self.scan(target, flags="-O -sV", sudo=True, timeout=300)
+        return self.scan(target, flags="-O -sV", sudo=True, timeout=DEFAULT_TIMEOUT_NMAP)
 
     @staticmethod
     def _parse_xml(xml_str: str, cmd: str) -> dict:
@@ -102,6 +111,11 @@ class AircrackSuite:
 
     def __init__(self, layer: NativeLayer):
         self.layer = layer
+        # Interface name validation regex
+        self._iface_re = re.compile(r"^[a-zA-Z0-9._][a-zA-Z0-9._-]*$")
+
+    def _validate_iface(self, interface: str) -> bool:
+        return bool(self._iface_re.match(interface))
 
     # ── interface management ────────────────────────────────────
 
@@ -127,11 +141,15 @@ class AircrackSuite:
 
     def enable_monitor(self, interface: str) -> CommandResult:
         """Put an interface into monitor mode via airmon-ng."""
-        return self.layer.run(f"airmon-ng start {interface}", sudo=True, timeout=30)
+        if not self._validate_iface(interface):
+             return CommandResult(f"airmon-ng start {interface}", -1, "", "Invalid interface name")
+        return self.layer.run(f"airmon-ng start {shlex.quote(interface)}", sudo=True, timeout=30)
 
     def disable_monitor(self, interface: str) -> CommandResult:
         """Restore managed mode via airmon-ng."""
-        return self.layer.run(f"airmon-ng stop {interface}", sudo=True, timeout=30)
+        if not self._validate_iface(interface):
+             return CommandResult(f"airmon-ng stop {interface}", -1, "", "Invalid interface name")
+        return self.layer.run(f"airmon-ng stop {shlex.quote(interface)}", sudo=True, timeout=30)
 
     def check_kill(self) -> CommandResult:
         """Kill processes that might interfere with monitor mode."""
@@ -152,14 +170,18 @@ class AircrackSuite:
 
         The caller should use NativeLayer.kill_background(proc) to stop it.
         """
+        if not self._validate_iface(interface):
+            raise ValueError(f"Invalid interface name: {interface}")
         parts = ["airodump-ng"]
         if channel:
             parts.append(f"--channel {channel}")
         if bssid:
-            parts.append(f"--bssid {bssid}")
+            if not BSSID_RE.match(bssid):
+                raise ValueError("Invalid BSSID format")
+            parts.append(f"--bssid {shlex.quote(bssid)}")
         if write_prefix:
-            parts.append(f"-w {write_prefix}")
-        parts.append(interface)
+            parts.append(f"-w {shlex.quote(write_prefix)}")
+        parts.append(shlex.quote(interface))
         return self.layer.run_background(" ".join(parts), sudo=True)
 
     # ── attacks ─────────────────────────────────────────────────
@@ -169,12 +191,16 @@ class AircrackSuite:
         interface: str,
         bssid: str,
         *,
-        count: int = 10,
+        count: int = DEFAULT_DEAUTH_COUNT,
         client: Optional[str] = None,
     ) -> CommandResult:
         """Send deauthentication frames."""
-        client_arg = f"-c {client}" if client else ""
-        cmd = f"aireplay-ng -0 {count} -a {bssid} {client_arg} {interface}"
+        if not self._validate_iface(interface):
+            return CommandResult(f"aireplay-ng", -1, "", "Invalid interface name")
+        if not BSSID_RE.match(bssid):
+            return CommandResult("aireplay-ng", -1, "", "Invalid BSSID format")
+        client_arg = f"-c {shlex.quote(client)}" if client else ""
+        cmd = f"aireplay-ng -0 {count} -a {shlex.quote(bssid)} {client_arg} {shlex.quote(interface)}"
         return self.layer.run(cmd, sudo=True, timeout=60)
 
     # ── cracking ────────────────────────────────────────────────
@@ -190,9 +216,13 @@ class AircrackSuite:
         Run aircrack-ng against a capture file.
         Returns dict with 'found', 'key', and raw output.
         """
-        bssid_arg = f"-b {bssid}" if bssid else ""
-        cmd = f"aircrack-ng {bssid_arg} -w {wordlist} {capture_file}"
-        result = self.layer.run(cmd, timeout=600)
+        bssid_arg = ""
+        if bssid:
+            if not BSSID_RE.match(bssid):
+                return {"error": "Invalid BSSID format", "command": ""}
+            bssid_arg = f"-b {shlex.quote(bssid)}"
+        cmd = f"aircrack-ng {bssid_arg} -w {shlex.quote(wordlist)} {shlex.quote(capture_file)}"
+        result = self.layer.run(cmd, timeout=DEFAULT_TIMEOUT_AIRCRACK)
 
         found = False
         key = ""
@@ -226,10 +256,10 @@ class Hashcat:
         *,
         hash_mode: int = 0,
         rules: Optional[str] = None,
-        timeout: int = 600,
+        timeout: int = DEFAULT_TIMEOUT_HASHCAT,
     ) -> dict:
-        rules_arg = f"-r {rules}" if rules else ""
-        cmd = f"hashcat -m {hash_mode} {rules_arg} {hash_file} {wordlist} --force"
+        rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
+        cmd = f"hashcat -m {hash_mode} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force"
         result = self.layer.run(cmd, timeout=timeout)
         return {
             "command": cmd,
@@ -241,7 +271,7 @@ class Hashcat:
     def identify_hash(self, hash_value: str) -> dict:
         """Use hashcat's built-in hash identification (--identify)."""
         # hashcat 6.2.6+ supports --identify
-        cmd = f"echo {hash_value!r} | hashcat --identify"
+        cmd = f"echo {shlex.quote(hash_value)} | hashcat --identify"
         result = self.layer.run(cmd, timeout=30)
         return {"output": result.stdout, "stderr": result.stderr}
 
@@ -258,14 +288,14 @@ class John:
         *,
         wordlist: Optional[str] = None,
         fmt: Optional[str] = None,
-        timeout: int = 600,
+        timeout: int = DEFAULT_TIMEOUT_JOHN,
     ) -> dict:
         parts = ["john"]
         if wordlist:
-            parts.append(f"--wordlist={wordlist}")
+            parts.append(f"--wordlist={shlex.quote(wordlist)}")
         if fmt:
-            parts.append(f"--format={fmt}")
-        parts.append(hash_file)
+            parts.append(f"--format={shlex.quote(fmt)}")
+        parts.append(shlex.quote(hash_file))
         cmd = " ".join(parts)
         result = self.layer.run(cmd, timeout=timeout)
         return {
@@ -276,5 +306,5 @@ class John:
 
     def show(self, hash_file: str) -> dict:
         """Show already-cracked passwords."""
-        result = self.layer.run(f"john --show {hash_file}", timeout=30)
+        result = self.layer.run(f"john --show {shlex.quote(hash_file)}", timeout=30)
         return {"output": result.stdout}

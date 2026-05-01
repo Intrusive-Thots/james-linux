@@ -1,5 +1,5 @@
 """
-JAMES Dashboard — main PyQt5 window.
+JAMES Dashboard — main PyQt6 window.
 
 Panels:
   • System Status  — tool availability, interfaces
@@ -12,14 +12,14 @@ import json
 import threading
 from datetime import datetime
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QPlainTextEdit, QLineEdit, QPushButton, QLabel, QGroupBox,
     QGridLayout, QComboBox, QSplitter, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame,
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
-from PyQt5.QtGui import QFont, QTextCursor, QColor
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
+from PyQt6.QtGui import QFont, QTextCursor, QColor
 
 from james.core.orchestrator import Orchestrator
 from james.gui.chat_panel import ChatPanel
@@ -184,7 +184,7 @@ class MainWindow(QMainWindow):
         # results table
         self.recon_table = QTableWidget(0, 5)
         self.recon_table.setHorizontalHeaderLabels(["Host", "Port", "State", "Service", "Version"])
-        self.recon_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.recon_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         lay.addWidget(self.recon_table)
 
         return w
@@ -307,7 +307,7 @@ class MainWindow(QMainWindow):
 
         self.log_table = QTableWidget(0, 5)
         self.log_table.setHorizontalHeaderLabels(["Time", "Action", "Tool", "Status", "Details"])
-        self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         lay.addWidget(self.log_table)
 
         export_btn = QPushButton("Export Log (JSON)")
@@ -505,7 +505,7 @@ class MainWindow(QMainWindow):
 
     def _do_append(self, text: str):
         self.terminal.appendPlainText(text)
-        self.terminal.moveCursor(QTextCursor.End)
+        self.terminal.moveCursor(QTextCursor.MoveOperation.End)
         self.status.showMessage(text[:120])
         # also refresh log table
         self._refresh_log_table()
