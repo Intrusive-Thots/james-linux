@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Dict
+
 
 @dataclass
 class Node:
     id: str
     state_type: str  # e.g., "scan", "analysis", "action"
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
+
 
 @dataclass
 class Edge:

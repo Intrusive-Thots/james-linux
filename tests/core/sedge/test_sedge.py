@@ -5,6 +5,7 @@ from james.core.sedge.graph import DecisionGraph
 from james.core.sedge.engine import LearningEngine, DecisionEngine
 from james.core.sedge.agent import SelfEvolvingAgent
 
+
 class TestSEDGE(unittest.TestCase):
     def setUp(self):
         self.graph = DecisionGraph()
@@ -81,6 +82,7 @@ class TestSEDGE(unittest.TestCase):
         # Verify learning happened
         self.assertEqual(self.edge_start_scan.visits, 1)
         self.assertEqual(self.edge_start_scan.success_weight, 2.0)
+
 
 if __name__ == "__main__":
     unittest.main()

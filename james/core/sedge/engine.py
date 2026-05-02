@@ -1,9 +1,9 @@
 import random
-from typing import List, Optional
 from .graph import DecisionGraph
 
+
 class LearningEngine:
-    def update(self, graph: DecisionGraph, path: List[str], success: bool):
+    def update(self, graph: DecisionGraph, path: list[str], success: bool):
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
             edges = graph.edges.get(frm, [])
@@ -15,11 +15,12 @@ class LearningEngine:
                     else:
                         e.failure_weight += 1.0
 
+
 class DecisionEngine:
     def __init__(self, graph: DecisionGraph):
         self.graph = graph
 
-    def decide(self, current_node: str) -> Optional[str]:
+    def decide(self, current_node: str) -> str | None:
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
             return None
@@ -30,8 +31,8 @@ class DecisionEngine:
 
         # Prevent division by zero if all weights are zero
         if total == 0:
-             probs = [1.0 / len(weights) for _ in weights]
+            probs = [1.0 / len(weights) for _ in weights]
         else:
-             probs = [w / total for w in weights]
+            probs = [w / total for w in weights]
 
         return random.choices(candidates, weights=probs)[0].to_node
