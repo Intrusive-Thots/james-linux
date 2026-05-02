@@ -40,6 +40,22 @@ JAMES includes a built-in web dashboard that works on any device with a browser:
 The web dashboard can be installed as a **PWA** (Add to Home Screen) on Android/Windows
 for a native app experience.
 
+## Multi-Agent Mode
+
+JAMES now features a multi-agent orchestration mode powered by `CrewAI` and the `Model Context Protocol` (MCP). This mode allows specialized AI agents to collaborate on complex pentesting workflows like a full Wi-Fi audit.
+
+To trigger the multi-agent Wi-Fi audit:
+1. In the chat panel, run: `audit wifi <target_essid>`
+2. Via the API, use the `/api/crews/run` endpoint:
+   ```bash
+   curl -X POST https://<your-parrot-ip>:8443/api/crews/run \
+     -H "Authorization: Bearer <your-token>" \
+     -d '{"crew": "wifi_pentest", "target": "target_essid"}'
+   ```
+
+### Human-in-the-Loop Integration
+Dangerous operations like `aireplay_deauth` are paused and prompt the user in the desktop GUI before execution. All authorizations are logged into an SQLite database (`approvals.db`) for auditing.
+
 ## Architecture
 
 ```
@@ -54,10 +70,17 @@ for a native app experience.
 │        │                  │                 │
 │        ▼                  ▼                 │
 │  ┌─────────────────────────────────┐        │
-│  │  Orchestrator + Agent Brain     │        │
-│  │  ┌──────┐ ┌─────────┐ ┌──────┐ │        │
-│  │  │ nmap │ │aircrack │ │ john │ │        │
-│  │  └──────┘ └─────────┘ └──────┘ │        │
+│  │  Crew Orchestrator + Agent Brain│        │
+│  │  ┌───────────────────────────┐  │        │
+│  │  │        CrewAI Agents      │  │        │
+│  │  └──────┬──────┬──────┬──────┘  │        │
+│  │         │      │      │         │        │
+│  │  ┌──────▼──────▼──────▼──────┐  │        │
+│  │  │       MCP Tool Servers    │  │        │
+│  │  └──────┬──────┬──────┬──────┘  │        │
+│  │  ┌──────▼┐ ┌───▼─────┐┌─────▼┐  │        │
+│  │  │ nmap  │ │aircrack ││hashcat│ │        │
+│  │  └───────┘ └─────────┘└───────┘ │        │
 │  └─────────────────────────────────┘        │
 └─────────────────────────────────────────────┘
 ```
@@ -124,6 +147,7 @@ james-linux/
 | POST | `/api/wifi/deauth` | Send deauth frames |
 | POST | `/api/crack/wpa` | Crack WPA handshake |
 | POST | `/api/crack/hash` | Crack hash file |
+| POST | `/api/crews/run` | Run multi-agent crew |
 | GET | `/api/log` | Task log |
 | WS | `/ws` | Real-time WebSocket |
 

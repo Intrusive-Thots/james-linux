@@ -1,0 +1,20 @@
+recon_task:
+  description: >
+    Run a Wi-Fi scan to identify available networks. Look for the target ESSID "{target}" and extract its BSSID and channel.
+  expected_output: >
+    A JSON object containing the target BSSID and channel.
+  agent: wifi_recon_agent
+
+capture_task:
+  description: >
+    Using the BSSID and channel identified in the recon phase, capture a WPA handshake. You may need to send deauth packets to force a handshake.
+  expected_output: >
+    The path to the captured handshake file (.cap or .pcap).
+  agent: handshake_capturer_agent
+
+crack_task:
+  description: >
+    Crack the captured handshake using the provided capture file. Use a small test wordlist to demonstrate capability.
+  expected_output: >
+    The cracked plain text password.
+  agent: cracking_strategist_agent

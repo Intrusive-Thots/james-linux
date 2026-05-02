@@ -34,6 +34,9 @@ class AgentPlan:
 # ── intent patterns ─────────────────────────────────────────────
 
 INTENT_PATTERNS = [
+    # Multi-agent flows
+    (r"(?:audit|crew|multi-agent)\s+wifi\s+(.+)", "wifi_audit"),
+
     # Recon / scanning
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
     (r"(?:quick\s*scan|fast\s*scan)\s+(.+)", "quick_recon"),
@@ -77,6 +80,8 @@ class Agent:
         self.orch = orchestrator
         self.context: dict = {}   # tracks session state (target, iface, etc.)
         self.history: list[dict] = []
+        from james.core.crew_orchestrator import CrewOrchestrator
+        self.crew_orch = CrewOrchestrator()
 
     def process(self, user_input: str) -> str:
         """
@@ -290,6 +295,11 @@ class Agent:
         if len(output) > 3000:
             output = output[:3000] + "\n... (truncated)"
         return f"$ {cmd}\n{output}" if output else f"$ {cmd}\n(no output)"
+
+    def _do_wifi_audit(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+        return self.crew_orch.run_wifi_audit(target)
 
     # ── helpers ─────────────────────────────────────────────────
 
