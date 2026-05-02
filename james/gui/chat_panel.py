@@ -7,10 +7,11 @@ a command input with history, and real-time streaming responses.
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
-    QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
+    QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy, QMessageBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer, pyqtSlot
 from PyQt5.QtGui import QFont, QTextCursor, QColor
+import json
 
 from james.core.agent import Agent
 from james.core.orchestrator import Orchestrator
@@ -20,6 +21,7 @@ class AgentWorker(QThread):
     """Run agent.process() off the GUI thread."""
     result_ready = pyqtSignal(str)
     error = pyqtSignal(str)
+    request_approval_signal = pyqtSignal(str, dict, list)
 
     def __init__(self, agent: Agent, user_input: str):
         super().__init__()
@@ -28,6 +30,22 @@ class AgentWorker(QThread):
 
     def run(self):
         try:
+            # Re-assign the hitl_callback for the crew_orch to use our signaling mechanism
+            if hasattr(self.agent, 'crew_orch'):
+                import time
+                def _hitl_callback(tool_name: str, args: dict) -> bool:
+                    result_container = []
+                    self.request_approval_signal.emit(tool_name, args, result_container)
+
+                    # Wait for UI to process the modal
+                    timeout = 60 # 1 minute timeout for approval
+                    start = time.time()
+                    while not result_container and time.time() - start < timeout:
+                        time.sleep(0.1)
+
+                    return result_container[0] if result_container else False
+                self.agent.crew_orch.hitl_callback = _hitl_callback
+
             response = self.agent.process(self.user_input)
             self.result_ready.emit(response)
         except Exception as e:
@@ -52,6 +70,18 @@ class ChatPanel(QWidget):
         self._build_ui()
         # show welcome message on load
         QTimer.singleShot(200, self._show_welcome)
+
+    @pyqtSlot(str, dict, list)
+    def _handle_approval_request(self, tool_name: str, args: dict, result_container: list):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Approval Required")
+        msg.setText(f"The agent is requesting to execute a dangerous tool: {tool_name}")
+        msg.setInformativeText(f"Arguments: {json.dumps(args, indent=2)}\n\nDo you approve?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+
+        reply = msg.exec_()
+        result_container.append(reply == QMessageBox.Yes)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -176,6 +206,7 @@ class ChatPanel(QWidget):
 
         # run agent in background thread
         worker = AgentWorker(self.agent, text)
+        worker.request_approval_signal.connect(self._handle_approval_request)
         worker.result_ready.connect(self._on_response)
         worker.error.connect(self._on_error)
         self._workers.append(worker)

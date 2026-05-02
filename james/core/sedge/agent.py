@@ -1,7 +1,6 @@
-from typing import Optional
+from .graph import DecisionGraph
+from .engine import DecisionEngine, LearningEngine
 
-from james.core.sedge.graph import DecisionGraph
-from james.core.sedge.engine import DecisionEngine, LearningEngine
 
 class SelfEvolvingAgent:
     def __init__(self, graph: DecisionGraph):
@@ -12,7 +11,7 @@ class SelfEvolvingAgent:
         self.current_node = "START"
         self.current_path = ["START"]
 
-    def step(self, success_signal: Optional[bool] = None) -> str:
+    def step(self, success_signal=None):
         next_node = self.decision_engine.decide(self.current_node)
 
         if not next_node:
