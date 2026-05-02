@@ -1,9 +1,9 @@
 import random
-from typing import List, Optional
+from james.tools.constants import WEIGHT_INCREMENT
 from .graph import DecisionGraph
 
 class LearningEngine:
-    def update(self, graph: DecisionGraph, path: List[str], success: bool):
+    def update(self, graph: DecisionGraph, path: list[str], success: bool):
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
             edges = graph.edges.get(frm, [])
@@ -11,15 +11,15 @@ class LearningEngine:
                 if e.to_node == to:
                     e.visits += 1
                     if success:
-                        e.success_weight += 1.0
+                        e.success_weight += WEIGHT_INCREMENT
                     else:
-                        e.failure_weight += 1.0
+                        e.failure_weight += WEIGHT_INCREMENT
 
 class DecisionEngine:
     def __init__(self, graph: DecisionGraph):
         self.graph = graph
 
-    def decide(self, current_node: str) -> Optional[str]:
+    def decide(self, current_node: str) -> str | None:
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
             return None
