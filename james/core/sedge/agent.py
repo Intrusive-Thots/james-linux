@@ -1,6 +1,7 @@
 from .graph import DecisionGraph
 from .engine import DecisionEngine, LearningEngine
 
+
 class SelfEvolvingAgent:
     def __init__(self, graph: DecisionGraph):
         self.graph = graph

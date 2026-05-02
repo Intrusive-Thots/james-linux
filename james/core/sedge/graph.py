@@ -1,5 +1,5 @@
-from typing import Optional
 from .models import Node, Edge
+
 
 class DecisionGraph:
     def __init__(self):
@@ -12,7 +12,7 @@ class DecisionGraph:
     def add_edge(self, edge: Edge):
         self.edges.setdefault(edge.from_node, []).append(edge)
 
-    def get_best_next(self, node_id: str) -> Optional[Edge]:
+    def get_best_next(self, node_id: str) -> Edge | None:
         edges = self.edges.get(node_id, [])
         if not edges:
             return None
