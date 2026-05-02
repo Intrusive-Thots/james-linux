@@ -38,6 +38,10 @@ class TargetRequest(BaseModel):
     target: str
     ports: Optional[str] = None
 
+class CrewRunRequest(BaseModel):
+    crew: str
+    target: str
+
 class MonitorRequest(BaseModel):
     interface: str
     action: str = "enable"  # enable | disable
@@ -101,6 +105,16 @@ def setup_routes(
     async def system_info(user=Depends(auth)):
         result = orchestrator.layer.run("uname -a", timeout=10)
         return {"uname": result.stdout.strip()}
+
+    # ── Crews ───────────────────────────────────────────────────
+
+    @app_router.post("/crews/run")
+    async def crew_run(req: CrewRunRequest, user=Depends(auth)):
+        if req.crew == "wifi_pentest":
+            from james.core.crew_orchestrator import CrewOrchestrator
+            crew_orch = CrewOrchestrator()
+            return {"result": crew_orch.run_wifi_audit(req.target)}
+        raise HTTPException(status_code=400, detail="Unknown crew")
 
     # ── Recon ───────────────────────────────────────────────────
 
