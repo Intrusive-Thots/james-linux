@@ -52,6 +52,7 @@ INTENT_PATTERNS = [
     (r"(?:ssl|tls)\s+(?:scan|check|audit)\s+(.+)", "ssl_scan"),
     (r"(?:web\s*scan|nikto)\s+(.+)", "web_scan"),
     (r"(?:waf|firewall)\s+(?:detect|check|scan)\s+(.+)", "waf_detect"),
+    (r"(?:scan\s*aps|nearby\s*aps|nearby\s*networks|show\s*aps)(?:\s+(\S+))?", "scan_aps"),
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
     # Wi-Fi
@@ -61,6 +62,13 @@ INTENT_PATTERNS = [
     (r"deauth(?:enticate)?\s+(\S+)(?:\s+(\d+))?", "deauth"),
     (r"(?:capture|sniff)\s+(?:handshake|packets?)\s+(?:on\s+)?(\S+)", "capture"),
     (r"(?:auto\s*pwn|autopwn|auto\s*hack|auto\s*crack)(?:\s+(\S+))?", "autopwn"),
+
+    # One-Click Hacks
+    (r"(?:wifi\s*blitz|blitz\s*wifi|wifi\s*nuke)(?:\s+(\S+))?", "oneclick_wifi_blitz"),
+    (r"(?:network\s*dominate|dominate|net\s*dominate|net\s*pwn)\s+(\S+)", "oneclick_network_dominate"),
+    (r"(?:web\s*pwn|web\s*hack|web\s*nuke)\s+(\S+)", "oneclick_web_pwn"),
+    (r"(?:stealth\s*recon|passive\s*recon|silent\s*recon)\s+(\S+)", "oneclick_stealth_recon"),
+    (r"(?:evil\s*twin|rogue\s*ap)(?:\s+(\S+))?", "oneclick_evil_twin"),
 
     # OSINT
     (r"(?:osint|harvest|recon\s*domain|domain\s*recon)\s+(\S+)", "osint"),
@@ -95,6 +103,7 @@ INTENT_PATTERNS = [
     (r"(?:help|commands?|what\s+can)", "help"),
     (r"(?:history|log|task\s*log)", "show_log"),
     (r"(?:report|generate\s*report|export\s*report)", "report"),
+    (r"(?:show\s*loot|loot|cracked|captured\s*keys|show\s*keys)", "show_loot"),
     (r"(?:clear|reset)", "clear"),
 
     # Direct command passthrough
@@ -321,6 +330,13 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     history                Show task log
     set <key> <value>      Set context variable
     clear                  Reset session context
+
+  🎯 One-Click Hacks (autonomous attack chains)
+    wifi blitz [iface]     PMKID → Handshake → WPS (all vectors)
+    network dominate <range> Scan → Fingerprint → Brute → Vulns
+    web pwn <url>          WAF → DirBust → SQLi → SSL → Nikto
+    stealth recon <target> OSINT → DNS → WHOIS → Scan (passive)
+    evil twin [iface]      Rogue AP clone + credential capture
 
   💻 Shell
     ! <command>            Run a raw shell command
@@ -747,6 +763,34 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                 f"   Tools: {installed}/{len(status)} installed\n"
                 f"   Skills: {len(skills)} available")
 
+    def _do_show_loot(self, m, raw) -> str:
+        loot = self.orch.get_loot_summary()
+        if loot["cracked_count"] == 0:
+            return "🔑 No cracked keys in the loot cache yet.\nRun a wifi blitz or crack to populate."
+        lines = [f"🔑 Cracked Keys ({loot['cracked_count']}):"]
+        for entry in loot["keys"]:
+            lines.append(f"  • {entry['essid'] or entry['id']}: {entry['key']}  [{entry['method']}]  ({entry['when'][:10]})")
+        return "\n".join(lines)
+
+    def _do_scan_aps(self, m, raw) -> str:
+        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface")
+        if not iface:
+            return "[!] No interface specified. Use: scan aps wlan0mon"
+        result = self.orch.scan_nearby_aps(iface)
+        aps = result.get("aps", [])
+        if not aps:
+            return f"No access points found near {iface}. Is monitor mode enabled?"
+        lines = [f"📡 Found {len(aps)} access points:"]
+        lines.append(f"{'BSSID':<20} {'ESSID':<25} {'CH':>3} {'PWR':>5}  {'ENC'}")
+        lines.append("─" * 70)
+        for ap in aps[:20]:
+            pwr = ap.get('power', -100)
+            bars = "█" * max(0, min(5, (pwr + 100) // 15))
+            lines.append(f"{ap.get('bssid',''):<20} {ap.get('essid',''):<25} {ap.get('channel',''):>3} {pwr:>4}  {ap.get('privacy','')}  {bars}")
+        if len(aps) > 20:
+            lines.append(f"  ... and {len(aps) - 20} more")
+        return "\n".join(lines)
+
     def _do_clear(self, m, raw) -> str:
         self.context.clear()
         self.history.clear()
@@ -761,6 +805,112 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             sudo=True, timeout=35
         )
         return f"📡 Capture on {iface} complete.\n  Output: /tmp/james_capture-01.csv"
+
+    # ── one-click hack handlers ─────────────────────────────────
+
+    def _do_oneclick_wifi_blitz(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        if not iface:
+            return "[!] No interface specified. Use: wifi blitz <interface>\n    Or: set interface wlan0"
+        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+        self.context["interface"] = iface
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.oneclick_wifi_blitz,
+            args=(iface, wordlist),
+            daemon=True
+        )
+        t.start()
+
+        return (f"🔥 Wi-Fi Blitz launched on {iface}\n\n"
+                f"   Multi-vector attack: PMKID → Handshake → WPS Pixie Dust\n"
+                f"   Wordlist: {wordlist}\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.\n\n"
+                f"   💡 To change wordlist: set wordlist /path/to/file.txt")
+
+    def _do_oneclick_network_dominate(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.oneclick_network_dominate,
+            args=(target,),
+            daemon=True
+        )
+        t.start()
+
+        return (f"💀 Network Dominate launched → {target}\n\n"
+                f"   Discovery → Fingerprint → Brute-force → Vuln analysis\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_oneclick_web_pwn(self, m, raw) -> str:
+        url = m.group(1).strip()
+        self.context["target_url"] = url
+        self.context["target"] = url
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.oneclick_web_pwn,
+            args=(url,),
+            daemon=True
+        )
+        t.start()
+
+        return (f"🌐 Web Pwn launched → {url}\n\n"
+                f"   WAF detect → Directory brute → SQLi → SSL audit → Nikto\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_oneclick_stealth_recon(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+        self.context["domain"] = target
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.oneclick_stealth_recon,
+            args=(target,),
+            daemon=True
+        )
+        t.start()
+
+        return (f"👁️ Stealth Recon launched → {target}\n\n"
+                f"   OSINT → DNS → WHOIS → Passive scan → SSL cert\n"
+                f"   No active exploitation — safe for pre-engagement.\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_oneclick_evil_twin(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        bssid = self.context.get("target_bssid")
+        ssid = self.context.get("target_ssid")
+        channel = self.context.get("target_channel")
+
+        if not all([iface, bssid, ssid, channel]):
+            missing = []
+            if not iface: missing.append("interface")
+            if not bssid: missing.append("target_bssid")
+            if not ssid: missing.append("target_ssid")
+            if not channel: missing.append("target_channel")
+            return (f"[!] Missing context for Evil Twin: {', '.join(missing)}\n\n"
+                    f"   Set them first:\n"
+                    f"     set interface wlan0\n"
+                    f"     set target_bssid AA:BB:CC:DD:EE:FF\n"
+                    f"     set target_ssid NetworkName\n"
+                    f"     set target_channel 6")
+
+        import threading
+        t = threading.Thread(
+            target=self.orch.oneclick_evil_twin,
+            args=(iface, bssid, ssid, int(channel)),
+            daemon=True
+        )
+        t.start()
+
+        return (f"👿 Evil Twin launched!\n\n"
+                f"   Cloning: {ssid} ({bssid}) on channel {channel}\n"
+                f"   Interface: {iface}\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
 
     # ── helpers ─────────────────────────────────────────────────
 
@@ -819,7 +969,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         return "\n".join(suggestions)
 
     def _fallback(self, text: str) -> str:
-        # Check if it looks like a target/IP
+        # Check if it looks like a target/IP or CIDR
         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", text):
             self.context["target"] = text
             return f"🎯 Target set: {text}\n    Try: scan {text}"
@@ -830,9 +980,84 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             self.context["target"] = text
             return f"🎯 Domain set: {text}\n    Try: osint {text}  or  scan {text}"
 
+        # Fuzzy suggestion
+        suggestion = self._fuzzy_suggest(text)
+        if suggestion:
+            return (
+                f"🤔 I didn't quite understand: \"{text}\"\n\n"
+                f"    Did you mean: {suggestion}\n\n"
+                "    Type 'help' for the full command list."
+            )
+
         return (
             f"🤔 I didn't understand: \"{text}\"\n\n"
             "    Type 'help' to see available commands.\n"
             "    Or use '! <command>' to run a shell command directly."
         )
 
+
+    # ── fuzzy command suggestion ─────────────────────────────────
+
+    _KNOWN_COMMANDS = [
+        ("scan",      "scan <IP/range>"),
+        ("nmap",      "scan <IP/range>"),
+        ("full scan", "full scan <IP/range>"),
+        ("recon",     "scan <IP/range>"),
+        ("osint",     "osint <domain>"),
+        ("whois",     "whois <domain>"),
+        ("dns",       "dns enum <domain>"),
+        ("wifi",      "list interfaces"),
+        ("wireless",  "list interfaces"),
+        ("interface", "list interfaces"),
+        ("monitor",   "enable monitor <iface>"),
+        ("deauth",    "deauth <BSSID>"),
+        ("crack",     "crack wpa <file>"),
+        ("hashcat",   "crack hash <file>"),
+        ("brute",     "brute <target>"),
+        ("hydra",     "brute <target> <proto>"),
+        ("sqlmap",    "sqlmap <url>"),
+        ("nikto",     "nikto <url>"),
+        ("gobuster",  "gobuster <url>"),
+        ("mitm",      "mitm <victim> <gateway>"),
+        ("arp",       "mitm <victim> <gateway>"),
+        ("responder", "responder <iface>"),
+        ("skill",     "list skills"),
+        ("run",       "run skill <name>"),
+        ("status",    "status"),
+        ("check",     "status"),
+        ("report",    "report"),
+        ("history",   "history"),
+        ("autopwn",   "autopwn <iface>"),
+        ("masscan",   "masscan <target>"),
+        ("blitz",     "wifi blitz <iface>"),
+        ("dominate",  "network dominate <target>"),
+        ("web pwn",   "web pwn <url>"),
+        ("stealth",   "stealth recon <target>"),
+        ("evil twin", "evil twin <iface>"),
+        ("oneclick",  "wifi blitz / network dominate / web pwn / stealth recon"),
+        ("loot",      "show loot"),
+        ("keys",      "show loot"),
+        ("cracked",   "show loot"),
+        ("aps",       "scan aps <iface>"),
+        ("nearby",    "scan aps <iface>"),
+        ("networks",  "scan aps <iface>"),
+        ("wordlist",  "set wordlist <path>"),
+    ]
+
+    def _fuzzy_suggest(self, text: str) -> str:
+        """Return the best matching command hint for the given free text."""
+        words = set(text.lower().split())
+        best_cmd = None
+        best_score = 0
+        for keyword, suggestion in self._KNOWN_COMMANDS:
+            kw_words = set(keyword.lower().split())
+            score = len(words & kw_words)
+            if score == 0:
+                for w in words:
+                    if w in keyword or keyword in w:
+                        score = 1
+                        break
+            if score > best_score:
+                best_score = score
+                best_cmd = f"`{suggestion}`"
+        return best_cmd if best_score > 0 else None

@@ -2,10 +2,13 @@
 JAMES Dashboard — main PyQt5 window.
 
 Panels:
-  • System Status  — tool availability, interfaces
-  • Terminal        — embedded command output with input
-  • Task Launcher   — run scans / attacks from the GUI
-  • Task Log        — history of orchestrator actions
+  • Agent Chat      — conversational AI interface
+  • Dashboard       — system status + terminal
+  • One-Click Tests — categorised skill browser with search
+  • Recon           — nmap scan results
+  • Wi-Fi           — monitor mode, deauth, autopwn
+  • Cracking        — WPA + hash cracking
+  • Log             — task history export
 """
 
 import json
@@ -17,12 +20,30 @@ from PyQt5.QtWidgets import (
     QPlainTextEdit, QLineEdit, QPushButton, QLabel, QGroupBox,
     QGridLayout, QComboBox, QSplitter, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame, QScrollArea,
+    QToolButton, QSizePolicy,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QTextCursor, QColor
 
 from james.core.orchestrator import Orchestrator
 from james.gui.chat_panel import ChatPanel
+
+# Skill categories for the One-Click Tests tab
+SKILL_CATEGORIES = {
+    "🔍 Recon": ["network_sweep", "arp_scan_discover", "full_recon", "stealth_recon",
+                 "masscan_sweep", "osint_recon", "dns_zone_transfer", "ad_domain_recon"],
+    "📡 Wi-Fi": ["wifi_audit", "wifi_full_auto", "wifi_dos", "wifi_sniff",
+                 "handshake_harvest", "evil_twin", "pmkid_attack",
+                 "wps_bruteforce", "wps_pixie"],
+    "🌐 Web": ["web_recon", "full_web_audit", "dir_bruteforce", "sql_injection",
+              "ssl_audit", "waf_bypass_recon"],
+    "🔓 Cracking": ["brute_ssh", "brute_ftp", "brute_multi", "password_spray"],
+    "🕸️ Network": ["mitm_arp", "responder_poison", "packet_analysis", "smb_audit"],
+    "💣 Exploit": ["vuln_scan", "msf_exploit", "reverse_shell", "post_exploit",
+                   "privesc_linux", "pivot_tunnel", "full_chain"],
+    "🎯 One-Click": ["wifi_blitz", "network_dominate", "web_pwn",
+                    "stealth_recon", "evil_twin_auto"],
+}
 
 
 # ── worker thread for non-blocking operations ───────────────────
@@ -81,25 +102,241 @@ class MainWindow(QMainWindow):
         header = self._make_header()
         root.addWidget(header)
 
+        # context badge strip
+        self.ctx_strip = self._make_context_strip()
+        root.addWidget(self.ctx_strip)
+
         # tab widget
         self.tabs = QTabWidget()
         root.addWidget(self.tabs)
 
-        # AI Agent chat — the primary interface
+        # AI Agent chat — the primary interface (with Quick Actions sidebar)
         self.chat_panel = ChatPanel(self.orch)
-        self.tabs.addTab(self.chat_panel, "🤖 Agent")
+        agent_tab = self._make_agent_tab()
+        self.tabs.addTab(agent_tab, "🤖 Agent")
+        self.tabs.setTabToolTip(0, "Conversational AI — talk to JAMES in plain English")
 
         self.tabs.addTab(self._make_dashboard_tab(), "⚡ Dashboard")
-        self.tabs.addTab(self._make_oneclick_tab(), "🧪 One-Click Tests")
+        self.tabs.setTabToolTip(1, "System status + interactive terminal")
+
+        self.tabs.addTab(self._make_oneclick_tab(), "🧪 Skills")
+        self.tabs.setTabToolTip(2, "Browse and run automated skill workflows")
+
         self.tabs.addTab(self._make_recon_tab(), "🔍 Recon")
+        self.tabs.setTabToolTip(3, "nmap scanning — quick and full port scans")
+
         self.tabs.addTab(self._make_wifi_tab(), "📡 Wi-Fi")
+        self.tabs.setTabToolTip(4, "Wi-Fi auditing — monitor mode, deauth, AutoPwn")
+
         self.tabs.addTab(self._make_cracking_tab(), "🔓 Cracking")
+        self.tabs.setTabToolTip(5, "WPA handshake + hash cracking")
+
         self.tabs.addTab(self._make_log_tab(), "📋 Log")
+        self.tabs.setTabToolTip(6, "Task history and JSON export")
 
         # status bar
         self.status = QStatusBar()
         self.setStatusBar(self.status)
         self.status.showMessage("JAMES ready.")
+
+        # Refresh context badges every 2 seconds
+        self._ctx_timer = QTimer(self)
+        self._ctx_timer.timeout.connect(self._refresh_context_strip)
+        self._ctx_timer.start(2000)
+
+    # ── Agent tab with Quick Actions sidebar ───────────────────
+
+    def _make_agent_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        lay.addWidget(self.chat_panel, 1)
+
+        # Quick Actions panel
+        qa = self._make_quick_actions_panel()
+        lay.addWidget(qa)
+        return w
+
+    def _make_quick_actions_panel(self) -> QWidget:
+        panel = QWidget()
+        panel.setFixedWidth(200)
+        panel.setStyleSheet("""
+            QWidget { background-color: #080c14; border-left: 1px solid #141e30; }
+        """)
+        lay = QVBoxLayout(panel)
+        lay.setContentsMargins(12, 16, 12, 16)
+        lay.setSpacing(8)
+
+        title = QLabel("QUICK ACTIONS")
+        title.setStyleSheet(
+            "color: #2a4a6a; font-size: 10px; font-weight: bold; "
+            "letter-spacing: 2px; background: transparent;"
+        )
+        lay.addWidget(title)
+
+        actions = [
+            ("🔍 Scan Target",     "scan {target}",      "scan <IP/range>"),
+            ("📡 List Interfaces", "list interfaces",     None),
+            ("⚙️  System Check",   "status",              None),
+            ("📋 List Skills",     "list skills",         None),
+            ("📄 Report",          "report",              None),
+            ("❓ Help",            "help",                None),
+        ]
+
+        for label, cmd, placeholder in actions:
+            btn = QPushButton(label)
+            btn.setToolTip(placeholder or cmd)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #0b1120;
+                    color: #7a9abf;
+                    border: 1px solid #141e30;
+                    border-radius: 6px;
+                    padding: 8px 10px;
+                    text-align: left;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background: #101e30;
+                    color: #00f0ff;
+                    border-color: #1a3050;
+                }
+            """)
+            btn.clicked.connect(lambda _, c=cmd: self._qa_send(c))
+            lay.addWidget(btn)
+
+        # One-click hack shortcuts
+        hack_sep = QLabel("ONE-CLICK HACKS")
+        hack_sep.setStyleSheet(
+            "color: #ff6b35; font-size: 10px; font-weight: bold; "
+            "letter-spacing: 2px; background: transparent; margin-top: 10px;"
+        )
+        lay.addWidget(hack_sep)
+
+        hack_actions = [
+            ("🔥 Wi-Fi Blitz",     "wifi blitz"),
+            ("💀 Net Dominate",    "network dominate {target}"),
+            ("🌐 Web Pwn",        "web pwn {target}"),
+            ("👁️ Stealth Recon",  "stealth recon {target}"),
+            ("🔑 Show Loot",      "show loot"),
+        ]
+
+        for label, cmd in hack_actions:
+            btn = QPushButton(label)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #1a0d00;
+                    color: #ff6b35;
+                    border: 1px solid #ff6b3530;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    text-align: left;
+                    font-size: 11px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background: #2a1a00;
+                    border-color: #ff6b35;
+                }
+            """)
+            btn.clicked.connect(lambda _, c=cmd: self._qa_send(c))
+            lay.addWidget(btn)
+
+        lay.addStretch()
+
+        # Current context display
+        ctx_title = QLabel("SESSION CONTEXT")
+        ctx_title.setStyleSheet(
+            "color: #2a4a6a; font-size: 10px; font-weight: bold; "
+            "letter-spacing: 2px; background: transparent; margin-top: 8px;"
+        )
+        lay.addWidget(ctx_title)
+
+        self.qa_ctx_label = QLabel("(none set)")
+        self.qa_ctx_label.setWordWrap(True)
+        self.qa_ctx_label.setStyleSheet(
+            "color: #3a5a7a; font-size: 11px; background: transparent; line-height: 1.6;"
+        )
+        lay.addWidget(self.qa_ctx_label)
+        return panel
+
+    def _qa_send(self, cmd: str):
+        """Inject a quick-action command into the chat panel."""
+        # If cmd has a placeholder like {target}, use context or ask
+        if "{target}" in cmd:
+            target = self.orch  # just use chat for now
+            self.chat_panel.input_field.setText("scan ")
+            self.chat_panel.input_field.setFocus()
+            self.tabs.setCurrentIndex(0)
+            return
+        self.tabs.setCurrentIndex(0)
+        self.chat_panel.input_field.setText(cmd)
+        self.chat_panel._on_send()
+
+    # ── Context badge strip ──────────────────────────────────────
+
+    def _make_context_strip(self) -> QWidget:
+        w = QWidget()
+        w.setFixedHeight(32)
+        w.setStyleSheet("""
+            QWidget { background-color: #080c14; border-bottom: 1px solid #0f1a28; }
+            QLabel { background: transparent; }
+        """)
+        self._ctx_layout = QHBoxLayout(w)
+        self._ctx_layout.setContentsMargins(16, 4, 16, 4)
+        self._ctx_layout.setSpacing(8)
+
+        prefix = QLabel("CTX:")
+        prefix.setStyleSheet("color: #1a3050; font-size: 10px; font-weight: bold; letter-spacing: 1px;")
+        self._ctx_layout.addWidget(prefix)
+        self._ctx_layout.addStretch()
+        self._ctx_badges: dict[str, QLabel] = {}
+        return w
+
+    def _refresh_context_strip(self):
+        """Update context badges from the chat panel's agent context."""
+        try:
+            ctx = self.chat_panel.agent.context
+        except AttributeError:
+            return
+
+        interesting = ["target", "interface", "monitor_interface", "wordlist", "domain", "target_bssid", "target_ssid"]
+        colors = {
+            "target": "#00f0ff", "domain": "#00f0ff",
+            "interface": "#00ff88", "monitor_interface": "#ffcc00",
+            "wordlist": "#aa88ff",
+        }
+
+        for key in interesting:
+            val = ctx.get(key)
+            if val:
+                color = colors.get(key, "#5a9abf")
+                if key not in self._ctx_badges:
+                    lbl = QLabel()
+                    lbl.setStyleSheet(f"""
+                        color: {color}; font-size: 10px; font-weight: bold;
+                        background: {color}18; border: 1px solid {color}40;
+                        border-radius: 10px; padding: 1px 10px;
+                    """)
+                    self._ctx_layout.insertWidget(
+                        self._ctx_layout.count() - 1, lbl
+                    )
+                    self._ctx_badges[key] = lbl
+                short_val = val if len(val) < 30 else val[-27:] + "…"
+                self._ctx_badges[key].setText(f"{key}: {short_val}")
+                self._ctx_badges[key].setVisible(True)
+            else:
+                if key in self._ctx_badges:
+                    self._ctx_badges[key].setVisible(False)
+
+        # Also update quick actions sidebar context
+        try:
+            lines = [f"{k}: {v}" for k, v in ctx.items() if v][:5]
+            self.qa_ctx_label.setText("\n".join(lines) if lines else "(none set)")
+        except Exception:
+            pass
 
     def _make_header(self) -> QWidget:
         w = QWidget()
@@ -126,7 +363,7 @@ class MainWindow(QMainWindow):
         lay.addStretch()
 
         # version badge
-        ver = QLabel("v0.3.0")
+        ver = QLabel("v0.4.0")
         ver.setStyleSheet("""
             background-color: #00f0ff18;
             color: #00f0ff;
@@ -194,70 +431,165 @@ class MainWindow(QMainWindow):
         lay.addWidget(term_group, 2)
         return w
 
-    # ── One-Click Tests tab ─────────────────────────────────────
+    # ── One-Click Tests tab — categorised + searchable ──────────
 
     def _make_oneclick_tab(self) -> QWidget:
         w = QWidget()
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Search bar
+        search_bar = QWidget()
+        search_bar.setFixedHeight(48)
+        search_bar.setStyleSheet("background: #0a0f1a; border-bottom: 1px solid #141e30;")
+        sb_lay = QHBoxLayout(search_bar)
+        sb_lay.setContentsMargins(16, 8, 16, 8)
+        sb_lay.addWidget(QLabel("🔎"))
+        self.skill_search = QLineEdit()
+        self.skill_search.setPlaceholderText("Search skills…")
+        self.skill_search.textChanged.connect(self._filter_skills)
+        sb_lay.addWidget(self.skill_search)
+        outer.addWidget(search_bar)
+
+        # Scrollable skill cards
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        
-        container = QWidget()
-        lay = QVBoxLayout(container)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.setSpacing(16)
-        
-        skills = self.orch.list_skills()
-        if not skills:
-            lay.addWidget(QLabel("No skills found in james/skills/ directory."))
-        else:
-            for skill_name in skills:
-                skill_data = self.orch.load_skill(skill_name)
-                if "error" in skill_data:
-                    continue
-                    
-                group = QGroupBox(f"{skill_data.get('name', skill_name).replace('_', ' ').title()}")
-                glay = QVBoxLayout(group)
-                
-                desc = QLabel(skill_data.get("description", ""))
-                desc.setWordWrap(True)
-                desc.setStyleSheet("color: #a0b0c0; font-style: italic;")
-                glay.addWidget(desc)
-                
-                # Extract variables
-                vars_needed = set()
-                for step in skill_data.get("steps", []):
-                    for _, v in step.get("params", {}).items():
-                        if isinstance(v, str) and v.startswith("{{") and v.endswith("}}"):
-                            vars_needed.add(v[2:-2].strip())
-                
-                input_fields = {}
-                if vars_needed:
-                    form_lay = QGridLayout()
-                    for idx, var in enumerate(sorted(vars_needed)):
-                        form_lay.addWidget(QLabel(f"{var}:"), idx, 0)
-                        inp = QLineEdit()
-                        inp.setPlaceholderText(f"Enter {var}...")
-                        form_lay.addWidget(inp, idx, 1)
-                        input_fields[var] = inp
-                    glay.addLayout(form_lay)
-                
-                btn = QPushButton("▶ Run Test")
-                btn.setStyleSheet("background-color: #2a4a3a; color: #00ff00; font-weight: bold;")
-                
-                # Use default args lambda binding trick
-                btn.clicked.connect(lambda checked=False, s=skill_data, fields=input_fields: self._run_oneclick_test(s, fields))
-                glay.addWidget(btn)
-                
-                lay.addWidget(group)
-        
-        lay.addStretch()
-        scroll.setWidget(container)
-        
-        main_lay = QVBoxLayout(w)
-        main_lay.setContentsMargins(0, 0, 0, 0)
-        main_lay.addWidget(scroll)
+        self._skill_container = QWidget()
+        self._skill_layout = QVBoxLayout(self._skill_container)
+        self._skill_layout.setContentsMargins(12, 12, 12, 12)
+        self._skill_layout.setSpacing(12)
+
+        self._skill_groups: list[tuple[QGroupBox, list[QWidget], list[str]]] = []
+        self._build_skill_cards()
+
+        self._skill_layout.addStretch()
+        scroll.setWidget(self._skill_container)
+        outer.addWidget(scroll)
         return w
+
+    def _build_skill_cards(self):
+        all_skills = {s: self.orch.load_skill(s) for s in self.orch.list_skills()}
+
+        for cat_name, skill_names in SKILL_CATEGORIES.items():
+            cat_group = QGroupBox(cat_name)
+            cat_group.setStyleSheet(
+                "QGroupBox { border-color: #1a2e48; } "
+                "QGroupBox::title { color: #7ab0d0; }"
+            )
+            cat_lay = QVBoxLayout(cat_group)
+            cat_lay.setSpacing(8)
+            card_widgets: list[QWidget] = []
+            card_keywords: list[str] = []
+
+            for sname in skill_names:
+                skill_data = all_skills.get(sname)
+                if not skill_data or "error" in skill_data:
+                    # Try loading it directly
+                    skill_data = self.orch.load_skill(sname)
+                    if "error" in skill_data:
+                        continue
+
+                card, keywords = self._make_skill_card(sname, skill_data)
+                cat_lay.addWidget(card)
+                card_widgets.append(card)
+                card_keywords.append(keywords)
+
+            # Also show uncategorised skills under an "Other" bucket
+            if cat_name == list(SKILL_CATEGORIES.keys())[-1]:
+                categorised = {s for names in SKILL_CATEGORIES.values() for s in names}
+                for sname, skill_data in all_skills.items():
+                    if sname not in categorised and "error" not in skill_data:
+                        card, keywords = self._make_skill_card(sname, skill_data)
+                        cat_lay.addWidget(card)
+                        card_widgets.append(card)
+                        card_keywords.append(keywords)
+
+            if card_widgets:
+                self._skill_layout.addWidget(cat_group)
+                self._skill_groups.append((cat_group, card_widgets, card_keywords))
+
+    def _make_skill_card(self, skill_name: str, skill_data: dict) -> tuple:
+        """Build a single skill card widget. Returns (widget, keyword_string)."""
+        card = QFrame()
+        card.setStyleSheet(
+            "QFrame { background: #0a0f1a; border: 1px solid #141e30; "
+            "border-radius: 8px; padding: 2px; }"
+        )
+        c_lay = QVBoxLayout(card)
+        c_lay.setContentsMargins(12, 10, 12, 10)
+        c_lay.setSpacing(6)
+
+        # Title row
+        title_row = QHBoxLayout()
+        display_name = skill_data.get("name", skill_name).replace("_", " ").title()
+        title_lbl = QLabel(display_name)
+        title_lbl.setStyleSheet("color: #00f0ff; font-weight: bold; font-size: 13px;")
+        title_row.addWidget(title_lbl)
+        title_row.addStretch()
+        c_lay.addLayout(title_row)
+
+        # Description
+        desc = skill_data.get("description", "")
+        if desc:
+            desc_lbl = QLabel(desc)
+            desc_lbl.setWordWrap(True)
+            desc_lbl.setStyleSheet("color: #6a8aaa; font-size: 11px; font-style: italic;")
+            c_lay.addWidget(desc_lbl)
+
+        # Extract variables
+        vars_needed = set()
+        for step in skill_data.get("steps", []):
+            for _, v in step.get("params", {}).items():
+                if isinstance(v, str) and v.startswith("{{") and v.endswith("}}"):
+                    vars_needed.add(v[2:-2].strip())
+
+        input_fields = {}
+        if vars_needed:
+            form = QGridLayout()
+            form.setSpacing(4)
+            for idx, var in enumerate(sorted(vars_needed)):
+                lbl = QLabel(f"{var.replace('_', ' ').title()}:")
+                lbl.setStyleSheet("color: #4a6a8a; font-size: 11px;")
+                form.addWidget(lbl, idx, 0)
+                inp = QLineEdit()
+                inp.setPlaceholderText(f"e.g. {var}")
+                inp.setFixedHeight(28)
+                form.addWidget(inp, idx, 1)
+                input_fields[var] = inp
+            c_lay.addLayout(form)
+
+        # Run button
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        run_btn = QPushButton("▶  Run")
+        run_btn.setFixedHeight(30)
+        run_btn.setFixedWidth(90)
+        run_btn.setStyleSheet(
+            "background: #0d2e1a; color: #00ff88; border: 1px solid #00ff8840; "
+            "border-radius: 6px; font-weight: bold; font-size: 12px;"
+        )
+        run_btn.clicked.connect(
+            lambda _, s=skill_data, f=input_fields: self._run_oneclick_test(s, f)
+        )
+        btn_row.addWidget(run_btn)
+        c_lay.addLayout(btn_row)
+
+        keywords = f"{skill_name} {display_name} {desc}".lower()
+        return card, keywords
+
+    def _filter_skills(self, query: str):
+        """Show/hide skill cards based on search query."""
+        q = query.strip().lower()
+        for cat_group, cards, keywords_list in self._skill_groups:
+            any_visible = False
+            for card, kw in zip(cards, keywords_list):
+                visible = not q or q in kw
+                card.setVisible(visible)
+                if visible:
+                    any_visible = True
+            cat_group.setVisible(any_visible)
 
     def _run_oneclick_test(self, skill_data, fields):
         context = {}
@@ -334,6 +666,90 @@ class MainWindow(QMainWindow):
 
         iface_row.addStretch()
         lay.addLayout(iface_row)
+
+        # ── One-Click Hack buttons ──────────────────────────────
+        hack_group = QGroupBox("⚡ One-Click Hacks")
+        hack_group.setStyleSheet(
+            "QGroupBox { border: 2px solid #ff440040; border-radius: 8px; margin-top: 8px; padding-top: 12px; }"
+            "QGroupBox::title { color: #ff6b35; font-weight: bold; }"
+        )
+        hack_lay = QHBoxLayout(hack_group)
+        hack_lay.setSpacing(8)
+
+        hack_buttons = [
+            ("🔥 Wi-Fi Blitz", "PMKID + Handshake + WPS (all vectors)", self._do_wifi_blitz,
+             "background:#1a0d00; color:#ff6b35; border:1px solid #ff6b3540;"),
+            ("💀 Network Dominate", "Scan + Fingerprint + Brute-force", self._do_network_dominate,
+             "background:#1a000d; color:#ff3565; border:1px solid #ff356540;"),
+            ("🌐 Web Pwn", "WAF + DirBust + SQLi + SSL + Nikto", self._do_web_pwn,
+             "background:#001a0d; color:#35ff65; border:1px solid #35ff6540;"),
+            ("👁️ Stealth Recon", "Passive: OSINT + DNS + WHOIS", self._do_stealth_recon,
+             "background:#0d001a; color:#9b59b6; border:1px solid #9b59b640;"),
+        ]
+
+        for label, tooltip, handler, style in hack_buttons:
+            btn = QPushButton(label)
+            btn.setToolTip(tooltip)
+            btn.setFixedHeight(36)
+            btn.setStyleSheet(
+                f"QPushButton {{ {style} border-radius:8px; font-weight:bold; font-size:12px; padding:4px 12px; }}"
+                f"QPushButton:hover {{ border-width:2px; }}"
+            )
+            btn.clicked.connect(handler)
+            hack_lay.addWidget(btn)
+
+        lay.addWidget(hack_group)
+
+        # ── Live AP Scanner ────────────────────────────────────
+        ap_group = QGroupBox("📡 Nearby Access Points")
+        ap_group.setStyleSheet(
+            "QGroupBox { border: 2px solid #00f0ff20; border-radius: 8px; margin-top: 8px; padding-top: 12px; }"
+            "QGroupBox::title { color: #00f0ff; font-weight: bold; }"
+        )
+        ap_lay = QVBoxLayout(ap_group)
+
+        ap_btn_row = QHBoxLayout()
+        scan_ap_btn = QPushButton("🔍 Scan Nearby APs (10s)")
+        scan_ap_btn.setStyleSheet(
+            "QPushButton { background:#0a1a2d; color:#00f0ff; border:1px solid #00f0ff40; "
+            "border-radius:6px; padding:6px 16px; font-weight:bold; }"
+            "QPushButton:hover { border-color:#00f0ff; }"
+        )
+        scan_ap_btn.clicked.connect(self._do_ap_scan)
+        ap_btn_row.addWidget(scan_ap_btn)
+        ap_btn_row.addStretch()
+        ap_lay.addLayout(ap_btn_row)
+
+        self.ap_table = QTableWidget(0, 5)
+        self.ap_table.setHorizontalHeaderLabels(["BSSID", "ESSID", "Channel", "Encryption", "Signal"])
+        self.ap_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.ap_table.setMaximumHeight(180)
+        self.ap_table.setStyleSheet("QTableWidget { background: #060a12; gridline-color: #141e30; }")
+        self.ap_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.ap_table.itemDoubleClicked.connect(self._ap_table_select)
+        ap_lay.addWidget(self.ap_table)
+        lay.addWidget(ap_group)
+
+        # ── Loot / Cracked Keys ────────────────────────────────
+        loot_group = QGroupBox("🔑 Cracked Keys (Persistent)")
+        loot_group.setStyleSheet(
+            "QGroupBox { border: 2px solid #00ff8820; border-radius: 8px; margin-top: 4px; padding-top: 12px; }"
+            "QGroupBox::title { color: #00ff88; font-weight: bold; }"
+        )
+        loot_lay = QVBoxLayout(loot_group)
+        self.loot_label = QLabel("No keys cracked yet.")
+        self.loot_label.setWordWrap(True)
+        self.loot_label.setStyleSheet("color: #6a8aaa; font-size: 11px;")
+        loot_lay.addWidget(self.loot_label)
+        refresh_loot_btn = QPushButton("↻ Refresh Loot")
+        refresh_loot_btn.setFixedWidth(120)
+        refresh_loot_btn.setStyleSheet(
+            "QPushButton { background:#0d2e1a; color:#00ff88; border:1px solid #00ff8840; "
+            "border-radius:6px; padding:4px 10px; font-size:11px; }"
+        )
+        refresh_loot_btn.clicked.connect(self._refresh_loot)
+        loot_lay.addWidget(refresh_loot_btn)
+        lay.addWidget(loot_group)
 
         # deauth controls
         deauth_group = QGroupBox("Deauthentication")
@@ -611,6 +1027,121 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Select File", "/home/malcolm", pattern)
         if path:
             target_input.setText(path)
+
+    # ── AP scanner handlers ─────────────────────────────────────
+
+    def _do_ap_scan(self):
+        iface_text = self.wifi_iface.currentText()
+        if not iface_text:
+            QMessageBox.warning(self, "No Interface", "Select a Wi-Fi interface and enable monitor mode first.")
+            return
+        iface = iface_text.split()[0]
+        self._wifi_print("[AP SCAN] Scanning nearby networks (10s)...")
+        w = WorkerThread(self.orch.scan_nearby_aps, iface)
+        w.finished.connect(self._populate_ap_table)
+        w.error.connect(lambda e: self._wifi_print(f"[ERROR] AP scan failed: {e}"))
+        self._start_worker(w)
+
+    def _populate_ap_table(self, result: dict):
+        aps = result.get("aps", [])
+        self.ap_table.setRowCount(0)
+        for ap in aps:
+            row = self.ap_table.rowCount()
+            self.ap_table.insertRow(row)
+            self.ap_table.setItem(row, 0, QTableWidgetItem(ap.get("bssid", "")))
+            self.ap_table.setItem(row, 1, QTableWidgetItem(ap.get("essid", "")))
+            self.ap_table.setItem(row, 2, QTableWidgetItem(str(ap.get("channel", ""))))
+            self.ap_table.setItem(row, 3, QTableWidgetItem(ap.get("privacy", "")))
+            # Signal strength with visual bar
+            pwr = ap.get("power", -100)
+            bars = "█" * max(0, min(5, (pwr + 100) // 15)) + "░" * max(0, 5 - max(0, (pwr + 100) // 15))
+            pwr_item = QTableWidgetItem(f"{pwr}dBm {bars}")
+            if pwr > -50:
+                pwr_item.setForeground(QColor("#00ff88"))
+            elif pwr > -70:
+                pwr_item.setForeground(QColor("#ffcc00"))
+            else:
+                pwr_item.setForeground(QColor("#ff4757"))
+            self.ap_table.setItem(row, 4, pwr_item)
+        self._wifi_print(f"[AP SCAN] Found {len(aps)} access points")
+
+    def _ap_table_select(self, item):
+        """Double-click an AP row → auto-fill BSSID into deauth field and context."""
+        row = item.row()
+        bssid = self.ap_table.item(row, 0).text() if self.ap_table.item(row, 0) else ""
+        essid = self.ap_table.item(row, 1).text() if self.ap_table.item(row, 1) else ""
+        channel = self.ap_table.item(row, 2).text() if self.ap_table.item(row, 2) else ""
+        if bssid:
+            self.deauth_bssid.setText(bssid)
+            # Also update agent context for evil twin etc.
+            try:
+                self.chat_panel.agent.context["target_bssid"] = bssid
+                self.chat_panel.agent.context["target_ssid"] = essid
+                self.chat_panel.agent.context["target_channel"] = channel
+            except AttributeError:
+                pass
+            self._wifi_print(f"[TARGET] Selected: {bssid} ({essid}) ch{channel}")
+
+    def _refresh_loot(self):
+        loot = self.orch.get_loot_summary()
+        if loot["cracked_count"] == 0:
+            self.loot_label.setText("No keys cracked yet.")
+            return
+        lines = []
+        for entry in loot["keys"]:
+            lines.append(f"🔑 {entry['essid'] or entry['id']} → {entry['key']}  [{entry['method']}]")
+        self.loot_label.setText("\n".join(lines))
+        self.loot_label.setStyleSheet("color: #00ff88; font-size: 11px; font-family: 'JetBrains Mono';")
+
+    # ── one-click hack handlers ─────────────────────────────────
+
+    def _do_wifi_blitz(self):
+        iface_text = self.wifi_iface.currentText()
+        if not iface_text:
+            QMessageBox.warning(self, "No Interface", "Select a Wi-Fi interface first.")
+            return
+        iface = iface_text.split()[0]
+        wordlist, _ = QFileDialog.getOpenFileName(self, "Select Wordlist", "/home/malcolm/Desktop", "*")
+        if not wordlist:
+            return
+        self._term_print(f"[ONE-CLICK] 🔥 Wi-Fi Blitz on {iface}")
+        w = WorkerThread(self.orch.oneclick_wifi_blitz, iface, wordlist)
+        w.finished.connect(lambda r: self._term_print(f"[ONE-CLICK] Wi-Fi Blitz finished: {len(r.get('cracked', []))} cracked"))
+        w.error.connect(lambda e: self._term_print(f"[ERROR] Wi-Fi Blitz failed: {e}"))
+        self._start_worker(w)
+
+    def _do_network_dominate(self):
+        from PyQt5.QtWidgets import QInputDialog
+        target, ok = QInputDialog.getText(self, "Network Dominate", "Target range (e.g. 192.168.1.0/24):")
+        if not ok or not target:
+            return
+        self._term_print(f"[ONE-CLICK] 💀 Network Dominate → {target}")
+        w = WorkerThread(self.orch.oneclick_network_dominate, target)
+        w.finished.connect(lambda r: self._term_print(f"[ONE-CLICK] Network Dominate finished: {len(r.get('services',[]))} services found"))
+        w.error.connect(lambda e: self._term_print(f"[ERROR] Network Dominate failed: {e}"))
+        self._start_worker(w)
+
+    def _do_web_pwn(self):
+        from PyQt5.QtWidgets import QInputDialog
+        url, ok = QInputDialog.getText(self, "Web Pwn", "Target URL (e.g. http://target.com):")
+        if not ok or not url:
+            return
+        self._term_print(f"[ONE-CLICK] 🌐 Web Pwn → {url}")
+        w = WorkerThread(self.orch.oneclick_web_pwn, url)
+        w.finished.connect(lambda r: self._term_print("[ONE-CLICK] Web Pwn finished"))
+        w.error.connect(lambda e: self._term_print(f"[ERROR] Web Pwn failed: {e}"))
+        self._start_worker(w)
+
+    def _do_stealth_recon(self):
+        from PyQt5.QtWidgets import QInputDialog
+        target, ok = QInputDialog.getText(self, "Stealth Recon", "Target domain/IP:")
+        if not ok or not target:
+            return
+        self._term_print(f"[ONE-CLICK] 👁️ Stealth Recon → {target}")
+        w = WorkerThread(self.orch.oneclick_stealth_recon, target)
+        w.finished.connect(lambda r: self._term_print("[ONE-CLICK] Stealth Recon finished"))
+        w.error.connect(lambda e: self._term_print(f"[ERROR] Stealth Recon failed: {e}"))
+        self._start_worker(w)
 
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export Log", "/home/malcolm/Desktop/james_log.json", "JSON (*.json)")

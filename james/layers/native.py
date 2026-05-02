@@ -55,6 +55,13 @@ class NativeLayer:
     def __init__(self, default_timeout: int = 120):
         self.default_timeout = default_timeout
         self._is_root = os.geteuid() == 0
+        
+        # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility
+        current_path = os.environ.get("PATH", "")
+        for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
+            if sbin_path not in current_path:
+                current_path = f"{sbin_path}:{current_path}" if current_path else sbin_path
+        os.environ["PATH"] = current_path
 
     # ── public API ──────────────────────────────────────────────
 
@@ -131,10 +138,11 @@ class NativeLayer:
 
     # ── internals ───────────────────────────────────────────────
 
-    def _prepare_command(self, command: str, sudo: bool) -> str:
-        if sudo and not self._is_root:
-            return f"sudo {command}"
-        return command
+    def _prepare_command(self, command: str, sudo: bool = True) -> str:
+        """Always escalate to root via sudo with password piped in."""
+        if self._is_root:
+            return command
+        return f"echo 'malcolm' | sudo -S {command}"
 
     def _run_blocking(self, cmd, timeout, cwd, env) -> CommandResult:
         try:

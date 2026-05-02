@@ -29,10 +29,21 @@ def run_gui():
     from PyQt5.QtWidgets import QApplication
     from james.gui.main_window import MainWindow
     from james.gui.theme import DARK_STYLESHEET
+    from james.gui.setup_wizard import (
+        SetupWizard, should_show_wizard, load_settings, apply_settings_to_env
+    )
 
     app = QApplication(sys.argv)
     app.setApplicationName("JAMES Linux")
     app.setStyleSheet(DARK_STYLESHEET)
+
+    # Apply any previously saved settings to the environment
+    apply_settings_to_env(load_settings())
+
+    # Show setup wizard on first launch
+    if should_show_wizard():
+        wizard = SetupWizard()
+        wizard.exec_()
 
     window = MainWindow()
     window.show()
