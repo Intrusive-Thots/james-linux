@@ -9,7 +9,9 @@ plans multi-step actions, and drives the orchestrator. Acts as the
 import os
 import re
 import json
+import logging
 import shlex
+import threading
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -69,6 +71,7 @@ INTENT_PATTERNS = [
     (r"(?:web\s*pwn|web\s*hack|web\s*nuke)\s+(\S+)", "oneclick_web_pwn"),
     (r"(?:stealth\s*recon|passive\s*recon|silent\s*recon)\s+(\S+)", "oneclick_stealth_recon"),
     (r"(?:evil\s*twin|rogue\s*ap)(?:\s+(\S+))?", "oneclick_evil_twin"),
+    (r"(?:(?:connect|find|get)\s*(?:to\s*)?(?:an\s*)?(?:open\s*)?wifi|need\s*wifi)", "connect_open_wifi"),
 
     # OSINT
     (r"(?:osint|harvest|recon\s*domain|domain\s*recon)\s+(\S+)", "osint"),
@@ -104,12 +107,16 @@ INTENT_PATTERNS = [
     (r"(?:history|log|task\s*log)", "show_log"),
     (r"(?:report|generate\s*report|export\s*report)", "report"),
     (r"(?:show\s*loot|loot|cracked|captured\s*keys|show\s*keys)", "show_loot"),
+    (r"(?:kill\s*james|kill\s*all|stop\s*everything|emergency\s*stop|stop\s*all\s*tools?|cleanup\s*all|nuke|abort|kill\s*tools?|shut\s*down|shutdown)", "kill_james"),
     (r"(?:clear|reset)", "clear"),
 
     # Direct command passthrough
     (r"^!\s*(.+)", "shell"),
     (r"^(?:run|exec(?:ute)?)\s+(.+)", "shell"),
 ]
+
+# Pre-compile patterns once at import time for fast matching
+_COMPILED_INTENTS = [(re.compile(p), intent) for p, intent in INTENT_PATTERNS]
 
 
 class Agent:
@@ -120,10 +127,13 @@ class Agent:
     and drives the Orchestrator to carry them out.
     """
 
+    MAX_HISTORY = 200  # cap conversation memory to limit RAM
+
     def __init__(self, orchestrator: Orchestrator):
         self.orch = orchestrator
         self.context: dict = {}   # tracks session state (target, iface, etc.)
         self.history: list[dict] = []
+        self.last_intent: str = "default"
         self.genai_client = None
         
         if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
@@ -150,11 +160,16 @@ class Agent:
         # Fallback to Regex
         intent, match = self._match_intent(text)
         if intent is None:
+            self.last_intent = "default"
             resp = self._fallback(text)
         else:
+            self.last_intent = intent
             resp = self._dispatch(intent, match, text)
 
         self.history.append({"role": "agent", "content": resp})
+        # Prevent unbounded growth — keep last MAX_HISTORY entries
+        if len(self.history) > self.MAX_HISTORY:
+            self.history = self.history[-self.MAX_HISTORY:]
         return resp
 
     def _process_with_llm(self, text: str) -> Optional[str]:
@@ -196,6 +211,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             
             data = json.loads(response.text)
             action = data.get("action")
+            self.last_intent = action or "default"
             
             if action == "chat":
                 return data.get("message", "...")
@@ -254,7 +270,6 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             else:
                 return None  # Let regex handle unknown actions
         except Exception as e:
-            import logging
             logging.error(f"LLM Error: {e}")
             return None
 
@@ -262,8 +277,8 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
 
     def _match_intent(self, text: str):
         lower = text.lower().strip()
-        for pattern, intent in INTENT_PATTERNS:
-            m = re.search(pattern, lower)
+        for compiled, intent in _COMPILED_INTENTS:
+            m = compiled.search(lower)
             if m:
                 return intent, m
         return None, None
@@ -330,6 +345,9 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     history                Show task log
     set <key> <value>      Set context variable
     clear                  Reset session context
+
+  🛑 Emergency
+    kill james             Stop ALL tools, restore interfaces, reconnect Wi-Fi
 
   🎯 One-Click Hacks (autonomous attack chains)
     wifi blitz [iface]     PMKID → Handshake → WPS (all vectors)
@@ -500,7 +518,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                     f"Please set them using: set <variable> <value>")
         
         # Launch the workflow in a separate thread so we don't block the agent
-        import threading
+
         t = threading.Thread(target=self._execute_skill_steps, args=(skill,), daemon=True)
         t.start()
         
@@ -513,7 +531,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
         self.context["interface"] = iface
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.auto_wifi_pwn,
             args=(iface, wordlist),
@@ -649,7 +667,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         self.context["victim"] = victim
         self.context["gateway"] = gateway
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.ettercap.arp_poison,
             args=(iface, victim, gateway),
@@ -668,7 +686,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         if not iface:
             return "[!] No interface specified. Use: responder <interface>"
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.responder.start,
             args=(iface,),
@@ -775,11 +793,16 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_scan_aps(self, m, raw) -> str:
         iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface")
         if not iface:
-            return "[!] No interface specified. Use: scan aps wlan0mon"
+            return "[!] No interface specified. Use: scan aps wlan0\n    Or set one first: list interfaces"
+        self.context["interface"] = iface.replace("mon", "") if iface.endswith("mon") else iface
         result = self.orch.scan_nearby_aps(iface)
         aps = result.get("aps", [])
         if not aps:
-            return f"No access points found near {iface}. Is monitor mode enabled?"
+            return (f"📡 No access points found near {iface}.\n"
+                    f"  Possible causes:\n"
+                    f"  • No Wi-Fi adapter connected or not supported\n"
+                    f"  • Adapter may not support monitor mode\n"
+                    f"  • Try a longer scan: the default is 10 seconds")
         lines = [f"📡 Found {len(aps)} access points:"]
         lines.append(f"{'BSSID':<20} {'ESSID':<25} {'CH':>3} {'PWR':>5}  {'ENC'}")
         lines.append("─" * 70)
@@ -789,6 +812,28 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             lines.append(f"{ap.get('bssid',''):<20} {ap.get('essid',''):<25} {ap.get('channel',''):>3} {pwr:>4}  {ap.get('privacy','')}  {bars}")
         if len(aps) > 20:
             lines.append(f"  ... and {len(aps) - 20} more")
+        return "\n".join(lines)
+
+    def _do_kill_james(self, m, raw) -> str:
+        summary = self.orch.kill_james()
+        killed = len(summary.get('killed', []))
+        restored = len(summary.get('interfaces_restored', []))
+        errors = summary.get('errors', [])
+
+        lines = [
+            "🛑 KILL JAMES — Complete",
+            "",
+            f"  Processes killed:    {killed}",
+            f"  Interfaces restored: {restored}",
+        ]
+        if summary.get('killed'):
+            lines.append(f"  Stopped: {', '.join(summary['killed'])}")
+        if errors:
+            lines.append(f"\n  ⚠️ Errors: {'; '.join(errors)}")
+        lines.append("")
+        lines.append("  ✅ All tools stopped, interfaces restored.")
+        lines.append("  🌐 NetworkManager restarted — Wi-Fi should reconnect.")
+        lines.append("  💡 If Wi-Fi doesn't reconnect, click the network icon in the tray.")
         return "\n".join(lines)
 
     def _do_clear(self, m, raw) -> str:
@@ -815,7 +860,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
         self.context["interface"] = iface
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.oneclick_wifi_blitz,
             args=(iface, wordlist),
@@ -833,7 +878,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         target = m.group(1).strip()
         self.context["target"] = target
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.oneclick_network_dominate,
             args=(target,),
@@ -850,7 +895,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         self.context["target_url"] = url
         self.context["target"] = url
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.oneclick_web_pwn,
             args=(url,),
@@ -867,7 +912,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         self.context["target"] = target
         self.context["domain"] = target
 
-        import threading
+
         t = threading.Thread(
             target=self.orch.oneclick_stealth_recon,
             args=(target,),
@@ -899,7 +944,6 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                     f"     set target_ssid NetworkName\n"
                     f"     set target_channel 6")
 
-        import threading
         t = threading.Thread(
             target=self.orch.oneclick_evil_twin,
             args=(iface, bssid, ssid, int(channel)),
@@ -910,6 +954,18 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         return (f"👿 Evil Twin launched!\n\n"
                 f"   Cloning: {ssid} ({bssid}) on channel {channel}\n"
                 f"   Interface: {iface}\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_connect_open_wifi(self, m, raw) -> str:
+        t = threading.Thread(
+            target=self.orch.connect_open_wifi,
+            daemon=True
+        )
+        t.start()
+
+        return (f"🌐 Open Wi-Fi Auto-Connect launched!\n\n"
+                f"   Scanning for unpassworded access points...\n"
+                f"   The strongest network will be automatically connected to.\n\n"
                 f"   Switch to ⚡ Dashboard to watch real-time progress.")
 
     # ── helpers ─────────────────────────────────────────────────
@@ -1035,6 +1091,8 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("stealth",   "stealth recon <target>"),
         ("evil twin", "evil twin <iface>"),
         ("oneclick",  "wifi blitz / network dominate / web pwn / stealth recon"),
+        ("open wifi", "connect open wifi"),
+        ("need wifi", "connect open wifi"),
         ("loot",      "show loot"),
         ("keys",      "show loot"),
         ("cracked",   "show loot"),
@@ -1042,6 +1100,11 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("nearby",    "scan aps <iface>"),
         ("networks",  "scan aps <iface>"),
         ("wordlist",  "set wordlist <path>"),
+        ("kill james", "kill james"),
+        ("stop all",   "kill james"),
+        ("cleanup",    "kill james"),
+        ("restore",    "kill james"),
+        ("fix wifi",   "kill james"),
     ]
 
     def _fuzzy_suggest(self, text: str) -> str:

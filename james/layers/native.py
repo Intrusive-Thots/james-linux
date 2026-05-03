@@ -55,13 +55,19 @@ class NativeLayer:
     def __init__(self, default_timeout: int = 120):
         self.default_timeout = default_timeout
         self._is_root = os.geteuid() == 0
-        
+        self._sudo_pass: Optional[str] = None
+        self._bg_procs: list[subprocess.Popen] = []  # process registry
+
         # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility
         current_path = os.environ.get("PATH", "")
         for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
             if sbin_path not in current_path:
                 current_path = f"{sbin_path}:{current_path}" if current_path else sbin_path
         os.environ["PATH"] = current_path
+
+    def set_sudo_password(self, password: str):
+        """Set the sudo password for privilege escalation (stored in-memory only)."""
+        self._sudo_pass = password
 
     # ── public API ──────────────────────────────────────────────
 
@@ -113,23 +119,50 @@ class NativeLayer:
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
         logger.info("exec (bg) → %s", cmd)
-        return subprocess.Popen(
+        proc = subprocess.Popen(
             cmd,
             shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             cwd=cwd,
             env=merged_env,
             preexec_fn=os.setsid,  # own process group for clean kill
         )
+        self._bg_procs.append(proc)
+        return proc
 
-    @staticmethod
-    def kill_background(proc: subprocess.Popen) -> None:
+    def kill_background(self, proc: subprocess.Popen) -> None:
         """Kill an entire process group spawned by run_background."""
+        if proc.poll() is not None:
+            # Already dead — just clean up registry
+            if proc in self._bg_procs:
+                self._bg_procs.remove(proc)
+            return
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        except ProcessLookupError:
+            pgid = os.getpgid(proc.pid)
+            os.killpg(pgid, signal.SIGTERM)
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                os.killpg(pgid, signal.SIGKILL)
+        except (ProcessLookupError, OSError):
             pass
+        if proc in self._bg_procs:
+            self._bg_procs.remove(proc)
+
+    def kill_all_background(self) -> int:
+        """Kill every tracked background process. Returns count killed."""
+        killed = 0
+        for proc in list(self._bg_procs):
+            if proc.poll() is None:
+                self.kill_background(proc)
+                killed += 1
+        self._bg_procs.clear()
+        return killed
+
+    def reap_dead(self) -> None:
+        """Remove already-exited processes from the registry."""
+        self._bg_procs = [p for p in self._bg_procs if p.poll() is None]
 
     def check_tool(self, tool_name: str) -> bool:
         """Return True if *tool_name* is available on PATH."""
@@ -142,7 +175,8 @@ class NativeLayer:
         """Always escalate to root via sudo with password piped in."""
         if self._is_root:
             return command
-        return f"echo 'malcolm' | sudo -S {command}"
+        password = self._sudo_pass or 'malcolm'  # fallback for backwards compat
+        return f"echo {shlex.quote(password)} | sudo -S {command}"
 
     def _run_blocking(self, cmd, timeout, cwd, env) -> CommandResult:
         try:
@@ -170,16 +204,16 @@ class NativeLayer:
     def _run_streaming(self, cmd, timeout, cwd, env, on_output) -> CommandResult:
         stdout_lines = []
         stderr_text = ""
+        proc = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=cwd,
+            env=env,
+        )
         try:
-            proc = subprocess.Popen(
-                cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=cwd,
-                env=env,
-            )
             for line in proc.stdout:
                 stripped = line.rstrip("\n")
                 stdout_lines.append(stripped)
@@ -194,10 +228,18 @@ class NativeLayer:
             )
         except subprocess.TimeoutExpired:
             proc.kill()
+            # communicate() drains and closes both pipes, preventing FD leaks
+            _, stderr_text = proc.communicate(timeout=5)
             return CommandResult(
                 command=cmd,
                 returncode=-1,
                 stdout="\n".join(stdout_lines),
-                stderr=stderr_text,
+                stderr=stderr_text or "",
                 timed_out=True,
             )
+        finally:
+            # Ensure pipes are closed even on unexpected exceptions
+            if proc.stdout and not proc.stdout.closed:
+                proc.stdout.close()
+            if proc.stderr and not proc.stderr.closed:
+                proc.stderr.close()

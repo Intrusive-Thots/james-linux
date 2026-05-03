@@ -8,6 +8,7 @@ dictionaries suitable for the AI orchestrator or the GUI.
 
 import json
 import re
+import shlex
 import xml.etree.ElementTree as ET
 from typing import Optional
 
@@ -34,8 +35,8 @@ class Nmap:
 
         Returns dict with keys: command, hosts[], scan_info.
         """
-        port_arg = f"-p {ports}" if ports else ""
-        cmd = f"nmap {flags} {port_arg} -oX - {target}"
+        port_arg = f"-p {shlex.quote(ports)}" if ports else ""
+        cmd = f"nmap {flags} {port_arg} -oX - {shlex.quote(target)}"
         result = self.layer.run(cmd, sudo=sudo, timeout=timeout)
         if not result.success:
             return {"error": result.stderr, "raw": result.stdout, "command": cmd}
@@ -164,6 +165,7 @@ class AircrackSuite:
             parts.append(f"--bssid {bssid}")
         if write_prefix:
             parts.append(f"-w {write_prefix}")
+            parts.append("--output-format csv")
         parts.append(interface)
         return self.layer.run_background(" ".join(parts), sudo=True)
 
@@ -173,6 +175,9 @@ class AircrackSuite:
         aps = []
         stations = []
         section = 0  
+        
+        import logging
+        logger = logging.getLogger(__name__)
         
         for line in csv_content.splitlines():
             line = line.strip()
@@ -186,30 +191,33 @@ class AircrackSuite:
                 section = 3
                 continue
                 
-            parts = [p.strip() for p in line.split(',')]
-            if section == 1 and len(parts) >= 14:
-                bssid = parts[0]
-                try:
-                    power = int(parts[8])
-                except ValueError:
-                    power = -100
-                
-                aps.append({
-                    "bssid": bssid,
-                    "channel": parts[3],
-                    "privacy": parts[5],
-                    "power": power,
-                    "essid": parts[13] if len(parts) > 13 else ""
-                })
-            elif section == 3 and len(parts) >= 6:
-                station_mac = parts[0]
-                bssid = parts[5]
-                # Ignore unassociated clients
-                if bssid and bssid != "(not associated)":
-                    stations.append({
-                        "station_mac": station_mac,
-                        "bssid": bssid
+            try:
+                parts = [p.strip() for p in line.split(',')]
+                if section == 1 and len(parts) >= 14:
+                    bssid = parts[0]
+                    try:
+                        power = int(parts[8])
+                    except ValueError:
+                        power = -100
+                    
+                    aps.append({
+                        "bssid": bssid,
+                        "channel": parts[3],
+                        "privacy": parts[5],
+                        "power": power,
+                        "essid": parts[13] if len(parts) > 13 else ""
                     })
+                elif section == 3 and len(parts) >= 6:
+                    station_mac = parts[0]
+                    bssid = parts[5]
+                    # Ignore unassociated clients
+                    if bssid and bssid != "(not associated)":
+                        stations.append({
+                            "station_mac": station_mac,
+                            "bssid": bssid
+                        })
+            except Exception as e:
+                logger.debug("Failed to parse airodump CSV line: '%s'. Error: %s", line, e)
                 
         return {"aps": aps, "stations": stations}
 
@@ -224,8 +232,8 @@ class AircrackSuite:
         client: Optional[str] = None,
     ) -> CommandResult:
         """Send deauthentication frames."""
-        client_arg = f"-c {client}" if client else ""
-        cmd = f"aireplay-ng -0 {count} -a {bssid} {client_arg} {interface}"
+        client_arg = f"-c {shlex.quote(client)}" if client else ""
+        cmd = f"aireplay-ng -0 {count} -a {shlex.quote(bssid)} {client_arg} {shlex.quote(interface)}"
         return self.layer.run(cmd, sudo=True, timeout=60)
 
     # ── cracking ────────────────────────────────────────────────
@@ -241,8 +249,8 @@ class AircrackSuite:
         Run aircrack-ng against a capture file.
         Returns dict with 'found', 'key', and raw output.
         """
-        bssid_arg = f"-b {bssid}" if bssid else ""
-        cmd = f"aircrack-ng {bssid_arg} -w {wordlist} {capture_file}"
+        bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
+        cmd = f"aircrack-ng {bssid_arg} -w {shlex.quote(wordlist)} {shlex.quote(capture_file)}"
         result = self.layer.run(cmd, timeout=600)
 
         found = False
@@ -265,7 +273,7 @@ class AircrackSuite:
 
     def check_handshake(self, capture_file: str, bssid: str) -> bool:
         """Check if a valid handshake exists in the capture file."""
-        cmd = f"aircrack-ng -b {bssid} {capture_file}"
+        cmd = f"aircrack-ng -b {shlex.quote(bssid)} {shlex.quote(capture_file)}"
         result = self.layer.run(cmd, timeout=10)
         return "1 handshake" in result.stdout or "WPA (1 handshake)" in result.stdout
 
@@ -285,8 +293,8 @@ class Hashcat:
         rules: Optional[str] = None,
         timeout: int = 600,
     ) -> dict:
-        rules_arg = f"-r {rules}" if rules else ""
-        cmd = f"hashcat -m {hash_mode} {rules_arg} {hash_file} {wordlist} --force"
+        rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
+        cmd = f"hashcat -m {int(hash_mode)} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force"
         result = self.layer.run(cmd, timeout=timeout)
         return {
             "command": cmd,
@@ -352,7 +360,7 @@ class Masscan:
         timeout: int = 300,
     ) -> dict:
         """Run masscan and return structured results."""
-        cmd = f"masscan {target} -p{ports} --rate={rate} -oJ -"
+        cmd = f"masscan {shlex.quote(target)} -p{shlex.quote(ports)} --rate={int(rate)} -oJ -"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
         if not result.success:
             return {"error": result.stderr, "command": cmd}
@@ -383,7 +391,7 @@ class Responder:
 
     def start(self, interface: str, *, timeout: int = 60) -> dict:
         """Run Responder for a set duration and collect captured hashes."""
-        cmd = f"timeout {timeout} responder -I {interface} -dwPv"
+        cmd = f"timeout {int(timeout)} responder -I {shlex.quote(interface)} -dwPv"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
 
         hashes = []
@@ -422,7 +430,7 @@ class TheHarvester:
         timeout: int = 120,
     ) -> dict:
         """Gather emails, subdomains, and IPs for a domain."""
-        cmd = f"theHarvester -d {domain} -b {sources} -l {limit}"
+        cmd = f"theHarvester -d {shlex.quote(domain)} -b {shlex.quote(sources)} -l {int(limit)}"
         result = self.layer.run(cmd, timeout=timeout)
 
         emails = []
@@ -470,7 +478,7 @@ class SSLScan:
 
     def scan(self, target: str, *, timeout: int = 30) -> dict:
         """Scan a host for SSL/TLS configuration issues."""
-        cmd = f"sslscan --no-colour {target}"
+        cmd = f"sslscan --no-colour {shlex.quote(target)}"
         result = self.layer.run(cmd, timeout=timeout)
 
         vulns = []
@@ -501,7 +509,7 @@ class WafDetector:
 
     def detect(self, url: str, *, timeout: int = 30) -> dict:
         """Detect if a URL is behind a WAF and identify it."""
-        cmd = f"wafw00f {url}"
+        cmd = f"wafw00f {shlex.quote(url)}"
         result = self.layer.run(cmd, timeout=timeout)
 
         waf_detected = False
@@ -538,7 +546,7 @@ class Ettercap:
         timeout: int = 60,
     ) -> dict:
         """ARP poison between two targets (typically victim and gateway)."""
-        cmd = f"timeout {timeout} ettercap -T -i {interface} -M arp:remote /{target1}// /{target2}//"
+        cmd = f"timeout {int(timeout)} ettercap -T -i {shlex.quote(interface)} -M arp:remote /{shlex.quote(target1)}// /{shlex.quote(target2)}//"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
         return {
             "command": cmd,
@@ -548,7 +556,7 @@ class Ettercap:
 
     def sniff(self, interface: str, *, timeout: int = 60) -> dict:
         """Passive sniffing with ettercap."""
-        cmd = f"timeout {timeout} ettercap -T -i {interface} -q"
+        cmd = f"timeout {int(timeout)} ettercap -T -i {shlex.quote(interface)} -q"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
         return {
             "command": cmd,
@@ -564,7 +572,7 @@ class Reaver:
 
     def pixie_dust(self, interface: str, bssid: str, *, channel: int, timeout: int = 120) -> dict:
         """Run a WPS Pixie Dust attack using reaver."""
-        cmd = f"reaver -i {interface} -b {bssid} -c {channel} -K 1 -vv"
+        cmd = f"reaver -i {shlex.quote(interface)} -b {shlex.quote(bssid)} -c {int(channel)} -K 1 -vv"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
         
         found_pin = False
@@ -599,7 +607,7 @@ class Hcxtools:
 
     def capture_pmkid(self, interface: str, output_pcapng: str, *, timeout: int = 600) -> dict:
         """Run hcxdumptool to capture PMKID hashes from nearby APs."""
-        cmd = f"timeout {timeout} hcxdumptool -i {interface} -o {output_pcapng} --enable_status=15"
+        cmd = f"timeout {int(timeout)} hcxdumptool -i {shlex.quote(interface)} -o {shlex.quote(output_pcapng)} --enable_status=15"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
         
         return {
@@ -610,7 +618,7 @@ class Hcxtools:
 
     def extract_hashes(self, pcapng_file: str, output_hash_file: str) -> dict:
         """Extract crackable hashes (hc22000 format) from a pcapng using hcxpcapngtool."""
-        cmd = f"hcxpcapngtool -o {output_hash_file} {pcapng_file}"
+        cmd = f"hcxpcapngtool -o {shlex.quote(output_hash_file)} {shlex.quote(pcapng_file)}"
         result = self.layer.run(cmd, timeout=30)
         
         pmkid_count = 0

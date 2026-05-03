@@ -69,19 +69,25 @@ class WorkerThread(QThread):
 
 class MainWindow(QMainWindow):
 
-    append_output = pyqtSignal(str)  # thread-safe terminal append
+    MAX_TERMINAL_LINES = 5000  # prevent OOM from tool output spam
+
+    append_output = pyqtSignal(str)   # thread-safe terminal append
+    refresh_log = pyqtSignal()        # thread-safe log table refresh
 
     def __init__(self):
         super().__init__()
         self.orch = Orchestrator()
         self.orch.on_task_update = self._on_task_update
         self._workers: list[WorkerThread] = []
+        self.known_targets = set()
+        self.target_comboboxes = []
 
         self.setWindowTitle("JAMES — Linux Pentesting Agent")
         self.setMinimumSize(1100, 720)
 
         self._build_ui()
         self.append_output.connect(self._do_append)
+        self.refresh_log.connect(self._refresh_log_table)
         
         self.orch.on_print = self._term_print
 
@@ -139,10 +145,10 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status)
         self.status.showMessage("JAMES ready.")
 
-        # Refresh context badges every 2 seconds
+        # Refresh context badges every 5 seconds (context rarely changes faster)
         self._ctx_timer = QTimer(self)
         self._ctx_timer.timeout.connect(self._refresh_context_strip)
-        self._ctx_timer.start(2000)
+        self._ctx_timer.start(5000)
 
     # ── Agent tab with Quick Actions sidebar ───────────────────
 
@@ -394,6 +400,34 @@ class MainWindow(QMainWindow):
         self._clock_timer.start(1000)
         self._update_clock()
 
+        # KILL JAMES button — emergency stop
+        self.kill_btn = QPushButton("🛑 KILL")
+        self.kill_btn.setToolTip("Kill all tools, restore interfaces, reconnect Wi-Fi")
+        self.kill_btn.setFixedHeight(32)
+        self.kill_btn.setFixedWidth(80)
+        self.kill_btn.setStyleSheet("""
+            QPushButton {
+                background: #1a0808;
+                color: #ff4757;
+                border: 1px solid #ff475740;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: #2d0a0a;
+                border-color: #ff4757;
+                color: #ff6b7a;
+            }
+            QPushButton:pressed {
+                background: #ff4757;
+                color: #ffffff;
+            }
+        """)
+        self.kill_btn.clicked.connect(self._do_kill_james)
+        lay.addWidget(self.kill_btn)
+
         return w
 
     # ── Dashboard tab ───────────────────────────────────────────
@@ -553,9 +587,13 @@ class MainWindow(QMainWindow):
                 lbl = QLabel(f"{var.replace('_', ' ').title()}:")
                 lbl.setStyleSheet("color: #4a6a8a; font-size: 11px;")
                 form.addWidget(lbl, idx, 0)
-                inp = QLineEdit()
-                inp.setPlaceholderText(f"e.g. {var}")
+                inp = QComboBox()
+                inp.setEditable(True)
+                inp.lineEdit().setPlaceholderText(f"e.g. {var}")
                 inp.setFixedHeight(28)
+                self.target_comboboxes.append(inp)
+                if self.known_targets:
+                    inp.addItems(sorted(list(self.known_targets)))
                 form.addWidget(inp, idx, 1)
                 input_fields[var] = inp
             c_lay.addLayout(form)
@@ -593,8 +631,8 @@ class MainWindow(QMainWindow):
 
     def _run_oneclick_test(self, skill_data, fields):
         context = {}
-        for var_name, line_edit in fields.items():
-            val = line_edit.text().strip()
+        for var_name, combo_box in fields.items():
+            val = combo_box.currentText().strip()
             if not val:
                 QMessageBox.warning(self, "Missing Input", f"Please provide a value for '{var_name}'.")
                 return
@@ -616,8 +654,12 @@ class MainWindow(QMainWindow):
         # target input
         row = QHBoxLayout()
         row.addWidget(QLabel("Target:"))
-        self.recon_target = QLineEdit()
-        self.recon_target.setPlaceholderText("e.g. 192.168.1.0/24 or scanme.nmap.org")
+        self.recon_target = QComboBox()
+        self.recon_target.setEditable(True)
+        self.recon_target.lineEdit().setPlaceholderText("e.g. 192.168.1.0/24 or scanme.nmap.org")
+        self.target_comboboxes.append(self.recon_target)
+        if self.known_targets:
+            self.recon_target.addItems(sorted(list(self.known_targets)))
         row.addWidget(self.recon_target)
 
         self.recon_quick_btn = QPushButton("Quick Scan")
@@ -755,8 +797,12 @@ class MainWindow(QMainWindow):
         deauth_group = QGroupBox("Deauthentication")
         dlay = QHBoxLayout(deauth_group)
         dlay.addWidget(QLabel("BSSID:"))
-        self.deauth_bssid = QLineEdit()
-        self.deauth_bssid.setPlaceholderText("AA:BB:CC:DD:EE:FF")
+        self.deauth_bssid = QComboBox()
+        self.deauth_bssid.setEditable(True)
+        self.deauth_bssid.lineEdit().setPlaceholderText("AA:BB:CC:DD:EE:FF")
+        self.target_comboboxes.append(self.deauth_bssid)
+        if self.known_targets:
+            self.deauth_bssid.addItems(sorted(list(self.known_targets)))
         dlay.addWidget(self.deauth_bssid)
         dlay.addWidget(QLabel("Count:"))
         self.deauth_count = QLineEdit("10")
@@ -896,7 +942,7 @@ class MainWindow(QMainWindow):
         self._start_worker(w)
 
     def _do_quick_scan(self):
-        target = self.recon_target.text().strip()
+        target = self.recon_target.currentText().strip()
         if not target:
             return
         self._term_print(f"[RECON] Quick scan → {target}")
@@ -909,7 +955,7 @@ class MainWindow(QMainWindow):
         self._start_worker(w)
 
     def _do_full_scan(self):
-        target = self.recon_target.text().strip()
+        target = self.recon_target.currentText().strip()
         if not target:
             return
         self._term_print(f"[RECON] Full scan → {target}")
@@ -926,8 +972,12 @@ class MainWindow(QMainWindow):
         if "error" in result:
             self._term_print(f"[ERROR] {result['error']}")
             return
+        new_targets = False
         for host in result.get("hosts", []):
             addr = host["address"]
+            if addr and addr not in self.known_targets:
+                self.known_targets.add(addr)
+                new_targets = True
             for port in host.get("ports", []):
                 row = self.recon_table.rowCount()
                 self.recon_table.insertRow(row)
@@ -937,6 +987,8 @@ class MainWindow(QMainWindow):
                 self.recon_table.setItem(row, 3, QTableWidgetItem(port["service"]))
                 self.recon_table.setItem(row, 4, QTableWidgetItem(port["version"]))
         self._term_print(f"[RECON] Found {self.recon_table.rowCount()} open ports.")
+        if new_targets:
+            self._update_all_target_comboboxes()
 
     def _refresh_interfaces(self):
         w = WorkerThread(self.orch.wifi_interfaces)
@@ -966,7 +1018,7 @@ class MainWindow(QMainWindow):
 
     def _do_deauth(self):
         iface_text = self.wifi_iface.currentText()
-        bssid = self.deauth_bssid.text().strip()
+        bssid = self.deauth_bssid.currentText().strip()
         if not iface_text or not bssid:
             return
         iface = iface_text.split()[0]
@@ -1033,10 +1085,11 @@ class MainWindow(QMainWindow):
     def _do_ap_scan(self):
         iface_text = self.wifi_iface.currentText()
         if not iface_text:
-            QMessageBox.warning(self, "No Interface", "Select a Wi-Fi interface and enable monitor mode first.")
+            QMessageBox.warning(self, "No Interface", "Select a Wi-Fi interface first.\nClick 'Refresh' to detect wireless adapters.")
             return
         iface = iface_text.split()[0]
         self._wifi_print("[AP SCAN] Scanning nearby networks (10s)...")
+        self._wifi_print("[AP SCAN] Monitor mode will be auto-enabled if needed.")
         w = WorkerThread(self.orch.scan_nearby_aps, iface)
         w.finished.connect(self._populate_ap_table)
         w.error.connect(lambda e: self._wifi_print(f"[ERROR] AP scan failed: {e}"))
@@ -1045,8 +1098,17 @@ class MainWindow(QMainWindow):
     def _populate_ap_table(self, result: dict):
         aps = result.get("aps", [])
         self.ap_table.setRowCount(0)
+        new_targets = False
         for ap in aps:
             row = self.ap_table.rowCount()
+            bssid = ap.get("bssid", "")
+            if bssid and bssid not in self.known_targets:
+                self.known_targets.add(bssid)
+                new_targets = True
+            essid = ap.get("essid", "")
+            if essid and essid not in self.known_targets:
+                self.known_targets.add(essid)
+                new_targets = True
             self.ap_table.insertRow(row)
             self.ap_table.setItem(row, 0, QTableWidgetItem(ap.get("bssid", "")))
             self.ap_table.setItem(row, 1, QTableWidgetItem(ap.get("essid", "")))
@@ -1064,6 +1126,8 @@ class MainWindow(QMainWindow):
                 pwr_item.setForeground(QColor("#ff4757"))
             self.ap_table.setItem(row, 4, pwr_item)
         self._wifi_print(f"[AP SCAN] Found {len(aps)} access points")
+        if new_targets:
+            self._update_all_target_comboboxes()
 
     def _ap_table_select(self, item):
         """Double-click an AP row → auto-fill BSSID into deauth field and context."""
@@ -1072,7 +1136,7 @@ class MainWindow(QMainWindow):
         essid = self.ap_table.item(row, 1).text() if self.ap_table.item(row, 1) else ""
         channel = self.ap_table.item(row, 2).text() if self.ap_table.item(row, 2) else ""
         if bssid:
-            self.deauth_bssid.setText(bssid)
+            self.deauth_bssid.setCurrentText(bssid)
             # Also update agent context for evil twin etc.
             try:
                 self.chat_panel.agent.context["target_bssid"] = bssid
@@ -1112,7 +1176,8 @@ class MainWindow(QMainWindow):
 
     def _do_network_dominate(self):
         from PyQt5.QtWidgets import QInputDialog
-        target, ok = QInputDialog.getText(self, "Network Dominate", "Target range (e.g. 192.168.1.0/24):")
+        targets = [""] + sorted(list(self.known_targets))
+        target, ok = QInputDialog.getItem(self, "Network Dominate", "Target range (e.g. 192.168.1.0/24):", targets, 0, True)
         if not ok or not target:
             return
         self._term_print(f"[ONE-CLICK] 💀 Network Dominate → {target}")
@@ -1123,7 +1188,8 @@ class MainWindow(QMainWindow):
 
     def _do_web_pwn(self):
         from PyQt5.QtWidgets import QInputDialog
-        url, ok = QInputDialog.getText(self, "Web Pwn", "Target URL (e.g. http://target.com):")
+        targets = [""] + sorted(list(self.known_targets))
+        url, ok = QInputDialog.getItem(self, "Web Pwn", "Target URL (e.g. http://target.com):", targets, 0, True)
         if not ok or not url:
             return
         self._term_print(f"[ONE-CLICK] 🌐 Web Pwn → {url}")
@@ -1134,7 +1200,8 @@ class MainWindow(QMainWindow):
 
     def _do_stealth_recon(self):
         from PyQt5.QtWidgets import QInputDialog
-        target, ok = QInputDialog.getText(self, "Stealth Recon", "Target domain/IP:")
+        targets = [""] + sorted(list(self.known_targets))
+        target, ok = QInputDialog.getItem(self, "Stealth Recon", "Target domain/IP:", targets, 0, True)
         if not ok or not target:
             return
         self._term_print(f"[ONE-CLICK] 👁️ Stealth Recon → {target}")
@@ -1142,6 +1209,52 @@ class MainWindow(QMainWindow):
         w.finished.connect(lambda r: self._term_print("[ONE-CLICK] Stealth Recon finished"))
         w.error.connect(lambda e: self._term_print(f"[ERROR] Stealth Recon failed: {e}"))
         self._start_worker(w)
+
+    # ── kill JAMES handler ───────────────────────────────────────
+
+    def _do_kill_james(self):
+        """Emergency stop — confirm, then kill everything."""
+        reply = QMessageBox.warning(
+            self,
+            "🛑 Kill JAMES",
+            "This will:\n\n"
+            "• Kill ALL running pentesting tools\n"
+            "• Restore wireless interfaces to managed mode\n"
+            "• Flush iptables rules\n"
+            "• Restart NetworkManager (reconnect Wi-Fi)\n"
+            "• Clean temp files\n\n"
+            "Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.kill_btn.setEnabled(False)
+        self.kill_btn.setText("⏳ ...")
+        self._term_print("🛑 KILL JAMES — Shutting everything down...")
+        self._wifi_print("🛑 KILL JAMES — Shutting everything down...")
+
+        w = WorkerThread(self.orch.kill_james)
+        w.finished.connect(self._on_kill_complete)
+        w.error.connect(lambda e: (
+            self._term_print(f"[ERROR] Kill failed: {e}"),
+            self._restore_kill_btn(),
+        ))
+        self._start_worker(w)
+
+    def _on_kill_complete(self, summary: dict):
+        killed = len(summary.get("killed", []))
+        restored = len(summary.get("interfaces_restored", []))
+        self._term_print(f"🛑 Kill complete — {killed} processes killed, {restored} interfaces restored")
+        self._wifi_print(f"🛑 Kill complete — interfaces restored. Wi-Fi should reconnect.")
+        self._restore_kill_btn()
+        # Refresh the interface list
+        QTimer.singleShot(3000, self._refresh_interfaces)
+
+    def _restore_kill_btn(self):
+        self.kill_btn.setEnabled(True)
+        self.kill_btn.setText("🛑 KILL")
 
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export Log", "/home/malcolm/Desktop/james_log.json", "JSON (*.json)")
@@ -1154,8 +1267,8 @@ class MainWindow(QMainWindow):
 
     def _on_task_update(self, entry):
         """Called from orchestrator (possibly worker thread)."""
-        # safe to emit signal
         self.append_output.emit(f"[{entry.status.upper()}] {entry.action} ({entry.tool})")
+        self.refresh_log.emit()  # rebuild log table on task events only
 
     def _refresh_log_table(self):
         log = self.orch.export_log()
@@ -1175,12 +1288,28 @@ class MainWindow(QMainWindow):
     def _term_print(self, text: str):
         self.append_output.emit(text)
 
+    def _update_all_target_comboboxes(self):
+        targets = sorted(list(self.known_targets))
+        for cb in self.target_comboboxes:
+            # We don't want to clear and lose the text if the user was typing
+            current = cb.currentText()
+            cb.clear()
+            cb.addItems(targets)
+            cb.setCurrentText(current)
+
     def _do_append(self, text: str):
         self.terminal.appendPlainText(text)
+        # Cap terminal at MAX_TERMINAL_LINES to prevent unbounded memory growth
+        doc = self.terminal.document()
+        if doc.blockCount() > self.MAX_TERMINAL_LINES:
+            cursor = QTextCursor(doc.begin())
+            cursor.movePosition(
+                QTextCursor.Down, QTextCursor.KeepAnchor,
+                doc.blockCount() - self.MAX_TERMINAL_LINES,
+            )
+            cursor.removeSelectedText()
         self.terminal.moveCursor(QTextCursor.End)
         self.status.showMessage(text[:120])
-        # also refresh log table
-        self._refresh_log_table()
 
     def _wifi_print(self, text):
         self.wifi_output.appendPlainText(str(text))
@@ -1191,4 +1320,28 @@ class MainWindow(QMainWindow):
     def _start_worker(self, worker: WorkerThread):
         self._workers.append(worker)
         worker.finished.connect(lambda: self._workers.remove(worker) if worker in self._workers else None)
+        worker.finished.connect(worker.deleteLater)  # prevent thread leak
         worker.start()
+
+    # ── graceful shutdown ───────────────────────────────────────
+
+    def closeEvent(self, event):
+        """Ask user whether to clean up before closing."""
+        reply = QMessageBox.question(
+            self, "Exit JAMES",
+            "Run kill_james (restore interfaces, kill tools) before closing?",
+            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+        )
+        if reply == QMessageBox.Cancel:
+            event.ignore()
+            return
+        if reply == QMessageBox.Yes:
+            self._term_print("Running kill_james before exit...")
+            try:
+                self.orch.kill_james()
+            except Exception as e:
+                self._term_print(f"Cleanup error: {e}")
+        # Stop timers
+        self._ctx_timer.stop()
+        self._clock_timer.stop()
+        event.accept()
