@@ -94,6 +94,9 @@ class MainWindow(QMainWindow):
         
         self.orch.on_print = self._term_print
 
+        # Share known_targets with agent for reporting
+        self.chat_panel.agent._gui_known_targets = self.known_targets
+
         # initial system check and load interfaces
         QTimer.singleShot(300, self._run_system_check)
         QTimer.singleShot(400, self._refresh_interfaces)
@@ -339,6 +342,33 @@ class MainWindow(QMainWindow):
             else:
                 if key in self._ctx_badges:
                     self._ctx_badges[key].setVisible(False)
+
+        # Live session stats
+        stats = {
+            "targets": (f"🎯 {len(self.known_targets)}", "#00f0ff"),
+            "tasks": (f"📋 {len(self.orch.export_log())}", "#5a9abf"),
+        }
+        try:
+            loot = self.orch.get_loot_summary()
+            if loot["cracked_count"] > 0:
+                stats["loot"] = (f"🔑 {loot['cracked_count']}", "#00ff88")
+        except Exception:
+            pass
+
+        for key, (text, color) in stats.items():
+            stat_key = f"_stat_{key}"
+            if stat_key not in self._ctx_badges:
+                lbl = QLabel()
+                lbl.setStyleSheet(f"""
+                    color: {color}; font-size: 10px; font-weight: bold;
+                    background: {color}10; border: 1px solid {color}30;
+                    border-radius: 10px; padding: 1px 8px;
+                """)
+                self._ctx_layout.insertWidget(
+                    self._ctx_layout.count() - 1, lbl
+                )
+                self._ctx_badges[stat_key] = lbl
+            self._ctx_badges[stat_key].setText(text)
 
         # Also update quick actions sidebar context
         try:
@@ -942,9 +972,25 @@ class MainWindow(QMainWindow):
         self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         lay.addWidget(self.log_table)
 
-        export_btn = QPushButton("Export Log (JSON)")
+        btn_row = QHBoxLayout()
+        export_btn = QPushButton("📤 Export Log (JSON)")
         export_btn.clicked.connect(self._export_log)
-        lay.addWidget(export_btn)
+        btn_row.addWidget(export_btn)
+
+        report_btn = QPushButton("📋 Generate HTML Report")
+        report_btn.setStyleSheet("""
+            QPushButton {
+                background: #0a1a30; color: #00f0ff;
+                border: 1px solid #00f0ff40; border-radius: 6px;
+                padding: 8px 16px; font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #102040; border-color: #00f0ff;
+            }
+        """)
+        report_btn.clicked.connect(self._generate_gui_report)
+        btn_row.addWidget(report_btn)
+        lay.addLayout(btn_row)
         return w
 
     # ── actions ─────────────────────────────────────────────────
@@ -1311,6 +1357,50 @@ class MainWindow(QMainWindow):
             with open(path, "w") as f:
                 json.dump(self.orch.export_log(), f, indent=2)
             self._term_print(f"[LOG] Exported to {path}")
+
+    def _generate_gui_report(self):
+        """Generate professional HTML pentest report from GUI."""
+        import subprocess
+        from james.core.report import generate_html_report, save_report
+
+        self._term_print("[REPORT] Generating HTML report...")
+        try:
+            log = self.orch.export_log()
+            skills = self.orch.list_skills()
+            tool_status = self.orch.system_check()
+            loot = self.orch.get_loot_summary()
+
+            ctx = {}
+            try:
+                ctx = self.chat_panel.agent.context
+            except AttributeError:
+                pass
+
+            html = generate_html_report(
+                task_log=log,
+                context=ctx,
+                loot_summary=loot,
+                tool_status=tool_status,
+                skills=skills,
+                known_targets=self.known_targets,
+            )
+
+            report_path = save_report(html)
+            self._term_print(f"[REPORT] Saved to {report_path}")
+
+            # Try to open in browser
+            try:
+                subprocess.Popen(["xdg-open", str(report_path)],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                self._term_print("[REPORT] Opened in browser.")
+            except Exception:
+                pass
+
+            QMessageBox.information(self, "Report Generated",
+                                    f"Report saved to:\n{report_path}")
+        except Exception as e:
+            self._term_print(f"[ERROR] Report generation failed: {e}")
+            QMessageBox.warning(self, "Report Error", f"Failed: {e}")
 
     # ── task log callback ───────────────────────────────────────
 

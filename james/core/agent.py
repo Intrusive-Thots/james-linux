@@ -771,40 +771,54 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                 "  run skill msf_exploit Run automated MSF skill")
 
     def _do_report(self, m, raw) -> str:
+        from james.core.report import generate_html_report, save_report
+
         log = self.orch.export_log()
-        if not log:
-            return "📋 No tasks to report."
-
-        from datetime import datetime
-        report = [f"# JAMES Penetration Test Report",
-                  f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
-                  f"## Session Context"]
-        for k, v in self.context.items():
-            report.append(f"- **{k}**: {v}")
-
-        report.append(f"\n## Task Log ({len(log)} entries)\n")
-        report.append("| Time | Action | Tool | Status |")
-        report.append("|------|--------|------|--------|")
-        for e in log:
-            report.append(f"| {e['timestamp'][:19]} | {e['action']} | {e['tool']} | {e['status']} |")
-
         skills = self.orch.list_skills()
-        report.append(f"\n## Available Skills: {len(skills)}")
-        report.append(f"\n## Tools Status")
-        status = self.orch.system_check()
-        installed = sum(1 for v in status.values() if v)
-        report.append(f"- {installed}/{len(status)} tools installed")
+        tool_status = self.orch.system_check()
+        loot = self.orch.get_loot_summary()
+        installed = sum(1 for v in tool_status.values() if v)
 
-        report_text = "\n".join(report)
-        report_path = "/tmp/james_report.md"
-        with open(report_path, "w") as f:
-            f.write(report_text)
+        # Collect known targets from GUI if available, otherwise from context
+        targets = set()
+        if hasattr(self, '_gui_known_targets'):
+            targets = self._gui_known_targets
+        elif self.context.get("target"):
+            targets.add(self.context["target"])
+
+        html = generate_html_report(
+            task_log=log,
+            context=self.context,
+            loot_summary=loot,
+            tool_status=tool_status,
+            skills=skills,
+            known_targets=targets,
+        )
+
+        report_path = save_report(html)
+
+        # Also save a quick markdown summary alongside it
+        md_path = report_path.with_suffix(".md")
+        md_lines = [f"# JAMES Penetration Test Report",
+                     f"Generated: {report_path.stem.split('_', 1)[-1]}",
+                     f"",
+                     f"## Summary",
+                     f"- Tasks: {len(log)}",
+                     f"- Keys cracked: {loot.get('cracked_count', 0)}",
+                     f"- Targets found: {len(targets)}",
+                     f"- Tools: {installed}/{len(tool_status)} installed",
+                     f"- Skills: {len(skills)} available",
+                     f"",
+                     f"Full report: {report_path}"]
+        md_path.write_text("\n".join(md_lines))
 
         return (f"📋 Report generated ({len(log)} tasks logged)\n"
-                f"   Saved to: {report_path}\n\n"
-                f"   Context: {len(self.context)} variables set\n"
-                f"   Tools: {installed}/{len(status)} installed\n"
-                f"   Skills: {len(skills)} available")
+                f"   📄 HTML: {report_path}\n"
+                f"   📝 Summary: {md_path}\n\n"
+                f"   🔑 Keys cracked: {loot.get('cracked_count', 0)}\n"
+                f"   🎯 Targets found: {len(targets)}\n"
+                f"   ⚙️  Tools: {installed}/{len(tool_status)} installed\n"
+                f"   ⚡ Skills: {len(skills)} available")
 
     def _do_show_loot(self, m, raw) -> str:
         loot = self.orch.get_loot_summary()
