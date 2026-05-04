@@ -14,6 +14,7 @@ Panels:
 import json
 import threading
 from datetime import datetime
+from pathlib import Path
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
@@ -81,6 +82,8 @@ class MainWindow(QMainWindow):
         self._workers: list[WorkerThread] = []
         self.known_targets = set()
         self.target_comboboxes = []
+        self._targets_file = Path.home() / ".james" / "loot" / "known_targets.json"
+        self._load_targets()
 
         self.setWindowTitle("JAMES — Linux Pentesting Agent")
         self.setMinimumSize(1100, 720)
@@ -1298,6 +1301,7 @@ class MainWindow(QMainWindow):
             cb.clear()
             cb.addItems(targets)
             cb.setCurrentText(current)
+        self._save_targets()
 
     def _do_append(self, text: str):
         self.terminal.appendPlainText(text)
@@ -1325,10 +1329,33 @@ class MainWindow(QMainWindow):
         worker.finished.connect(worker.deleteLater)  # prevent thread leak
         worker.start()
 
+    # ── target persistence ───────────────────────────────────────
+
+    def _load_targets(self):
+        """Load known targets from disk."""
+        try:
+            if self._targets_file.exists():
+                data = json.loads(self._targets_file.read_text())
+                if isinstance(data, list):
+                    self.known_targets = set(data)
+                    if self.known_targets:
+                        self._term_print(f"[SYS] Loaded {len(self.known_targets)} saved targets")
+        except Exception:
+            pass  # file corrupt / missing — start fresh
+
+    def _save_targets(self):
+        """Persist known targets to disk."""
+        try:
+            self._targets_file.parent.mkdir(parents=True, exist_ok=True)
+            self._targets_file.write_text(json.dumps(sorted(self.known_targets)))
+        except Exception:
+            pass
+
     # ── graceful shutdown ───────────────────────────────────────
 
     def closeEvent(self, event):
         """Ask user whether to clean up before closing."""
+        self._save_targets()
         reply = QMessageBox.question(
             self, "Exit JAMES",
             "Run kill_james (restore interfaces, kill tools) before closing?",

@@ -72,7 +72,7 @@ INTENT_PATTERNS = [
     (r"(?:network\s*dominate|dominate|net\s*dominate|net\s*pwn)\s+(\S+)", "oneclick_network_dominate"),
     (r"(?:web\s*pwn|web\s*hack|web\s*nuke)\s+(\S+)", "oneclick_web_pwn"),
     (r"(?:evil\s*twin|rogue\s*ap)(?:\s+(\S+))?", "oneclick_evil_twin"),
-    (r"(?:(?:connect|find|get)\s*(?:to\s*)?(?:an\s*)?(?:open\s*)?wifi|need\s*wifi)", "connect_open_wifi"),
+    (r"(?:(?:connect|find|get|join|grab)\s*(?:to\s*)?(?:an?\s*)?(?:open\s*|free\s*)?(?:wifi|wi-fi|wireless|network|internet|hotspot|ap)|(?:need|want|gimme)\s*(?:some\s*)?(?:wifi|wi-fi|internet|network))", "connect_open_wifi"),
 
     # OSINT
     (r"(?:osint|harvest|recon\s*domain|domain\s*recon)\s+(\S+)", "osint"),
@@ -360,6 +360,10 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
 
   💻 Shell
     ! <command>            Run a raw shell command
+
+  📚 Wordlists
+    list wordlists         Show all available wordlists by category
+    set wordlist <path>    Set active wordlist for cracking
 
   💡 Context: I remember target, interface, wordlist, etc."""
 
@@ -1120,7 +1124,8 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("aps",       "scan aps <iface>"),
         ("nearby",    "scan aps <iface>"),
         ("networks",  "scan aps <iface>"),
-        ("wordlist",  "set wordlist <path>"),
+        ("wordlist",  "list wordlists / set wordlist <path>"),
+        ("dict",      "list wordlists"),
         ("kill james", "kill james"),
         ("stop all",   "kill james"),
         ("cleanup",    "kill james"),
