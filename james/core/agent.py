@@ -55,6 +55,8 @@ INTENT_PATTERNS = [
     (r"(?:web\s*scan|nikto)\s+(.+)", "web_scan"),
     (r"(?:waf|firewall)\s+(?:detect|check|scan)\s+(.+)", "waf_detect"),
     (r"(?:scan\s*aps|nearby\s*aps|nearby\s*networks|show\s*aps)(?:\s+(\S+))?", "scan_aps"),
+    # Stealth/passive recon must be before the generic 'recon' catch-all
+    (r"(?:stealth\s*recon|passive\s*recon|silent\s*recon)\s+(\S+)", "oneclick_stealth_recon"),
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
     # Wi-Fi
@@ -69,7 +71,6 @@ INTENT_PATTERNS = [
     (r"(?:wifi\s*blitz|blitz\s*wifi|wifi\s*nuke)(?:\s+(\S+))?", "oneclick_wifi_blitz"),
     (r"(?:network\s*dominate|dominate|net\s*dominate|net\s*pwn)\s+(\S+)", "oneclick_network_dominate"),
     (r"(?:web\s*pwn|web\s*hack|web\s*nuke)\s+(\S+)", "oneclick_web_pwn"),
-    (r"(?:stealth\s*recon|passive\s*recon|silent\s*recon)\s+(\S+)", "oneclick_stealth_recon"),
     (r"(?:evil\s*twin|rogue\s*ap)(?:\s+(\S+))?", "oneclick_evil_twin"),
     (r"(?:(?:connect|find|get)\s*(?:to\s*)?(?:an\s*)?(?:open\s*)?wifi|need\s*wifi)", "connect_open_wifi"),
 
