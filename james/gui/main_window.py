@@ -1118,6 +1118,14 @@ class MainWindow(QMainWindow):
             return
         iface = iface_text.split()[0]
         count = int(self.deauth_count.text() or "10")
+
+        # Network self-protection check
+        safe, reason = self.orch.net_guard.check_deauth_safe(bssid)
+        if not safe:
+            self._wifi_print(reason)
+            QMessageBox.warning(self, "Self-Protection", reason)
+            return
+
         self._wifi_print(f"[DEAUTH] → {bssid} x{count}")
         w = WorkerThread(self.orch.aircrack.deauth, iface, bssid, count=count)
         w.finished.connect(lambda r: self._wifi_print(r.stdout if r else "done"))

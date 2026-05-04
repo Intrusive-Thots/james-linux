@@ -103,6 +103,8 @@ INTENT_PATTERNS = [
     (r"(?:system\s*check|check\s*tools?|status)", "system_check"),
     (r"(?:list|show)\s+skills?", "list_skills"),
     (r"(?:list|show)\s+(?:wordlists?|word\s*lists?|dicts?|dictionaries)", "list_wordlists"),
+    (r"(?:show|list|get)\s+primers?(?:\s+(\w+))?", "show_primer"),
+    (r"(?:net\s*guard|network\s*guard|connection\s*status|self.?protect)", "net_guard_status"),
     (r"(?:run|execute|load)\s+skill\s+(\S+)", "run_skill"),
     (r"set\s+(\w+)\s+(.+)", "set_context"),
     (r"(?:help|commands?|what\s+can)", "help"),
@@ -365,6 +367,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     list wordlists         Show all available wordlists by category
     set wordlist <path>    Set active wordlist for cracking
 
+  🧠 AI Primers
+    show primers           List all AI phase primers
+    show primer <phase>    View a specific primer (recon/wifi/web/etc.)
+
+  🛡️ Self-Protection
+    net guard              Show network protection status
+    (Auto-blocks deauth of your own AP and monitor on your connected interface)
+
   💡 Context: I remember target, interface, wordlist, etc."""
 
     def _do_system_check(self, m, raw) -> str:
@@ -464,6 +474,10 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         iface = self.context.get("monitor_interface") or self.context.get("interface")
         if not iface:
             return "[!] No monitor interface active. Enable monitor mode first."
+        # Network self-protection
+        safe, reason = self.orch.net_guard.check_deauth_safe(bssid)
+        if not safe:
+            return reason
         self.context["target_bssid"] = bssid
         result = self.orch.aircrack.deauth(iface, bssid, count=count)
         return f"💀 Sent {count} deauth frames → {bssid} via {iface}\n{result.stdout[:500]}"
@@ -513,6 +527,47 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         total = sum(wl["lines"] for wl in inventory)
         lines.append(f"  Total: {total:,} entries across {len(inventory)} lists")
         lines.append(f"\n  💡 Set wordlist: set wordlist <path>")
+        return "\n".join(lines)
+
+    def _do_show_primer(self, m, raw) -> str:
+        from james.core.primers import list_primers, get_primer, PRIMERS
+        phase = m.group(1) if m.lastindex and m.group(1) else None
+
+        if phase:
+            phase_lower = phase.lower()
+            if phase_lower not in PRIMERS:
+                return f"[!] Unknown primer '{phase}'. Available: {', '.join(PRIMERS.keys())}"
+            primer = get_primer(phase_lower)
+            return f"🧠 AI Primer: {phase_lower.upper()}\n{'─' * 50}\n{primer}"
+        else:
+            primers_info = list_primers()
+            lines = ["🧠 Available AI Primers:\n"]
+            for p in primers_info:
+                lines.append(f"  • {p['name']:<15} {p['lines']:>3} lines  ({p['chars']:,} chars)")
+            lines.append(f"\n  💡 View specific: show primer <name>")
+            lines.append(f"  Phases: {', '.join(p['name'] for p in primers_info)}")
+            return "\n".join(lines)
+
+    def _do_net_guard_status(self, m, raw) -> str:
+        status = self.orch.net_guard.get_status()
+        lines = ["🛡️ Network Self-Protection Status\n"]
+        lines.append(f"  Enabled:   {'✅ YES' if status['enabled'] else '❌ NO'}")
+        lines.append(f"  Connected: {'✅ YES' if status['connected'] else '❌ NO'}")
+        if status['connected']:
+            lines.append(f"  Interface: {status['interface']}")
+            lines.append(f"  Type:      {'📡 Wi-Fi' if status['is_wifi'] else '🔌 Wired'}")
+            if status['is_wifi']:
+                lines.append(f"  SSID:      {status['ssid'] or '(hidden)'}")
+                lines.append(f"  BSSID:     {status['bssid'] or '(unknown)'}")
+            lines.append(f"  Gateway:   {status['gateway'] or '(none)'}")
+            lines.append(f"  IP:        {status['ip'] or '(none)'}")
+            lines.append(f"\n  Protected targets:")
+            if status['bssid']:
+                lines.append(f"    • BSSID {status['bssid']} — deauth BLOCKED")
+            if status['interface']:
+                lines.append(f"    • Interface {status['interface']} — monitor mode BLOCKED")
+        else:
+            lines.append("  ⚠️ No active connection detected")
         return "\n".join(lines)
 
     def _do_set_context(self, m, raw) -> str:

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 from james.layers.native import NativeLayer
+from james.core.net_guard import NetworkGuard
 from james.tools.parrot import (
     Nmap, AircrackSuite, Hashcat, John,
     Masscan, Responder, TheHarvester, SSLScan, WafDetector, Ettercap,
@@ -111,6 +112,9 @@ class Orchestrator:
 
         # Skill list cache — avoids re-globbing 37 JSON files on every call
         self._skill_cache: Optional[list[str]] = None
+
+        # Network self-protection — prevents severing own connection
+        self.net_guard = NetworkGuard(enabled=True)
 
     # ── loot persistence ────────────────────────────────────────
 
@@ -578,7 +582,19 @@ class Orchestrator:
         return ifaces
 
     def start_monitor(self, interface: str) -> dict:
+        # Network self-protection check
+        safe, reason = self.net_guard.check_monitor_safe(interface)
+        if not safe:
+            self._print(reason)
+            return {"error": reason, "blocked": True}
+
         entry = self._log("start_monitor", "aircrack", {"interface": interface})
+
+        # Warn if check_kill will disrupt Wi-Fi
+        _, ck_warning = self.net_guard.check_check_kill_safe()
+        if ck_warning:
+            self._print(ck_warning)
+
         self.aircrack.check_kill()
         result = self.aircrack.enable_monitor(interface)
         self._finish(entry, result.as_dict())
@@ -782,6 +798,12 @@ class Orchestrator:
                 cached = self.get_cached_key(target["bssid"])
                 if cached:
                     self._print(f"  ⏭ {target['essid']} already cracked (loot cache): {cached}")
+                    continue
+
+                # Network self-protection: skip our own AP
+                deauth_safe, guard_reason = self.net_guard.check_deauth_safe(target["bssid"])
+                if not deauth_safe:
+                    self._print(f"  ⏭ Skipping {target['essid']}: {guard_reason}")
                     continue
 
                 self._print(f"  → Target {i+1}: {target['bssid']} ({target['essid']}) ch{target['channel']}")
@@ -1209,6 +1231,12 @@ CONF""", sudo=True, timeout=5)
         aps.sort(key=lambda x: x["power"], reverse=True)
         target = aps[0]
         
+        # Network self-protection: don't attack our own AP
+        deauth_safe, guard_reason = self.net_guard.check_deauth_safe(target["bssid"])
+        if not deauth_safe:
+            self._print(f"[AUTOPWN] {guard_reason}")
+            return {"error": guard_reason, "blocked": True}
+
         self._print(f"[AUTOPWN] Selected Target: {target['bssid']} ({target['essid']}) on Channel {target['channel']}")
         
         # 4. Targeted Capture
