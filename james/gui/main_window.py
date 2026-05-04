@@ -846,10 +846,13 @@ class MainWindow(QMainWindow):
         glay.addWidget(cap_browse, 0, 2)
 
         glay.addWidget(QLabel("Wordlist:"), 1, 0)
-        self.wl_path = QLineEdit("/home/malcolm/Desktop/rockyou.txt")
+        self.wl_path = QComboBox()
+        self.wl_path.setEditable(True)
+        self.wl_path.setMinimumWidth(300)
+        self._populate_wordlist_combo(self.wl_path, "wifi")
         glay.addWidget(self.wl_path, 1, 1)
         wl_browse = QPushButton("Browse")
-        wl_browse.clicked.connect(lambda: self._browse(self.wl_path, "*"))
+        wl_browse.clicked.connect(lambda: self._browse_combo(self.wl_path, "*"))
         glay.addWidget(wl_browse, 1, 2)
 
         crack_btn = QPushButton("⚡ Crack")
@@ -874,9 +877,19 @@ class MainWindow(QMainWindow):
                                   "3200 - bcrypt"])
         hlay.addWidget(self.hash_mode, 1, 1)
 
+        hlay.addWidget(QLabel("Wordlist:"), 2, 0)
+        self.hash_wl_path = QComboBox()
+        self.hash_wl_path.setEditable(True)
+        self.hash_wl_path.setMinimumWidth(300)
+        self._populate_wordlist_combo(self.hash_wl_path, "password")
+        hlay.addWidget(self.hash_wl_path, 2, 1)
+        hwl_browse = QPushButton("Browse")
+        hwl_browse.clicked.connect(lambda: self._browse_combo(self.hash_wl_path, "*"))
+        hlay.addWidget(hwl_browse, 2, 2)
+
         hcrack_btn = QPushButton("⚡ Crack Hash")
         hcrack_btn.clicked.connect(self._do_crack_hash)
-        hlay.addWidget(hcrack_btn, 2, 1)
+        hlay.addWidget(hcrack_btn, 3, 1)
         lay.addWidget(hash_group)
 
         # result output
@@ -885,6 +898,37 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.crack_output)
 
         return w
+
+    def _populate_wordlist_combo(self, combo: QComboBox, category: str = "password"):
+        """Fill a combo box with available wordlists, preferring the given category."""
+        try:
+            inventory = self.orch.list_wordlists()
+            # Put matching category first, then the rest
+            matched = [wl for wl in inventory if wl["category"] == category]
+            others = [wl for wl in inventory if wl["category"] != category]
+            for wl in matched + others:
+                label = f"{wl['name']}  ({wl['lines']:,} entries)"
+                combo.addItem(label, wl["path"])
+            # Select the first item (best match)
+            if combo.count() > 0:
+                combo.setCurrentIndex(0)
+        except Exception:
+            combo.addItem("/usr/share/wordlists/rockyou.txt")
+
+    def _browse_combo(self, combo: QComboBox, filt: str):
+        """Open a file browser and set the result as the combo's current text."""
+        path, _ = QFileDialog.getOpenFileName(self, "Select File", "", f"Files ({filt})")
+        if path:
+            combo.setCurrentText(path)
+
+    def _get_wordlist_path(self, combo: QComboBox) -> str:
+        """Extract the actual file path from a wordlist combo box."""
+        # If user data is set (picked from dropdown), use that
+        data = combo.currentData()
+        if data:
+            return data
+        # Otherwise use the raw text (user typed/browsed a custom path)
+        return combo.currentText().strip()
 
     # ── Log tab ─────────────────────────────────────────────────
 
@@ -1035,10 +1079,10 @@ class MainWindow(QMainWindow):
 
     def _do_crack_wpa(self):
         cap = self.cap_path.text().strip()
-        wl = self.wl_path.text().strip()
+        wl = self._get_wordlist_path(self.wl_path)
         if not cap or not wl:
             return
-        self.crack_output.setPlainText("Cracking in progress…\n")
+        self.crack_output.setPlainText(f"Cracking with {wl.split('/')[-1]}…\n")
         w = WorkerThread(self.orch.crack_handshake, cap, wl)
         w.finished.connect(self._show_crack_result)
         self._start_worker(w)
@@ -1065,11 +1109,11 @@ class MainWindow(QMainWindow):
 
     def _do_crack_hash(self):
         hf = self.hash_path.text().strip()
-        wl = self.wl_path.text().strip()
+        wl = self._get_wordlist_path(self.hash_wl_path)
         if not hf or not wl:
             return
         mode = int(self.hash_mode.currentText().split(" - ")[0])
-        self.crack_output.setPlainText("Cracking hash…\n")
+        self.crack_output.setPlainText(f"Cracking hash with {wl.split('/')[-1]}…\n")
         w = WorkerThread(self.orch.crack_hash, hf, wl, mode)
         w.finished.connect(self._show_crack_result)
         self._start_worker(w)

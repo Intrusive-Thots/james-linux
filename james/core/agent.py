@@ -81,7 +81,7 @@ INTENT_PATTERNS = [
 
     # Web (extras not already handled above)
     (r"(?:gobuster|dir\s*brute|dir\s*bust)\s+(\S+)", "dir_brute"),
-    (r"(?:sqlmap|sql\s*inject(?:ion)?)\s+(\S+)", "sqli"),
+    (r"(?:sqlmap|sqli|sql\s*inject(?:ion)?)\s+(\S+)", "sqli"),
 
     # Network attacks
     (r"(?:arp\s*spoof|arp\s*poison|mitm)\s+(\S+)(?:\s+(\S+))?", "mitm"),
