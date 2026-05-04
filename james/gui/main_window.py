@@ -572,12 +572,14 @@ class MainWindow(QMainWindow):
             desc_lbl.setStyleSheet("color: #6a8aaa; font-size: 11px; font-style: italic;")
             c_lay.addWidget(desc_lbl)
 
-        # Extract variables
+        # Extract variables (both standalone {{var}} and inline e.g. "http://{{target}}:{{port}}")
+        import re
         vars_needed = set()
         for step in skill_data.get("steps", []):
             for _, v in step.get("params", {}).items():
-                if isinstance(v, str) and v.startswith("{{") and v.endswith("}}"):
-                    vars_needed.add(v[2:-2].strip())
+                if isinstance(v, str):
+                    for m in re.finditer(r'\{\{(\w+)\}\}', v):
+                        vars_needed.add(m.group(1))
 
         input_fields = {}
         if vars_needed:
