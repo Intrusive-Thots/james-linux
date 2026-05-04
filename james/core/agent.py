@@ -102,6 +102,7 @@ INTENT_PATTERNS = [
     # System
     (r"(?:system\s*check|check\s*tools?|status)", "system_check"),
     (r"(?:list|show)\s+skills?", "list_skills"),
+    (r"(?:list|show)\s+(?:wordlists?|word\s*lists?|dicts?|dictionaries)", "list_wordlists"),
     (r"(?:run|execute|load)\s+skill\s+(\S+)", "run_skill"),
     (r"set\s+(\w+)\s+(.+)", "set_context"),
     (r"(?:help|commands?|what\s+can)", "help"),
@@ -489,6 +490,25 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             data = self.orch.load_skill(s)
             desc = data.get("description", "")
             lines.append(f"  ⚡ {s} — {desc}")
+        return "\n".join(lines)
+
+    def _do_list_wordlists(self, m, raw) -> str:
+        inventory = self.orch.list_wordlists()
+        if not inventory:
+            return "[!] No wordlists found."
+        lines = [f"📚 Wordlist Arsenal — {len(inventory)} lists available\n"]
+        cats = {}
+        for wl in inventory:
+            cats.setdefault(wl["category"], []).append(wl)
+        for cat, wls in sorted(cats.items()):
+            lines.append(f"  ── {cat.upper()} {'─' * (40 - len(cat))}")
+            for wl in sorted(wls, key=lambda x: x["lines"], reverse=True):
+                size = f"{wl['size_mb']}MB" if wl['size_mb'] >= 1 else f"{int(wl['size_mb']*1024)}KB"
+                lines.append(f"    {wl['name']:<35} {wl['lines']:>12,} entries  ({size})")
+            lines.append("")
+        total = sum(wl["lines"] for wl in inventory)
+        lines.append(f"  Total: {total:,} entries across {len(inventory)} lists")
+        lines.append(f"\n  💡 Set wordlist: set wordlist <path>")
         return "\n".join(lines)
 
     def _do_set_context(self, m, raw) -> str:

@@ -7,3 +7,4 @@ dist/
 build/
 .venv/
 venv/
+wordlists/wifi-mega-wpa.txt

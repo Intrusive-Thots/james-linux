@@ -1,0 +1,3 @@
+pgadmin
+admin
+postgres

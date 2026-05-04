@@ -68,13 +68,16 @@ class Orchestrator:
 
     MAX_LOG = 500  # prevent unbounded memory growth
 
-    # Common wordlist paths for auto-detection
+    # Common wordlist paths for auto-detection (preferred order)
     _WORDLISTS = [
         "/home/malcolm/Desktop/rockyou.txt",
         "/usr/share/wordlists/rockyou.txt",
         "/usr/share/wordlists/rockyou.txt.gz",
         "/home/malcolm/Desktop/wordlists/rockyou.txt",
     ]
+
+    # Project-local wordlist directory
+    WORDLIST_DIR = Path(__file__).resolve().parent.parent.parent / "wordlists"
 
     LOOT_DIR = Path.home() / ".james" / "loot"
 
@@ -160,11 +163,33 @@ class Orchestrator:
 
     # ── auto wordlist detection ─────────────────────────────────
 
-    def find_wordlist(self) -> Optional[str]:
-        """Auto-detect the best available wordlist on the system."""
+    def find_wordlist(self, category: str = "password") -> Optional[str]:
+        """Auto-detect the best available wordlist on the system.
+
+        Categories: 'password' (default), 'wifi', 'web', 'usernames', 'subdomains'
+        """
+        # Category-specific picks from our generated lists
+        category_map = {
+            "wifi": ["wifi-mega-wpa.txt", "wifi-custom-patterns.txt", "wifi-wpa-top4800.txt"],
+            "web": ["web-raft-large.txt", "web-common.txt", "web-custom-paths.txt"],
+            "usernames": ["usernames-names.txt", "usernames-short.txt"],
+            "subdomains": ["subdomains-top5000.txt", "subdomains-custom.txt"],
+        }
+        if category in category_map:
+            for name in category_map[category]:
+                path = self.WORDLIST_DIR / name
+                if path.exists():
+                    return str(path)
+
+        # Default: try the big password lists
         for wl in self._WORDLISTS:
             if Path(wl).exists():
                 return wl
+        # Try our project wordlists
+        for name in ["top-10k-passwords.txt", "rockyou-75.txt", "worst-500.txt"]:
+            path = self.WORDLIST_DIR / name
+            if path.exists():
+                return str(path)
         # Fallback: search common directories
         result = self.layer.run(
             "find /usr/share/wordlists -name 'rockyou*' -type f 2>/dev/null | head -1",
@@ -173,6 +198,57 @@ class Orchestrator:
         if result.stdout.strip():
             return result.stdout.strip()
         return None
+
+    def list_wordlists(self) -> list[dict]:
+        """Return an inventory of all available wordlists with metadata."""
+        inventory = []
+
+        # System wordlists
+        system_paths = [
+            ("/usr/share/wordlists/rockyou.txt", "password", "RockYou (full)"),
+            ("/usr/share/wordlists/darkc0de.txt", "password", "Darkc0de"),
+            ("/usr/share/wordlists/probable-v2-wpa-top4800.txt", "wifi", "WPA Top 4800 (system)"),
+        ]
+        for path, cat, label in system_paths:
+            p = Path(path)
+            if p.exists():
+                try:
+                    lines = sum(1 for _ in open(p, encoding="latin-1"))
+                except Exception:
+                    lines = 0
+                inventory.append({
+                    "path": str(p), "name": label, "category": cat,
+                    "lines": lines, "size_mb": round(p.stat().st_size / 1048576, 1),
+                })
+
+        # Project wordlists
+        if self.WORDLIST_DIR.exists():
+            for f in sorted(self.WORDLIST_DIR.glob("*.txt")):
+                if f.stat().st_size < 2:
+                    continue  # skip empty files
+                try:
+                    lines = sum(1 for _ in open(f, encoding="latin-1"))
+                except Exception:
+                    lines = 0
+                name = f.stem
+                if "wifi" in name or "wpa" in name:
+                    cat = "wifi"
+                elif "web" in name or "raft" in name:
+                    cat = "web"
+                elif "user" in name:
+                    cat = "usernames"
+                elif "subdomain" in name or "dns" in name:
+                    cat = "subdomains"
+                elif "default" in name:
+                    cat = "defaults"
+                else:
+                    cat = "password"
+                inventory.append({
+                    "path": str(f), "name": name, "category": cat,
+                    "lines": lines, "size_mb": round(f.stat().st_size / 1048576, 1),
+                })
+
+        return inventory
 
     def _print(self, msg: str):
         logger.info(msg)
