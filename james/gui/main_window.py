@@ -388,7 +388,33 @@ class MainWindow(QMainWindow):
         # status bar with activity pulse
         self.status = QStatusBar()
         self.setStatusBar(self.status)
-        self.status.showMessage("JAMES ready.")
+
+        # Target display in status bar
+        self._status_target = QLabel("🎯 No target")
+        self._status_target.setStyleSheet(
+            "color: #3a5a7a; font-size: 10px; font-weight: bold; padding: 0 8px;"
+        )
+        self.status.addWidget(self._status_target)
+
+        # Worker count
+        self._status_workers = QLabel("⚙ 0 workers")
+        self._status_workers.setStyleSheet(
+            "color: #2a4a5a; font-size: 10px; padding: 0 8px;"
+        )
+        self.status.addWidget(self._status_workers)
+
+        # Uptime
+        self._uptime_seconds = 0
+        self._status_uptime = QLabel("⏱ 0:00:00")
+        self._status_uptime.setStyleSheet(
+            "color: #1a3a5a; font-size: 10px; padding: 0 8px;"
+        )
+        self.status.addWidget(self._status_uptime)
+        self._uptime_timer = QTimer(self)
+        self._uptime_timer.timeout.connect(self._tick_uptime)
+        self._uptime_timer.start(1000)
+
+        self.status.showMessage("JAMES ready.", 3000)
 
         # Activity pulse indicator (animated during ops)
         self._activity_label = QLabel("  ● IDLE")
@@ -399,7 +425,7 @@ class MainWindow(QMainWindow):
         self._active_ops = 0
 
         # Shortcut hints
-        shortcut_hint = QLabel("Ctrl+1-7: Tabs  │  Ctrl+K: Kill  │  Ctrl+/: Chat")
+        shortcut_hint = QLabel("Ctrl+1-7: Tabs │ Ctrl+K: Kill │ Ctrl+R: Reboot │ Ctrl+/: Chat")
         shortcut_hint.setStyleSheet(
             "color: #1a3050; font-size: 10px; padding-right: 12px;"
         )
@@ -476,6 +502,7 @@ class MainWindow(QMainWindow):
         self._activity_label.setStyleSheet(
             "color: #00f0ff; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
         )
+        self._update_worker_count()
 
     def _stop_activity(self):
         """Return to idle when all ops complete."""
@@ -484,6 +511,44 @@ class MainWindow(QMainWindow):
             self._activity_label.setText("  ● IDLE")
             self._activity_label.setStyleSheet(
                 "color: #2a4a5a; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
+            )
+        self._update_worker_count()
+
+    def _tick_uptime(self):
+        """Increment session uptime counter."""
+        self._uptime_seconds += 1
+        h = self._uptime_seconds // 3600
+        m = (self._uptime_seconds % 3600) // 60
+        s = self._uptime_seconds % 60
+        self._status_uptime.setText(f"⏱ {h}:{m:02d}:{s:02d}")
+
+        # Periodically update target in status bar
+        try:
+            target = self.chat_panel.agent.context.get("target", "")
+            if target:
+                self._status_target.setText(f"🎯 {target}")
+                self._status_target.setStyleSheet(
+                    "color: #00f0ff; font-size: 10px; font-weight: bold; padding: 0 8px;"
+                )
+            else:
+                self._status_target.setText("🎯 No target")
+                self._status_target.setStyleSheet(
+                    "color: #3a5a7a; font-size: 10px; font-weight: bold; padding: 0 8px;"
+                )
+        except Exception:
+            pass
+
+    def _update_worker_count(self):
+        """Update worker count display in status bar."""
+        active = len([w for w in self._workers if w.isRunning()])
+        self._status_workers.setText(f"⚙ {active} worker{'s' if active != 1 else ''}")
+        if active > 0:
+            self._status_workers.setStyleSheet(
+                "color: #00f0ff; font-size: 10px; padding: 0 8px; font-weight: bold;"
+            )
+        else:
+            self._status_workers.setStyleSheet(
+                "color: #2a4a5a; font-size: 10px; padding: 0 8px;"
             )
 
     # ── Agent tab with Quick Actions sidebar ───────────────────
@@ -1042,6 +1107,35 @@ class MainWindow(QMainWindow):
         # Terminal output
         term_group = QGroupBox("Terminal Output")
         term_lay = QVBoxLayout(term_group)
+
+        # Terminal toolbar
+        term_toolbar = QHBoxLayout()
+        self._term_auto_scroll = True
+        auto_scroll_btn = QPushButton("📌 Auto-scroll: ON")
+        auto_scroll_btn.setFixedWidth(150)
+        auto_scroll_btn.setCheckable(True)
+        auto_scroll_btn.setChecked(True)
+        def _toggle_scroll(checked):
+            self._term_auto_scroll = checked
+            auto_scroll_btn.setText(f"📌 Auto-scroll: {'ON' if checked else 'OFF'}")
+        auto_scroll_btn.toggled.connect(_toggle_scroll)
+        term_toolbar.addWidget(auto_scroll_btn)
+
+        copy_term_btn = QPushButton("📋 Copy All")
+        copy_term_btn.setFixedWidth(90)
+        copy_term_btn.clicked.connect(
+            lambda: QApplication.clipboard().setText(self.terminal.toPlainText())
+        )
+        term_toolbar.addWidget(copy_term_btn)
+
+        term_line_count = QLabel("0 lines")
+        term_line_count.setStyleSheet("color: #3a5a7a; font-size: 10px;")
+        self._term_line_label = term_line_count
+        term_toolbar.addWidget(term_line_count)
+
+        term_toolbar.addStretch()
+        term_lay.addLayout(term_toolbar)
+
         self.terminal = QPlainTextEdit()
         self.terminal.setReadOnly(True)
         self.terminal.setMaximumBlockCount(5000)
@@ -1574,15 +1668,26 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(12, 12, 12, 12)
 
         # WPA cracking
-        wpa_group = QGroupBox("WPA Handshake Crack (aircrack-ng)")
+        wpa_group = QGroupBox("🔓 WPA Handshake Crack (aircrack-ng)")
         glay = QGridLayout(wpa_group)
 
-        glay.addWidget(QLabel("Capture (.cap):"), 0, 0)
-        self.cap_path = QLineEdit()
+        glay.addWidget(QLabel("Capture:"), 0, 0)
+        self.cap_path = QComboBox()
+        self.cap_path.setEditable(True)
+        self.cap_path.setMinimumWidth(300)
+        self.cap_path.lineEdit().setPlaceholderText("Select or browse for .cap file")
+        self._populate_captures()
         glay.addWidget(self.cap_path, 0, 1)
+
+        cap_btn_row = QHBoxLayout()
         cap_browse = QPushButton("Browse")
-        cap_browse.clicked.connect(lambda: self._browse(self.cap_path, "*.cap"))
-        glay.addWidget(cap_browse, 0, 2)
+        cap_browse.clicked.connect(lambda: self._browse_combo(self.cap_path, "*.cap *.hccapx *.pcap"))
+        cap_btn_row.addWidget(cap_browse)
+        cap_refresh = QPushButton("↻ Detect")
+        cap_refresh.setToolTip("Scan ~/.james/captures/ for new capture files")
+        cap_refresh.clicked.connect(self._populate_captures)
+        cap_btn_row.addWidget(cap_refresh)
+        glay.addLayout(cap_btn_row, 0, 2)
 
         glay.addWidget(QLabel("Wordlist:"), 1, 0)
         self.wl_path = QComboBox()
@@ -1594,16 +1699,22 @@ class MainWindow(QMainWindow):
         wl_browse.clicked.connect(lambda: self._browse_combo(self.wl_path, "*"))
         glay.addWidget(wl_browse, 1, 2)
 
-        crack_btn = QPushButton("⚡ Crack")
+        crack_btn = QPushButton("⚡ Crack WPA")
+        crack_btn.setStyleSheet("""
+            QPushButton { background: #1a1a00; color: #ffcc00; border: 1px solid #ffcc0040;
+                border-radius: 6px; font-weight: bold; font-size: 12px; padding: 8px 16px; }
+            QPushButton:hover { background: #2a2a00; border-color: #ffcc00; }
+        """)
         crack_btn.clicked.connect(self._do_crack_wpa)
         glay.addWidget(crack_btn, 2, 1)
         lay.addWidget(wpa_group)
 
         # Hash cracking
-        hash_group = QGroupBox("Hash Crack (hashcat)")
+        hash_group = QGroupBox("🔐 Hash Crack (hashcat)")
         hlay = QGridLayout(hash_group)
         hlay.addWidget(QLabel("Hash File:"), 0, 0)
         self.hash_path = QLineEdit()
+        self.hash_path.setPlaceholderText("Path to hash file or paste hash directly")
         hlay.addWidget(self.hash_path, 0, 1)
         h_browse = QPushButton("Browse")
         h_browse.clicked.connect(lambda: self._browse(self.hash_path, "*"))
@@ -1611,9 +1722,26 @@ class MainWindow(QMainWindow):
 
         hlay.addWidget(QLabel("Mode:"), 1, 0)
         self.hash_mode = QComboBox()
-        self.hash_mode.addItems(["0 - MD5", "100 - SHA1", "1400 - SHA256",
-                                  "1800 - sha512crypt", "2500 - WPA/WPA2",
-                                  "3200 - bcrypt"])
+        self.hash_mode.addItems([
+            "0 - MD5",
+            "100 - SHA1",
+            "500 - md5crypt",
+            "900 - MD4",
+            "1000 - NTLM",
+            "1400 - SHA256",
+            "1700 - SHA512",
+            "1800 - sha512crypt",
+            "2500 - WPA/WPA2",
+            "2501 - WPA-EAPOL-PMK",
+            "3000 - LM",
+            "3200 - bcrypt",
+            "5500 - NetNTLMv1",
+            "5600 - NetNTLMv2",
+            "7500 - Kerberos 5 AS-REQ",
+            "13100 - Kerberos 5 TGS-REP",
+            "16800 - WPA-PMKID-PBKDF2",
+            "22000 - WPA-PBKDF2-PMKID+EAPOL",
+        ])
         hlay.addWidget(self.hash_mode, 1, 1)
 
         hlay.addWidget(QLabel("Wordlist:"), 2, 0)
@@ -1627,16 +1755,45 @@ class MainWindow(QMainWindow):
         hlay.addWidget(hwl_browse, 2, 2)
 
         hcrack_btn = QPushButton("⚡ Crack Hash")
+        hcrack_btn.setStyleSheet("""
+            QPushButton { background: #1a0018; color: #a855f7; border: 1px solid #a855f740;
+                border-radius: 6px; font-weight: bold; font-size: 12px; padding: 8px 16px; }
+            QPushButton:hover { background: #2a0028; border-color: #a855f7; }
+        """)
         hcrack_btn.clicked.connect(self._do_crack_hash)
         hlay.addWidget(hcrack_btn, 3, 1)
         lay.addWidget(hash_group)
 
         # result output
+        out_header = QHBoxLayout()
+        out_label = QLabel("📋 Output")
+        out_label.setStyleSheet("color: #5a8aaa; font-weight: bold; font-size: 12px;")
+        out_header.addWidget(out_label)
+        out_header.addStretch()
+        clear_out_btn = QPushButton("Clear")
+        clear_out_btn.setFixedWidth(60)
+        clear_out_btn.clicked.connect(lambda: self.crack_output.clear())
+        out_header.addWidget(clear_out_btn)
+        lay.addLayout(out_header)
+
         self.crack_output = QPlainTextEdit()
         self.crack_output.setReadOnly(True)
         lay.addWidget(self.crack_output)
 
         return w
+
+    def _populate_captures(self):
+        """Auto-detect .cap/.hccapx/.pcap/.pmkid files from captures directory."""
+        captures_dir = Path.home() / ".james" / "captures"
+        self.cap_path.clear()
+        if captures_dir.exists():
+            caps = sorted(captures_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for cap in caps:
+                if cap.suffix.lower() in (".cap", ".hccapx", ".pcap", ".pmkid", ".22000"):
+                    # Show filename but store full path
+                    self.cap_path.addItem(f"{cap.name}  ({cap.stat().st_size // 1024}KB)", str(cap))
+        if self.cap_path.count() == 0:
+            self.cap_path.lineEdit().setPlaceholderText("No captures found — use Browse or run AutoPwn first")
 
     def _populate_wordlist_combo(self, combo: QComboBox, category: str = "password"):
         """Fill a combo box with available wordlists, preferring the given category."""
@@ -1798,16 +1955,40 @@ class MainWindow(QMainWindow):
         for i in reversed(range(self.status_grid.count())):
             self.status_grid.itemAt(i).widget().deleteLater()
 
-        row = 0
+        installed = sum(1 for v in status.values() if v)
+        total = len(status)
+
+        # Summary header
+        summary = QLabel(f"  {installed}/{total} tools installed")
+        if installed == total:
+            summary.setStyleSheet("color: #00ff88; font-size: 12px; font-weight: bold;")
+        elif installed > total // 2:
+            summary.setStyleSheet("color: #ffcc00; font-size: 12px; font-weight: bold;")
+        else:
+            summary.setStyleSheet("color: #ff4757; font-size: 12px; font-weight: bold;")
+        self.status_grid.addWidget(summary, 0, 0, 1, 4)
+
+        row = 1
+        col = 0
         for tool, available in status.items():
-            name_lbl = QLabel(f"  {tool}")
-            name_lbl.setStyleSheet("font-size: 14px;")
-            status_lbl = QLabel("● INSTALLED" if available else "✕ MISSING")
-            status_lbl.setObjectName("statusOk" if available else "statusBad")
-            self.status_grid.addWidget(name_lbl, row, 0)
-            self.status_grid.addWidget(status_lbl, row, 1)
-            self.tool_labels[tool] = status_lbl
+            dot = "●" if available else "✕"
+            color = "#00ff88" if available else "#ff4757"
+            lbl = QLabel(f'<span style="color:{color}; font-size:13px;">{dot}</span>  {tool}')
+            lbl.setStyleSheet("font-size: 11px; padding: 2px 4px;")
+            self.status_grid.addWidget(lbl, row, col * 2, 1, 2)
+            self.tool_labels[tool] = lbl
+            col += 1
+            if col >= 2:
+                col = 0
+                row += 1
+        if col != 0:
             row += 1
+
+        # Refresh button
+        refresh_btn = QPushButton("↻ Re-check Tools")
+        refresh_btn.setFixedWidth(140)
+        refresh_btn.clicked.connect(self._run_system_check)
+        self.status_grid.addWidget(refresh_btn, row, 0, 1, 4)
 
         self.status_grid.setRowStretch(row, 1)
         self._term_print("[SYS] System check complete.")
@@ -1922,11 +2103,15 @@ class MainWindow(QMainWindow):
         self._start_worker(w)
 
     def _do_crack_wpa(self):
-        cap = self.cap_path.text().strip()
+        cap = self._get_wordlist_path(self.cap_path)  # works for any QComboBox with data
         wl = self._get_wordlist_path(self.wl_path)
-        if not cap or not wl:
+        if not cap:
+            QMessageBox.warning(self, "No Capture", "Select a .cap file first.\nUse 'Detect' to find captures from AutoPwn runs.")
             return
-        self.crack_output.setPlainText(f"Cracking with {wl.split('/')[-1]}…\n")
+        if not wl:
+            QMessageBox.warning(self, "No Wordlist", "Select a wordlist first.")
+            return
+        self.crack_output.setPlainText(f"Cracking {cap.split('/')[-1]} with {wl.split('/')[-1]}…\n")
         w = WorkerThread(self.orch.crack_handshake, cap, wl)
         w.finished.connect(self._show_crack_result)
         self._start_worker(w)
@@ -2388,8 +2573,18 @@ class MainWindow(QMainWindow):
                 doc.blockCount() - self.MAX_TERMINAL_LINES,
             )
             cursor.removeSelectedText()
-        self.terminal.moveCursor(QTextCursor.End)
-        self.status.showMessage(text[:120])
+
+        # Auto-scroll (respects toggle)
+        if self._term_auto_scroll:
+            self.terminal.moveCursor(QTextCursor.End)
+
+        # Update line count
+        try:
+            self._term_line_label.setText(f"{doc.blockCount()} lines")
+        except AttributeError:
+            pass
+
+        self.status.showMessage(text[:120], 3000)
 
     def _wifi_print(self, text):
         self.wifi_output.appendPlainText(str(text))
