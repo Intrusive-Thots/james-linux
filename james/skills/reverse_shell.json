@@ -23,5 +23,6 @@
       },
       "description": "Start netcat reverse shell listener"
     }
-  ]
+  ],
+  "category": "exploit"
 }

@@ -51,5 +51,6 @@
       },
       "description": "SQLmap automated SQL injection crawler"
     }
-  ]
+  ],
+  "category": "web"
 }

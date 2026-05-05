@@ -32,5 +32,6 @@
       },
       "description": "Enumerate databases if injection found"
     }
-  ]
+  ],
+  "category": "web"
 }

@@ -20,5 +20,6 @@
       },
       "description": "Wifite automated multi-vector Wi-Fi attack (WPA handshake + PMKID + WPS)"
     }
-  ]
+  ],
+  "category": "wifi"
 }

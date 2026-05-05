@@ -13,13 +13,17 @@
     {
       "id": "monitor_on",
       "action": "aircrack.enable_monitor",
-      "params": {"interface": "{{interface}}"},
+      "params": {
+        "interface": "{{interface}}"
+      },
       "description": "Put interface into monitor mode"
     },
     {
       "id": "scan_networks",
       "action": "aircrack.start_airodump",
-      "params": {"interface": "{{monitor_interface}}"},
+      "params": {
+        "interface": "{{monitor_interface}}"
+      },
       "description": "Scan for nearby access points",
       "duration_seconds": 30
     },
@@ -56,8 +60,11 @@
     {
       "id": "monitor_off",
       "action": "aircrack.disable_monitor",
-      "params": {"interface": "{{monitor_interface}}"},
+      "params": {
+        "interface": "{{monitor_interface}}"
+      },
       "description": "Restore managed mode"
     }
-  ]
+  ],
+  "category": "wifi"
 }

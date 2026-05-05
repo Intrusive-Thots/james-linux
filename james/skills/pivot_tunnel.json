@@ -32,5 +32,6 @@
       },
       "description": "Display lateral movement command reference"
     }
-  ]
+  ],
+  "category": "post-exploit"
 }

@@ -1,6 +1,6 @@
 {
   "name": "full_chain",
-  "description": "Full attack chain: network discovery → service scan → vulnerability scan → brute force → post-exploitation. End-to-end autonomous pentesting.",
+  "description": "Full attack chain: network discovery \u2192 service scan \u2192 vulnerability scan \u2192 brute force \u2192 post-exploitation. End-to-end autonomous pentesting.",
   "author": "james-linux",
   "version": "1.0",
   "requires_root": true,
@@ -51,5 +51,6 @@
       },
       "description": "Phase 5: Local post-exploitation enumeration"
     }
-  ]
+  ],
+  "category": "chain"
 }

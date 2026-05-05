@@ -13,7 +13,9 @@
     {
       "id": "monitor_on",
       "action": "aircrack.enable_monitor",
-      "params": {"interface": "{{interface}}"},
+      "params": {
+        "interface": "{{interface}}"
+      },
       "description": "Enable monitor mode"
     },
     {
@@ -75,5 +77,6 @@
       },
       "description": "Display instructions to launch rogue AP (requires interactive terminals)"
     }
-  ]
+  ],
+  "category": "wifi"
 }

@@ -77,5 +77,6 @@
       },
       "description": "Find backup files, SSH keys, Docker socket access"
     }
-  ]
+  ],
+  "category": "exploit"
 }

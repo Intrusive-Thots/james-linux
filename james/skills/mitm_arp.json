@@ -55,5 +55,6 @@
       },
       "description": "Analyze captured traffic for HTTP requests"
     }
-  ]
+  ],
+  "category": "network-attack"
 }

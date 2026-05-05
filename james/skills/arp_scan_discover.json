@@ -35,5 +35,6 @@
       },
       "description": "Map IPs to MAC addresses and vendor identification"
     }
-  ]
+  ],
+  "category": "recon"
 }

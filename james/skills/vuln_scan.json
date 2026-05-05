@@ -25,5 +25,6 @@
       },
       "description": "Run Nikto web vulnerability scanner (output saved to /tmp/james_nikto.html)"
     }
-  ]
+  ],
+  "category": "exploit"
 }

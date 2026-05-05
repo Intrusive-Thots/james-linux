@@ -24,5 +24,6 @@
       },
       "description": "Hydra FTP password brute-force"
     }
-  ]
+  ],
+  "category": "brute-force"
 }

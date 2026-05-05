@@ -33,5 +33,6 @@
       },
       "description": "DNS record enumeration (A, MX, NS, TXT)"
     }
-  ]
+  ],
+  "category": "recon"
 }

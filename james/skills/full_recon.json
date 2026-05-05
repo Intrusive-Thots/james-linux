@@ -8,7 +8,9 @@
     {
       "id": "quick_scan",
       "action": "nmap.quick_scan",
-      "params": {"target": "{{target}}"},
+      "params": {
+        "target": "{{target}}"
+      },
       "description": "Fast top-100 port scan to discover live hosts"
     },
     {
@@ -24,8 +26,11 @@
     {
       "id": "os_detection",
       "action": "nmap.os_detect",
-      "params": {"target": "{{target}}"},
+      "params": {
+        "target": "{{target}}"
+      },
       "description": "OS fingerprinting (requires root)"
     }
-  ]
+  ],
+  "category": "recon"
 }

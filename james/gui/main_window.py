@@ -355,6 +355,46 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+        # Network guard status
+        try:
+            guard = self.orch.net_guard.get_status()
+            if guard["enabled"]:
+                if guard["is_wifi"]:
+                    ssid = guard["ssid"] or "Wi-Fi"
+                    stats["guard"] = (f"🛡️ {ssid}", "#00ff88")
+                elif guard["connected"]:
+                    stats["guard"] = ("🛡️ Wired", "#5a9abf")
+                else:
+                    stats["guard"] = ("🛡️ No conn", "#ff5555")
+            # Update Wi-Fi tab indicator
+            if hasattr(self, "net_guard_label"):
+                if guard["is_wifi"] and guard["bssid"]:
+                    self.net_guard_label.setText("🛡️")
+                    self.net_guard_label.setToolTip(
+                        f"Protected: {guard['ssid']} ({guard['bssid']})\n"
+                        f"Deauth & monitor mode blocked on {guard['interface']}"
+                    )
+                    self.net_guard_label.setStyleSheet(
+                        "color: #00ff88; font-size: 14px; background: transparent; padding: 0 4px;"
+                    )
+                elif guard["connected"]:
+                    self.net_guard_label.setText("🔌")
+                    self.net_guard_label.setToolTip(
+                        f"Wired connection via {guard['interface']}\n"
+                        f"Wi-Fi attacks unrestricted on other adapters"
+                    )
+                    self.net_guard_label.setStyleSheet(
+                        "color: #5a9abf; font-size: 14px; background: transparent; padding: 0 4px;"
+                    )
+                else:
+                    self.net_guard_label.setText("⚠️")
+                    self.net_guard_label.setToolTip("No connection detected — guard inactive")
+                    self.net_guard_label.setStyleSheet(
+                        "color: #ff5555; font-size: 14px; background: transparent; padding: 0 4px;"
+                    )
+        except Exception:
+            pass
+
         for key, (text, color) in stats.items():
             stat_key = f"_stat_{key}"
             if stat_key not in self._ctx_badges:
@@ -741,8 +781,30 @@ class MainWindow(QMainWindow):
         self.autopwn_btn.clicked.connect(self._do_autopwn)
         iface_row.addWidget(self.autopwn_btn)
 
+        # NetworkGuard status indicator
+        self.net_guard_label = QLabel("🛡️")
+        self.net_guard_label.setToolTip("Network self-protection active")
+        self.net_guard_label.setStyleSheet(
+            "color: #00ff88; font-size: 14px; background: transparent; padding: 0 4px;"
+        )
+        iface_row.addWidget(self.net_guard_label)
+
         iface_row.addStretch()
         lay.addLayout(iface_row)
+
+        # Wi-Fi wordlist selector row
+        wl_row = QHBoxLayout()
+        wl_row.addWidget(QLabel("Wordlist:"))
+        self.wifi_wl_combo = QComboBox()
+        self.wifi_wl_combo.setEditable(True)
+        self.wifi_wl_combo.setMinimumWidth(350)
+        self._populate_wordlist_combo(self.wifi_wl_combo, "wifi")
+        wl_row.addWidget(self.wifi_wl_combo)
+        wifi_wl_browse = QPushButton("Browse")
+        wifi_wl_browse.clicked.connect(lambda: self._browse_combo(self.wifi_wl_combo, "*"))
+        wl_row.addWidget(wifi_wl_browse)
+        wl_row.addStretch()
+        lay.addLayout(wl_row)
 
         # ── One-Click Hack buttons ──────────────────────────────
         hack_group = QGroupBox("⚡ One-Click Hacks")
@@ -1148,12 +1210,16 @@ class MainWindow(QMainWindow):
             return
         iface = iface_text.split()[0]
         
-        # We need a wordlist
-        wordlist, _ = QFileDialog.getOpenFileName(self, "Select Wordlist for AutoPwn", "/home/malcolm/Desktop", "*")
+        # Use the Wi-Fi tab wordlist selector
+        wordlist = self._get_wordlist_path(self.wifi_wl_combo)
         if not wordlist:
+            # Fallback to orchestrator auto-detection
+            wordlist = self.orch.find_wordlist("wifi")
+        if not wordlist:
+            QMessageBox.warning(self, "No Wordlist", "No wordlist selected and none auto-detected.\nSelect one from the Wordlist dropdown.")
             return
             
-        self._term_print(f"[AUTOPWN] Triggered on interface {iface} with wordlist {wordlist}")
+        self._term_print(f"[AUTOPWN] Triggered on interface {iface} with {wordlist.split('/')[-1]}")
         self.autopwn_btn.setEnabled(False)
         w = WorkerThread(self.orch.auto_wifi_pwn, iface, wordlist)
         w.finished.connect(lambda r: self._term_print(f"[AUTOPWN] Workflow complete: {json.dumps(r)}"))
@@ -1268,10 +1334,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Interface", "Select a Wi-Fi interface first.")
             return
         iface = iface_text.split()[0]
-        wordlist, _ = QFileDialog.getOpenFileName(self, "Select Wordlist", "/home/malcolm/Desktop", "*")
+        wordlist = self._get_wordlist_path(self.wifi_wl_combo)
         if not wordlist:
+            wordlist = self.orch.find_wordlist("wifi")
+        if not wordlist:
+            QMessageBox.warning(self, "No Wordlist", "Select a wordlist from the dropdown first.")
             return
-        self._term_print(f"[ONE-CLICK] 🔥 Wi-Fi Blitz on {iface}")
+        self._term_print(f"[ONE-CLICK] 🔥 Wi-Fi Blitz on {iface} with {wordlist.split('/')[-1]}")
         w = WorkerThread(self.orch.oneclick_wifi_blitz, iface, wordlist)
         w.finished.connect(lambda r: self._term_print(f"[ONE-CLICK] Wi-Fi Blitz finished: {len(r.get('cracked', []))} cracked"))
         w.error.connect(lambda e: self._term_print(f"[ERROR] Wi-Fi Blitz failed: {e}"))

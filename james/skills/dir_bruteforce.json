@@ -23,5 +23,6 @@
       },
       "description": "Extended brute-force with file extensions (.php, .html, .txt, .bak, .zip)"
     }
-  ]
+  ],
+  "category": "web"
 }

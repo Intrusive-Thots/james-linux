@@ -60,5 +60,6 @@
       },
       "description": "Display all found credentials"
     }
-  ]
+  ],
+  "category": "brute-force"
 }

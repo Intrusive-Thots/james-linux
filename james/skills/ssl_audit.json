@@ -23,5 +23,6 @@
       },
       "description": "Nmap SSL vulnerability scripts (Heartbleed, POODLE, weak DH)"
     }
-  ]
+  ],
+  "category": "web"
 }

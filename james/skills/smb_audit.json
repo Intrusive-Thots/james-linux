@@ -24,5 +24,6 @@
       },
       "description": "Run enum4linux for deeper SMB extraction"
     }
-  ]
+  ],
+  "category": "post-exploit"
 }

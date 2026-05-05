@@ -19,5 +19,6 @@
       "action": "responder.check_logs",
       "description": "Check Responder log directory for captured hashes"
     }
-  ]
+  ],
+  "category": "network-attack"
 }

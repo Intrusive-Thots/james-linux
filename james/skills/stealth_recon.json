@@ -27,5 +27,6 @@
       },
       "description": "Low-intensity service version detection on discovered ports"
     }
-  ]
+  ],
+  "category": "recon"
 }

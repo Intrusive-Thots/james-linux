@@ -41,5 +41,6 @@
       },
       "description": "Check SPF, DKIM, DMARC records"
     }
-  ]
+  ],
+  "category": "recon"
 }

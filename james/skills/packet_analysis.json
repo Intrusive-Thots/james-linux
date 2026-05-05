@@ -60,5 +60,6 @@
       },
       "description": "Extract cleartext credentials (HTTP Basic Auth, FTP)"
     }
-  ]
+  ],
+  "category": "recon"
 }

@@ -41,5 +41,6 @@
       },
       "description": "Inspect HTTP response headers for WAF signatures"
     }
-  ]
+  ],
+  "category": "web"
 }

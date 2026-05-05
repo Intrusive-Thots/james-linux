@@ -24,5 +24,6 @@
       },
       "description": "Run Nikto web vulnerability scanner"
     }
-  ]
+  ],
+  "category": "web"
 }

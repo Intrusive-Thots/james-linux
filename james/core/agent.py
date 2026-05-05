@@ -13,6 +13,7 @@ import logging
 import shlex
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 try:
@@ -132,16 +133,44 @@ class Agent:
     """
 
     MAX_HISTORY = 200  # cap conversation memory to limit RAM
+    CONTEXT_FILE = Path.home() / ".james" / "context.json"
+
+    # Keys that should persist across restarts
+    _PERSIST_KEYS = {
+        "target", "interface", "wordlist", "domain", "lhost", "lport",
+        "gateway", "username", "target_url", "target_bssid",
+    }
 
     def __init__(self, orchestrator: Orchestrator):
         self.orch = orchestrator
-        self.context: dict = {}   # tracks session state (target, iface, etc.)
+        self.context: dict = self._load_context()
         self.history: list[dict] = []
         self.last_intent: str = "default"
         self.genai_client = None
         
         if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
             self.genai_client = genai.Client()
+
+    def _load_context(self) -> dict:
+        """Load persisted context from disk."""
+        try:
+            if self.CONTEXT_FILE.exists():
+                data = json.loads(self.CONTEXT_FILE.read_text())
+                if isinstance(data, dict):
+                    logger.info("Restored %d context keys from %s", len(data), self.CONTEXT_FILE)
+                    return data
+        except Exception as e:
+            logger.warning("Failed to load context: %s", e)
+        return {}
+
+    def _save_context(self):
+        """Persist important context keys to disk."""
+        try:
+            self.CONTEXT_FILE.parent.mkdir(parents=True, exist_ok=True)
+            persist = {k: v for k, v in self.context.items() if k in self._PERSIST_KEYS and v}
+            self.CONTEXT_FILE.write_text(json.dumps(persist, indent=2))
+        except Exception as e:
+            logger.warning("Failed to save context: %s", e)
 
     def process(self, user_input: str) -> str:
         """
@@ -174,6 +203,8 @@ class Agent:
         # Prevent unbounded growth — keep last MAX_HISTORY entries
         if len(self.history) > self.MAX_HISTORY:
             self.history = self.history[-self.MAX_HISTORY:]
+        # Persist context after every command
+        self._save_context()
         return resp
 
     def _process_with_llm(self, text: str) -> Optional[str]:
@@ -503,11 +534,35 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         skills = self.orch.list_skills()
         if not skills:
             return "No skills found."
-        lines = ["📋 Available Skills:\n"]
+
+        # Group by category
+        categories = {}
         for s in skills:
             data = self.orch.load_skill(s)
+            cat = data.get("category", "other")
             desc = data.get("description", "")
-            lines.append(f"  ⚡ {s} — {desc}")
+            steps = len(data.get("steps", []))
+            categories.setdefault(cat, []).append((s, desc, steps))
+
+        CAT_ICONS = {
+            "wifi": "📡", "recon": "🔍", "web": "🌐", "brute-force": "🔓",
+            "network-attack": "🕸️", "exploit": "💣", "post-exploit": "🏴",
+            "chain": "⛓️", "other": "📦",
+        }
+        CAT_ORDER = ["recon", "wifi", "web", "brute-force", "network-attack",
+                      "exploit", "post-exploit", "chain", "other"]
+
+        lines = [f"📋 Skill Arsenal — {len(skills)} workflows\n"]
+        for cat in CAT_ORDER:
+            if cat not in categories:
+                continue
+            icon = CAT_ICONS.get(cat, "📦")
+            lines.append(f"  {icon} {cat.upper()} {'─' * (42 - len(cat))}")
+            for name, desc, steps in sorted(categories[cat]):
+                lines.append(f"    ⚡ {name:<24} {steps} steps  {desc}")
+            lines.append("")
+
+        lines.append(f"  💡 Run: run skill <name>")
         return "\n".join(lines)
 
     def _do_list_wordlists(self, m, raw) -> str:
@@ -933,6 +988,11 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_clear(self, m, raw) -> str:
         self.context.clear()
         self.history.clear()
+        # Remove persisted context file
+        try:
+            self.CONTEXT_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
         return "🔄 Session context and history cleared."
 
     def _do_capture(self, m, raw) -> str:

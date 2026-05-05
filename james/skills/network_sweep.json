@@ -44,5 +44,6 @@
       },
       "description": "NetBIOS name scan for Windows host discovery"
     }
-  ]
+  ],
+  "category": "recon"
 }
