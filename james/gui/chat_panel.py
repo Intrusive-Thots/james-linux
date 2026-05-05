@@ -11,7 +11,7 @@ import re
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
     QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
-    QApplication,
+    QApplication, QCompleter, QListWidget, QListWidgetItem,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer
 from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextBlockFormat
@@ -217,6 +217,71 @@ class ChatPanel(QWidget):
         self.suggestion_bar.command_selected.connect(self._inject_command)
         layout.addWidget(self.suggestion_bar)
 
+        # ── context ticker (shows active target/interface) ─────
+        self.context_ticker = QWidget()
+        self.context_ticker.setFixedHeight(28)
+        self.context_ticker.setStyleSheet("background: #060a12;")
+        ticker_layout = QHBoxLayout(self.context_ticker)
+        ticker_layout.setContentsMargins(16, 2, 16, 2)
+        ticker_layout.setSpacing(12)
+
+        self._ctx_target_lbl = QLabel("🎯 —")
+        self._ctx_iface_lbl = QLabel("📡 —")
+        self._ctx_ap_lbl = QLabel("📶 —")
+        for lbl in (self._ctx_target_lbl, self._ctx_iface_lbl, self._ctx_ap_lbl):
+            lbl.setStyleSheet(
+                "color: #3a5a7a; font-size: 10px; font-family: 'JetBrains Mono'; "
+                "background: transparent;"
+            )
+            ticker_layout.addWidget(lbl)
+        ticker_layout.addStretch()
+        layout.addWidget(self.context_ticker)
+
+        # ── quick actions row ──────────────────────────────────
+        quick_bar = QWidget()
+        quick_bar.setFixedHeight(36)
+        quick_bar.setStyleSheet("background: #080e18;")
+        qb_layout = QHBoxLayout(quick_bar)
+        qb_layout.setContentsMargins(12, 3, 12, 3)
+        qb_layout.setSpacing(5)
+
+        QUICK_ACTIONS = [
+            ("⚡ Status", "status"),
+            ("📡 Interfaces", "list interfaces"),
+            ("🔍 ARP Scan", "arp scan"),
+            ("📶 Scan APs", "scan aps"),
+            ("🔓 WPS Scan", "wash"),
+            ("📶 BLE", "ble scan"),
+            ("🎯 Loot", "show loot"),
+            ("📋 Skills", "list skills"),
+            ("🌐 Remote", "enable remote"),
+        ]
+
+        for label, cmd in QUICK_ACTIONS:
+            btn = QPushButton(label)
+            btn.setFixedHeight(28)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #0c1524;
+                    color: #5a8aaa;
+                    border: 1px solid #1a2a40;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    padding: 0 8px;
+                }
+                QPushButton:hover {
+                    background: #142540;
+                    color: #00f0ff;
+                    border-color: #00f0ff40;
+                }
+            """)
+            btn.clicked.connect(lambda _, c=cmd: self._inject_command(c))
+            qb_layout.addWidget(btn)
+        qb_layout.addStretch()
+        layout.addWidget(quick_bar)
+
         # ── divider ─────────────────────────────────────────────
         divider = QFrame()
         divider.setFrameShape(QFrame.HLine)
@@ -247,7 +312,7 @@ class ChatPanel(QWidget):
         bar_layout.addWidget(prompt_label)
 
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Talk to JAMES… (type 'help' for commands)")
+        self.input_field.setPlaceholderText("Talk to JAMES… or just click buttons above ☝")
         self.input_field.setStyleSheet("""
             QLineEdit {
                 background-color: transparent;
@@ -260,15 +325,48 @@ class ChatPanel(QWidget):
         self.input_field.returnPressed.connect(self._on_send)
         bar_layout.addWidget(self.input_field)
 
-        # History hint
-        hist_hint = QLabel("↑↓ history")
-        hist_hint.setStyleSheet(
-            "color: #1a3050; font-size: 10px; background: transparent; padding-right: 4px;"
-        )
-        bar_layout.addWidget(hist_hint)
+        # ── autocomplete on the input field ─────────────────────
+        _ALL_COMMANDS = [
+            "status", "help", "list interfaces", "list skills", "list wordlists",
+            "scan aps", "arp scan", "show loot", "report", "kill james",
+            "enable monitor", "disable monitor", "wifi blitz", "autopwn",
+            "wash", "wps scan", "wps brute", "wep attack", "ble scan",
+            "bluetooth scan", "mqtt scan", "iot scan", "wpa3 check",
+            "wpa3 downgrade", "scan", "full scan", "quick scan", "os detect",
+            "masscan", "stealth recon", "nikto", "gobuster", "sqlmap",
+            "ssl scan", "waf detect", "web pwn", "smb enum", "dns lookup",
+            "dns enum", "whois", "osint", "brute", "mitm", "responder",
+            "sniff", "net guard", "network dominate", "reverse shell",
+            "enable remote", "run skill", "clear", "reboot",
+            "capture handshake on", "deauth", "crack wpa",
+            "run skill wifi_audit", "run skill full_recon",
+            "run skill handshake_harvest", "run skill pmkid_attack",
+            "run skill wps_pixie", "run skill wep_full_crack",
+            "run skill iot_recon", "run skill wpa3_assessment",
+            "run skill wifi_full_protocol_audit",
+        ]
+        completer = QCompleter(_ALL_COMMANDS, self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        completer.setMaxVisibleItems(8)
+        completer.popup().setStyleSheet("""
+            QListView {
+                background: #0d1528;
+                color: #00ff88;
+                border: 1px solid #00f0ff40;
+                border-radius: 6px;
+                font-family: 'JetBrains Mono';
+                font-size: 12px;
+                padding: 4px;
+                selection-background-color: #142540;
+                selection-color: #00f0ff;
+            }
+        """)
+        self.input_field.setCompleter(completer)
 
-        self.send_btn = QPushButton("Send ⚡")
-        self.send_btn.setFixedWidth(90)
+        self.send_btn = QPushButton("SEND ⚡")
+        self.send_btn.setFixedSize(100, 38)
+        self.send_btn.setCursor(Qt.PointingHandCursor)
         self.send_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -277,12 +375,13 @@ class ChatPanel(QWidget):
                 border-radius: 6px;
                 color: #00f0ff;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 13px;
                 padding: 8px;
+                letter-spacing: 1px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00f0ff35, stop:1 #00ff8835);
+                    stop:0 #00f0ff45, stop:1 #00ff8845);
                 border-color: #00f0ff;
             }
             QPushButton:disabled {
@@ -438,6 +537,9 @@ class ChatPanel(QWidget):
         chips = _CONTEXT_CHIPS.get(intent, _CONTEXT_CHIPS["default"])
         self.suggestion_bar.set_chips(chips, self.agent.context)
 
+        # Update context ticker
+        self._update_context_ticker()
+
         self._active_workers -= 1
         self._restore_input()
 
@@ -447,10 +549,36 @@ class ChatPanel(QWidget):
         self._active_workers -= 1
         self._restore_input()
 
+    def _update_context_ticker(self):
+        """Update the context status bar with current target/interface/AP."""
+        ctx = self.agent.context
+        target = ctx.get("target", "—")
+        iface = ctx.get("monitor_interface") or ctx.get("interface", "—")
+        ap = ctx.get("bssid", "—")
+
+        self._ctx_target_lbl.setText(f"🎯 {target}")
+        self._ctx_iface_lbl.setText(f"📡 {iface}")
+        self._ctx_ap_lbl.setText(f"📶 {ap}")
+
+        # Colorize when values are set
+        for lbl, val in [(self._ctx_target_lbl, target),
+                         (self._ctx_iface_lbl, iface),
+                         (self._ctx_ap_lbl, ap)]:
+            if val and val != "—":
+                lbl.setStyleSheet(
+                    "color: #00f0ff; font-size: 10px; font-family: 'JetBrains Mono'; "
+                    "background: transparent; font-weight: bold;"
+                )
+            else:
+                lbl.setStyleSheet(
+                    "color: #3a5a7a; font-size: 10px; font-family: 'JetBrains Mono'; "
+                    "background: transparent;"
+                )
+
     def _restore_input(self):
         self.input_field.setEnabled(True)
         self.send_btn.setEnabled(True)
-        self.send_btn.setText("Send ⚡")
+        self.send_btn.setText("SEND ⚡")
         self.input_field.setFocus()
 
     def _cleanup_worker(self, worker):
