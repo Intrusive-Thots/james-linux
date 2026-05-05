@@ -12,6 +12,7 @@ Panels:
 """
 
 import json
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -21,13 +22,14 @@ from PyQt5.QtWidgets import (
     QPlainTextEdit, QLineEdit, QPushButton, QLabel, QGroupBox,
     QGridLayout, QComboBox, QSplitter, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame, QScrollArea,
-    QToolButton, QSizePolicy,
+    QToolButton, QSizePolicy, QShortcut, QAction,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
-from PyQt5.QtGui import QFont, QTextCursor, QColor
+from PyQt5.QtGui import QFont, QTextCursor, QColor, QKeySequence
 
 from james.core.orchestrator import Orchestrator
 from james.gui.chat_panel import ChatPanel
+from james.gui.toast import show_toast
 
 # Skill categories for the One-Click Tests tab
 SKILL_CATEGORIES = {
@@ -146,15 +148,103 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._make_log_tab(), "📋 Log")
         self.tabs.setTabToolTip(6, "Task history and JSON export")
 
-        # status bar
+        # status bar with activity pulse
         self.status = QStatusBar()
         self.setStatusBar(self.status)
         self.status.showMessage("JAMES ready.")
 
-        # Refresh context badges every 5 seconds (context rarely changes faster)
+        # Activity pulse indicator (animated during ops)
+        self._activity_label = QLabel("  ● IDLE")
+        self._activity_label.setStyleSheet(
+            "color: #2a4a5a; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self.status.addPermanentWidget(self._activity_label)
+        self._active_ops = 0
+
+        # Shortcut hints
+        shortcut_hint = QLabel("Ctrl+1-7: Tabs  │  Ctrl+K: Kill  │  Ctrl+/: Chat")
+        shortcut_hint.setStyleSheet(
+            "color: #1a3050; font-size: 10px; padding-right: 12px;"
+        )
+        self.status.addPermanentWidget(shortcut_hint)
+
+        # Tab badge counters (track unread events per tab)
+        self._tab_badges: dict[int, int] = {}
+        self._tab_base_labels = {}
+        for i in range(self.tabs.count()):
+            self._tab_base_labels[i] = self.tabs.tabText(i)
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+
+        # Keyboard shortcuts
+        self._setup_shortcuts()
+
+        # Refresh context badges every 5 seconds
         self._ctx_timer = QTimer(self)
         self._ctx_timer.timeout.connect(self._refresh_context_strip)
         self._ctx_timer.start(5000)
+
+    def _setup_shortcuts(self):
+        """Register keyboard shortcuts."""
+        # Tab switching: Ctrl+1 through Ctrl+7
+        for i in range(min(7, self.tabs.count())):
+            shortcut = QShortcut(QKeySequence(f"Ctrl+{i+1}"), self)
+            shortcut.activated.connect(lambda idx=i: self.tabs.setCurrentIndex(idx))
+
+        # Ctrl+K: Kill James
+        QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self._do_kill_james)
+
+        # Ctrl+L: Clear terminal
+        QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(
+            lambda: self.terminal.clear()
+        )
+
+        # Ctrl+/: Focus agent chat input
+        QShortcut(QKeySequence("Ctrl+/"), self).activated.connect(self._focus_chat)
+
+        # Escape: Return to agent tab
+        QShortcut(QKeySequence("Escape"), self).activated.connect(
+            lambda: self.tabs.setCurrentIndex(0)
+        )
+
+    def _focus_chat(self):
+        """Focus the agent chat input field."""
+        self.tabs.setCurrentIndex(0)
+        self.chat_panel.input_field.setFocus()
+
+    def _notify_tab(self, tab_index: int):
+        """Add a notification badge to a tab."""
+        current = self.tabs.currentIndex()
+        if current == tab_index:
+            return  # don't badge the active tab
+        count = self._tab_badges.get(tab_index, 0) + 1
+        self._tab_badges[tab_index] = count
+        base = self._tab_base_labels.get(tab_index, self.tabs.tabText(tab_index))
+        self.tabs.setTabText(tab_index, f"{base} ({count})")
+
+    def _on_tab_changed(self, index: int):
+        """Clear badge when user switches to a tab."""
+        if index in self._tab_badges:
+            del self._tab_badges[index]
+            base = self._tab_base_labels.get(index, "")
+            if base:
+                self.tabs.setTabText(index, base)
+
+    def _start_activity(self, label: str = "WORKING"):
+        """Show activity pulse in status bar."""
+        self._active_ops += 1
+        self._activity_label.setText(f"  ◉ {label}")
+        self._activity_label.setStyleSheet(
+            "color: #00f0ff; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
+        )
+
+    def _stop_activity(self):
+        """Return to idle when all ops complete."""
+        self._active_ops = max(0, self._active_ops - 1)
+        if self._active_ops == 0:
+            self._activity_label.setText("  ● IDLE")
+            self._activity_label.setStyleSheet(
+                "color: #2a4a5a; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
+            )
 
     # ── Agent tab with Quick Actions sidebar ───────────────────
 
@@ -442,7 +532,7 @@ class MainWindow(QMainWindow):
         lay.addStretch()
 
         # version badge
-        ver = QLabel("v0.4.0")
+        ver = QLabel("v0.5.0")
         ver.setStyleSheet("""
             background-color: #00f0ff18;
             color: #00f0ff;
@@ -1503,6 +1593,17 @@ class MainWindow(QMainWindow):
 
     def _term_print(self, text: str):
         self.append_output.emit(text)
+        # Trigger toast notifications for important events
+        text_lower = text.lower() if text else ""
+        if "[error]" in text_lower or "failed" in text_lower:
+            show_toast(self, text[:80], "error", 4000)
+            self._notify_tab(1)  # Dashboard
+        elif "[autopwn]" in text_lower and "complete" in text_lower:
+            show_toast(self, "AutoPwn workflow complete!", "success", 5000)
+        elif "[one-click]" in text_lower and "finished" in text_lower:
+            show_toast(self, text[:80], "success", 4000)
+        elif "cracked" in text_lower and ("key" in text_lower or "password" in text_lower):
+            show_toast(self, text[:80], "success", 6000)
 
     def _update_all_target_comboboxes(self):
         targets = sorted(list(self.known_targets))
@@ -1514,8 +1615,44 @@ class MainWindow(QMainWindow):
             cb.setCurrentText(current)
         self._save_targets()
 
+    # Terminal syntax highlighting patterns
+    _TERM_HIGHLIGHT_RULES = [
+        # IPs and CIDRs
+        (re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:/\d{1,2})?)'), r'<span style="color:#00f0ff;">\1</span>'),
+        # MAC addresses / BSSIDs
+        (re.compile(r'([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})'), r'<span style="color:#ff6b35;">\1</span>'),
+        # [ERROR] tags
+        (re.compile(r'(\[ERROR\])'), r'<span style="color:#ff4757;font-weight:bold;">\1</span>'),
+        # [OK] / [+] tags
+        (re.compile(r'(\[\+\]|\[OK\])'), r'<span style="color:#00ff88;font-weight:bold;">\1</span>'),
+        # [SYS] / [INFO] tags
+        (re.compile(r'(\[SYS\]|\[INFO\])'), r'<span style="color:#5a9abf;">\1</span>'),
+        # [AUTOPWN] / [ONE-CLICK] tags
+        (re.compile(r'(\[AUTOPWN\]|\[ONE-CLICK\]|\[TEST\])'), r'<span style="color:#ff6b35;font-weight:bold;">\1</span>'),
+        # Port numbers (e.g., 22/tcp, 80/tcp)
+        (re.compile(r'(\d{1,5}/(?:tcp|udp))'), r'<span style="color:#ff6b35;">\1</span>'),
+    ]
+
     def _do_append(self, text: str):
-        self.terminal.appendPlainText(text)
+        # Apply syntax highlighting via HTML
+        escaped = (text
+                   .replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;"))
+
+        highlighted = escaped
+        for pattern, replacement in self._TERM_HIGHLIGHT_RULES:
+            highlighted = pattern.sub(replacement, highlighted)
+
+        # If we actually highlighted something, use HTML insert
+        if highlighted != escaped:
+            self.terminal.appendHtml(
+                f'<pre style="margin:0; padding:0; color:#c8d6e5; '
+                f'font-family:JetBrains Mono,monospace; font-size:11px;">{highlighted}</pre>'
+            )
+        else:
+            self.terminal.appendPlainText(text)
+
         # Cap terminal at MAX_TERMINAL_LINES to prevent unbounded memory growth
         doc = self.terminal.document()
         if doc.blockCount() > self.MAX_TERMINAL_LINES:
@@ -1536,8 +1673,11 @@ class MainWindow(QMainWindow):
 
     def _start_worker(self, worker: WorkerThread):
         self._workers.append(worker)
+        self._start_activity("SCANNING")
         worker.finished.connect(lambda: self._workers.remove(worker) if worker in self._workers else None)
+        worker.finished.connect(self._stop_activity)
         worker.finished.connect(worker.deleteLater)  # prevent thread leak
+        worker.error.connect(self._stop_activity)
         worker.start()
 
     # ── target persistence ───────────────────────────────────────

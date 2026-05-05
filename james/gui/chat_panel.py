@@ -50,6 +50,15 @@ _CONTEXT_CHIPS = {
     "autopwn": ["show loot", "kill james"],
     "crack_wpa": ["show loot"],
 
+    # After system/info commands
+    "system_check": ["list skills", "list interfaces", "list wordlists"],
+    "list_skills": ["run skill full_recon", "run skill wifi_audit", "help"],
+    "list_wordlists": ["list skills", "status"],
+    "show_primer": ["net guard", "list skills", "help"],
+    "net_guard_status": ["list interfaces", "scan aps", "status"],
+    "show_loot": ["report", "status"],
+    "help": ["status", "list skills", "list interfaces"],
+
     # Default
     "default": ["status", "list skills", "help", "show loot", "kill james"],
 }
@@ -436,15 +445,15 @@ class ChatPanel(QWidget):
     def _show_welcome(self):
         self._append_system_msg("━━━ Session Started ━━━")
 
-        welcome_html = """
+        welcome_html = f"""
 <div style="margin: 16px 0; padding: 20px; background: linear-gradient(135deg, #081018, #0a1520);
     border: 1px solid #1a3050; border-radius: 12px;">
   <div style="color: #00ff88; font-weight: bold; font-size: 14px; letter-spacing: 2px; margin-bottom: 8px;">
-    ⚡ JAMES v0.4.0 — Autonomous Pentesting Agent
+    ⚡ JAMES v0.5.0 — Autonomous Pentesting Agent
   </div>
   <div style="color: #6a8aaa; font-size: 12px; line-height: 1.8; margin-bottom: 14px;">
     Running on Parrot OS with <span style="color:#00f0ff;">35+ tools</span>,
-    <span style="color:#ff6b35;">5 one-click attack chains</span>,
+    <span style="color:#ff6b35;">{len(self.orch.list_skills())} skill workflows</span>,
     and <span style="color:#00ff88;">persistent loot caching</span>.<br>
     Tell me what you want to do in plain English.
   </div>
@@ -477,6 +486,14 @@ class ChatPanel(QWidget):
       <td style="padding: 4px 8px; color: #4a6a8a;">→ full command reference</td>
     </tr>
   </table>
+  <div style="color: #1a3050; font-size: 10px; margin-top: 12px; line-height: 1.6;">
+    ⌨ <span style="color:#2a4a5a;">Ctrl+1-7</span> switch tabs
+    │ <span style="color:#2a4a5a;">Ctrl+K</span> kill all
+    │ <span style="color:#2a4a5a;">Ctrl+L</span> clear terminal
+    │ <span style="color:#2a4a5a;">Ctrl+/</span> focus chat
+    │ <span style="color:#2a4a5a;">Esc</span> agent tab
+    │ <span style="color:#2a4a5a;">↑↓</span> cmd history
+  </div>
 </div>
 """
         self.chat_log.insertHtml(welcome_html)
