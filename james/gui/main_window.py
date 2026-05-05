@@ -193,6 +193,9 @@ class MainWindow(QMainWindow):
         # Ctrl+K: Kill James
         QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self._do_kill_james)
 
+        # Ctrl+R: Reboot James
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self._do_reboot_james)
+
         # Ctrl+L: Clear terminal
         QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(
             lambda: self.terminal.clear()
@@ -365,14 +368,26 @@ class MainWindow(QMainWindow):
         return panel
 
     def _qa_send(self, cmd: str):
-        """Inject a quick-action command into the chat panel."""
-        # If cmd has a placeholder like {target}, use context or ask
+        """Inject a quick-action command into the chat panel, using context for targets."""
         if "{target}" in cmd:
-            target = self.orch  # just use chat for now
-            self.chat_panel.input_field.setText("scan ")
-            self.chat_panel.input_field.setFocus()
-            self.tabs.setCurrentIndex(0)
-            return
+            target = self.chat_panel.agent.context.get("target", "")
+            if not target and self.known_targets:
+                target = sorted(self.known_targets)[0]
+            if target:
+                cmd = cmd.replace("{target}", target)
+            else:
+                show_toast(self, "Set a target first: type 'set target <IP>'", "warning", 2500)
+                self.tabs.setCurrentIndex(0)
+                self.chat_panel.input_field.setText("set target ")
+                self.chat_panel.input_field.setFocus()
+                return
+        if "{interface}" in cmd:
+            iface = self.chat_panel.agent.context.get("interface", "")
+            if iface:
+                cmd = cmd.replace("{interface}", iface)
+            else:
+                cmd = cmd.replace(" {interface}", "")  # let agent auto-detect
+
         self.tabs.setCurrentIndex(0)
         self.chat_panel.input_field.setText(cmd)
         self.chat_panel._on_send()
@@ -563,6 +578,34 @@ class MainWindow(QMainWindow):
         self._clock_timer.start(1000)
         self._update_clock()
 
+        # REBOOT JAMES button
+        self.reboot_btn = QPushButton("🔄 REBOOT")
+        self.reboot_btn.setToolTip("Reboot JAMES: kill tools, clear context, re-init everything")
+        self.reboot_btn.setFixedHeight(32)
+        self.reboot_btn.setFixedWidth(100)
+        self.reboot_btn.setStyleSheet("""
+            QPushButton {
+                background: #0d1a2a;
+                color: #00f0ff;
+                border: 1px solid #00f0ff40;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: #142540;
+                border-color: #00f0ff;
+                color: #40ffff;
+            }
+            QPushButton:pressed {
+                background: #00f0ff;
+                color: #000000;
+            }
+        """)
+        self.reboot_btn.clicked.connect(self._do_reboot_james)
+        lay.addWidget(self.reboot_btn)
+
         # KILL JAMES button — emergency stop
         self.kill_btn = QPushButton("🛑 KILL")
         self.kill_btn.setToolTip("Kill all tools, restore interfaces, reconnect Wi-Fi")
@@ -598,15 +641,168 @@ class MainWindow(QMainWindow):
     def _make_dashboard_tab(self) -> QWidget:
         w = QWidget()
         lay = QHBoxLayout(w)
-        lay.setContentsMargins(12, 12, 12, 12)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
 
-        # left: system status
+        # ── LEFT: Command Palette (replaces the need for typing) ──
+        palette_panel = QWidget()
+        palette_panel.setFixedWidth(320)
+        palette_panel.setStyleSheet("""
+            QWidget { background-color: #060a12; border-right: 1px solid #141e30; }
+        """)
+        p_lay = QVBoxLayout(palette_panel)
+        p_lay.setContentsMargins(0, 0, 0, 0)
+        p_lay.setSpacing(0)
+
+        # Palette header
+        p_header = QLabel("  ⚡ COMMAND PALETTE")
+        p_header.setFixedHeight(36)
+        p_header.setStyleSheet(
+            "color: #00f0ff; font-size: 11px; font-weight: bold; "
+            "letter-spacing: 2px; background: #080c18; border-bottom: 1px solid #141e30;"
+        )
+        p_lay.addWidget(p_header)
+
+        # Target selector at top of palette
+        target_row = QWidget()
+        target_row.setStyleSheet("background: #0a0f1a; border-bottom: 1px solid #141e30;")
+        target_row.setFixedHeight(44)
+        tr_lay = QHBoxLayout(target_row)
+        tr_lay.setContentsMargins(12, 6, 12, 6)
+        tr_lay.addWidget(QLabel("🎯"))
+        self.palette_target = QComboBox()
+        self.palette_target.setEditable(True)
+        self.palette_target.lineEdit().setPlaceholderText("Target (IP / domain)")
+        self.palette_target.setMinimumWidth(200)
+        self.target_comboboxes.append(self.palette_target)
+        if self.known_targets:
+            self.palette_target.addItems(sorted(list(self.known_targets)))
+        tr_lay.addWidget(self.palette_target)
+        p_lay.addWidget(target_row)
+
+        # Scrollable button grid
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        btn_container = QWidget()
+        btn_container.setStyleSheet("background: transparent;")
+        grid = QVBoxLayout(btn_container)
+        grid.setContentsMargins(10, 10, 10, 10)
+        grid.setSpacing(6)
+
+        # Define all clickable command categories
+        PALETTE_SECTIONS = [
+            ("🔍 RECON", "#00f0ff", [
+                ("Quick Scan",      "quick scan",       "fast nmap scan"),
+                ("Full Scan",       "full scan",        "deep service + script scan"),
+                ("OS Detect",       "os detect",        "OS fingerprinting"),
+                ("Masscan",         "masscan",          "65535 port scan"),
+                ("Stealth Recon",   "stealth recon",    "passive OSINT chain"),
+                ("Net Sweep",       "run skill network_sweep", "ARP + ping sweep"),
+            ]),
+            ("📡 WI-FI", "#ff6b35", [
+                ("List Interfaces", "list interfaces",  None),
+                ("Scan APs",        "scan aps",         "nearby Wi-Fi networks"),
+                ("Wi-Fi Blitz",     "wifi blitz",       "PMKID + handshake + WPS"),
+                ("AutoPwn",         "autopwn",          "end-to-end Wi-Fi crack"),
+                ("Show Loot",       "show loot",        "cracked keys"),
+            ]),
+            ("🌐 WEB", "#a855f7", [
+                ("Web Scan",        "nikto",            "Nikto vulnerability scan"),
+                ("Dir Brute",       "gobuster",         "directory enumeration"),
+                ("SQL Inject",      "sqlmap",           "automated SQL injection"),
+                ("SSL Audit",       "ssl scan",         "TLS/SSL check"),
+                ("WAF Detect",      "waf detect",       "firewall detection"),
+                ("Web Pwn",         "web pwn",          "full web attack chain"),
+            ]),
+            ("🕵️ OSINT", "#5a9abf", [
+                ("OSINT Harvest",   "osint",            "emails + subdomains"),
+                ("WHOIS",           "whois",            "domain registration"),
+                ("DNS Enum",        "dns enum",         "DNS records"),
+            ]),
+            ("💣 EXPLOIT", "#ff4757", [
+                ("Brute SSH",       "brute",            "Hydra brute-force"),
+                ("MITM",            "mitm",             "ARP poisoning"),
+                ("Responder",       "responder",        "LLMNR/NBT-NS capture"),
+                ("Reverse Shell",   "reverse shell",    "payload + listener"),
+                ("Net Dominate",    "network dominate", "full network attack chain"),
+            ]),
+            ("⚙️ SYSTEM", "#2a6a4a", [
+                ("System Check",    "status",           "tool status"),
+                ("List Skills",     "list skills",      "38 skill workflows"),
+                ("List Wordlists",  "list wordlists",   "wordlist arsenal"),
+                ("Net Guard",       "net guard",        "protection status"),
+                ("Show Primers",    "show primers",     "AI guidance"),
+                ("Report",          "report",           "HTML session report"),
+            ]),
+        ]
+
+        for section_name, section_color, buttons in PALETTE_SECTIONS:
+            # Section header
+            sec_lbl = QLabel(f"  {section_name}")
+            sec_lbl.setFixedHeight(24)
+            sec_lbl.setStyleSheet(
+                f"color: {section_color}; font-size: 10px; font-weight: bold; "
+                f"letter-spacing: 2px; background: transparent; margin-top: 4px;"
+            )
+            grid.addWidget(sec_lbl)
+
+            # Button row (2 columns)
+            row_lay = None
+            for i, (label, cmd, tooltip) in enumerate(buttons):
+                if i % 2 == 0:
+                    row_lay = QHBoxLayout()
+                    row_lay.setSpacing(4)
+                    grid.addLayout(row_lay)
+
+                btn = QPushButton(label)
+                btn.setFixedHeight(34)
+                btn.setToolTip(tooltip or cmd)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: #0b1120;
+                        color: #8a9aaf;
+                        border: 1px solid #141e30;
+                        border-radius: 6px;
+                        padding: 4px 8px;
+                        font-size: 11px;
+                        text-align: left;
+                    }}
+                    QPushButton:hover {{
+                        background: #101e30;
+                        color: {section_color};
+                        border-color: {section_color}60;
+                    }}
+                    QPushButton:pressed {{
+                        background: {section_color}30;
+                    }}
+                """)
+                btn.clicked.connect(lambda _, c=cmd: self._palette_send(c))
+                row_lay.addWidget(btn)
+
+            # If odd number of buttons, pad the last row
+            if len(buttons) % 2 == 1 and row_lay:
+                row_lay.addStretch()
+
+        grid.addStretch()
+        scroll.setWidget(btn_container)
+        p_lay.addWidget(scroll)
+        lay.addWidget(palette_panel)
+
+        # ── RIGHT: System Status + Terminal ──
+        right = QWidget()
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(12, 12, 12, 12)
+        right_lay.setSpacing(8)
+
+        # System status (compact)
         status_group = QGroupBox("System Status")
         self.status_grid = QGridLayout(status_group)
         self.tool_labels: dict[str, QLabel] = {}
-        lay.addWidget(status_group, 1)
+        right_lay.addWidget(status_group)
 
-        # right: terminal
+        # Terminal output
         term_group = QGroupBox("Terminal Output")
         term_lay = QVBoxLayout(term_group)
         self.terminal = QPlainTextEdit()
@@ -617,16 +813,52 @@ class MainWindow(QMainWindow):
 
         cmd_row = QHBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("Enter command…")
+        self.cmd_input.setPlaceholderText("Shell command (optional — use buttons instead!)")
         self.cmd_input.returnPressed.connect(self._run_manual_cmd)
         cmd_row.addWidget(self.cmd_input)
         run_btn = QPushButton("Run")
         run_btn.clicked.connect(self._run_manual_cmd)
         cmd_row.addWidget(run_btn)
+        clear_btn = QPushButton("Clear")
+        clear_btn.clicked.connect(self.terminal.clear)
+        clear_btn.setFixedWidth(60)
+        cmd_row.addWidget(clear_btn)
         term_lay.addLayout(cmd_row)
 
-        lay.addWidget(term_group, 2)
+        right_lay.addWidget(term_group, 1)  # terminal stretches
+        lay.addWidget(right, 1)
         return w
+
+    def _palette_send(self, cmd: str):
+        """Execute a command palette action, auto-filling target from the palette target box."""
+        target = self.palette_target.currentText().strip()
+
+        # Commands that need a target — auto-fill from the palette target combobox
+        TARGET_CMDS = {
+            "quick scan", "full scan", "os detect", "masscan", "stealth recon",
+            "nikto", "gobuster", "sqlmap", "ssl scan", "waf detect", "web pwn",
+            "osint", "whois", "dns enum", "brute", "mitm", "network dominate",
+        }
+
+        full_cmd = cmd
+        for prefix in TARGET_CMDS:
+            if cmd == prefix:
+                if not target:
+                    # Focus the target input so user can type/select
+                    self.palette_target.setFocus()
+                    show_toast(self, "Enter a target first →", "warning", 2000)
+                    return
+                full_cmd = f"{cmd} {target}"
+                # Save to known targets
+                if target not in self.known_targets:
+                    self.known_targets.add(target)
+                    self._update_all_target_comboboxes()
+                break
+
+        # Send through the agent (switch to Agent tab to see response)
+        self.tabs.setCurrentIndex(0)
+        self.chat_panel.input_field.setText(full_cmd)
+        self.chat_panel._on_send()
 
     # ── One-Click Tests tab — categorised + searchable ──────────
 
@@ -826,15 +1058,38 @@ class MainWindow(QMainWindow):
         if self.known_targets:
             self.recon_target.addItems(sorted(list(self.known_targets)))
         row.addWidget(self.recon_target)
-
-        self.recon_quick_btn = QPushButton("Quick Scan")
-        self.recon_quick_btn.clicked.connect(self._do_quick_scan)
-        row.addWidget(self.recon_quick_btn)
-
-        self.recon_full_btn = QPushButton("Full Scan")
-        self.recon_full_btn.clicked.connect(self._do_full_scan)
-        row.addWidget(self.recon_full_btn)
         lay.addLayout(row)
+
+        # Scan action buttons (2 rows — no typing needed)
+        btn_row1 = QHBoxLayout()
+        scan_actions_1 = [
+            ("🔍 Quick Scan",   self._do_quick_scan,   "Fast nmap scan (top 1000 ports)"),
+            ("📋 Full Scan",    self._do_full_scan,    "Deep scan with service detection + scripts"),
+            ("🖥️ OS Detect",    lambda: self._do_recon_cmd("os detect"), "OS fingerprinting via nmap"),
+            ("⚡ Masscan",      lambda: self._do_recon_cmd("masscan"),   "All 65535 ports at max speed"),
+        ]
+        for label, callback, tooltip in scan_actions_1:
+            btn = QPushButton(label)
+            btn.setToolTip(tooltip)
+            btn.setFixedHeight(34)
+            btn.clicked.connect(callback)
+            btn_row1.addWidget(btn)
+        lay.addLayout(btn_row1)
+
+        btn_row2 = QHBoxLayout()
+        scan_actions_2 = [
+            ("👁️ Stealth",      lambda: self._do_recon_cmd("stealth recon"), "Passive OSINT chain"),
+            ("🌐 OSINT",        lambda: self._do_recon_cmd("osint"),         "Email + subdomain harvest"),
+            ("📡 DNS Enum",     lambda: self._do_recon_cmd("dns enum"),      "DNS records + zone transfer"),
+            ("🔓 Vuln Scan",    lambda: self._do_recon_cmd("run skill vuln_scan"), "Vulnerability assessment"),
+        ]
+        for label, callback, tooltip in scan_actions_2:
+            btn = QPushButton(label)
+            btn.setToolTip(tooltip)
+            btn.setFixedHeight(34)
+            btn.clicked.connect(callback)
+            btn_row2.addWidget(btn)
+        lay.addLayout(btn_row2)
 
         # results table
         self.recon_table = QTableWidget(0, 5)
@@ -843,6 +1098,20 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.recon_table)
 
         return w
+
+    def _do_recon_cmd(self, cmd: str):
+        """Run a recon command from the Recon tab buttons."""
+        target = self.recon_target.currentText().strip()
+        if not target:
+            QMessageBox.warning(self, "No Target", "Enter a target IP/domain first.")
+            return
+        if target not in self.known_targets:
+            self.known_targets.add(target)
+            self._update_all_target_comboboxes()
+        full_cmd = f"{cmd} {target}"
+        self.tabs.setCurrentIndex(0)
+        self.chat_panel.input_field.setText(full_cmd)
+        self.chat_panel._on_send()
 
     # ── Wi-Fi tab ───────────────────────────────────────────────
 
@@ -1517,6 +1786,78 @@ class MainWindow(QMainWindow):
     def _restore_kill_btn(self):
         self.kill_btn.setEnabled(True)
         self.kill_btn.setText("🛑 KILL")
+
+    def _do_reboot_james(self):
+        """Full reboot: kill tools, clear state, re-init, refresh everything."""
+        reply = QMessageBox.question(
+            self,
+            "🔄 Reboot JAMES",
+            "This will:\n\n"
+            "• Kill ALL running tools\n"
+            "• Restore wireless interfaces\n"
+            "• Clear agent context & chat history\n"
+            "• Re-initialize the orchestrator\n"
+            "• Refresh all interfaces\n\n"
+            "Saved targets and loot are preserved.\n\n"
+            "Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.reboot_btn.setEnabled(False)
+        self.reboot_btn.setText("⏳ ...")
+        self._term_print("🔄 REBOOT — Starting full restart...")
+
+        def _do_reboot():
+            try:
+                self.orch.kill_james()
+            except Exception:
+                pass
+            return True
+
+        w = WorkerThread(_do_reboot)
+        w.finished.connect(self._on_reboot_complete)
+        w.error.connect(lambda e: (
+            self._term_print(f"[ERROR] Reboot failed: {e}"),
+            self._restore_reboot_btn(),
+        ))
+        self._start_worker(w)
+
+    def _on_reboot_complete(self, _):
+        """Post-reboot re-initialization."""
+        # Clear agent state
+        try:
+            self.chat_panel.agent.context.clear()
+            self.chat_panel.agent._save_context()
+        except Exception:
+            pass
+
+        # Clear chat log and re-show welcome
+        self.chat_panel.chat_log.clear()
+        self.chat_panel._show_welcome()
+
+        # Clear terminal
+        self.terminal.clear()
+        self._term_print("🔄 JAMES rebooted successfully.")
+        self._term_print(f"[SYS] {len(self.known_targets)} saved targets preserved.")
+
+        # Refresh interfaces
+        QTimer.singleShot(1000, self._refresh_interfaces)
+
+        # Refresh context strip
+        self._refresh_context_strip()
+
+        # Restore button
+        self._restore_reboot_btn()
+
+        # Toast
+        show_toast(self, "JAMES rebooted — ready for action", "success", 3000)
+
+    def _restore_reboot_btn(self):
+        self.reboot_btn.setEnabled(True)
+        self.reboot_btn.setText("🔄 REBOOT")
 
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export Log", "/home/malcolm/Desktop/james_log.json", "JSON (*.json)")
