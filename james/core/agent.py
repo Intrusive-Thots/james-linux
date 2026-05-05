@@ -1187,7 +1187,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             lines.append(f"  ⚠ SSH setup issue: {e}")
 
         # 2. Open firewall ports
-        for port, label in [(22, "SSH"), (1337, "JAMES Remote")]:
+        for port, label in [(22, "SSH"), (1337, "JAMES Remote"), (5900, "VNC"), (6080, "noVNC")]:
             try:
                 subprocess.run(
                     ["sudo", "-n", "ufw", "allow", str(port)],
@@ -1231,12 +1231,13 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         lines.append("")
         lines.append("  ══════════════════════════════════════")
         lines.append(f"  SSH:          ssh malcolm@{ip}")
-        lines.append(f"  JAMES Remote: http://{ip}:1337")
+        lines.append(f"  JAMES Remote: http://{ip}:1337  (text commands)")
+        lines.append(f"  GUI Remote:   http://{ip}:6080  (full desktop)")
         lines.append(f"  RDP:          {ip}:3389 (if xrdp installed)")
         lines.append("  ══════════════════════════════════════")
         lines.append("")
-        lines.append("  💡 Click the 🌐 REMOTE button in the toolbar to")
-        lines.append("     start the web control panel.")
+        lines.append("  💡 Click 🌐 REMOTE for text-based web control.")
+        lines.append("  💡 Click 🖥️ GUI REMOTE for full desktop in browser.")
         return "\n".join(lines)
 
     def _do_scan_aps(self, m, raw) -> str:

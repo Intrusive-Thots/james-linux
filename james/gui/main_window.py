@@ -365,6 +365,10 @@ class MainWindow(QMainWindow):
         # AI Agent chat — the primary interface (with Quick Actions sidebar)
         self.chat_panel = ChatPanel(self.orch)
         self.remote_server = RemoteServer(self.chat_panel.agent, port=1337)
+
+        # GUI Remote — VNC + noVNC for full desktop streaming
+        from james.remote.gui_remote import GUIRemote
+        self.gui_remote = GUIRemote()
         agent_tab = self._make_agent_tab()
         self.tabs.addTab(agent_tab, "🤖 Agent")
         self.tabs.setTabToolTip(0, "Conversational AI — talk to JAMES in plain English")
@@ -1002,6 +1006,35 @@ class MainWindow(QMainWindow):
         """)
         self.remote_btn.clicked.connect(self._do_toggle_remote)
         lay.addWidget(self.remote_btn)
+
+        # GUI REMOTE button — stream full desktop to browser
+        self.gui_remote_btn = QPushButton("🖥️ GUI REMOTE")
+        self.gui_remote_btn.setToolTip("Stream the full JAMES GUI to a browser via VNC (any device, no install)")
+        self.gui_remote_btn.setFixedHeight(32)
+        self.gui_remote_btn.setFixedWidth(130)
+        self.gui_remote_btn.setCursor(Qt.PointingHandCursor)
+        self.gui_remote_btn.setStyleSheet("""
+            QPushButton {
+                background: #0a101a;
+                color: #a855f7;
+                border: 1px solid #a855f740;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: #150d24;
+                border-color: #a855f7;
+                color: #c084fc;
+            }
+            QPushButton:pressed {
+                background: #a855f7;
+                color: #000000;
+            }
+        """)
+        self.gui_remote_btn.clicked.connect(self._do_toggle_gui_remote)
+        lay.addWidget(self.gui_remote_btn)
 
         return w
 
@@ -2664,6 +2697,120 @@ class MainWindow(QMainWindow):
         self.remote_btn.setEnabled(True)
         self.remote_btn.setText("🌐 REMOTE")
 
+    # ── GUI Remote (VNC + noVNC) ─────────────────────────────────
+
+    def _do_toggle_gui_remote(self):
+        """Start/stop the GUI Remote (full desktop → browser via VNC)."""
+        if self.gui_remote.is_running():
+            self.gui_remote.stop()
+            self.gui_remote_btn.setText("🖥️ GUI REMOTE")
+            self.gui_remote_btn.setStyleSheet("""
+                QPushButton {
+                    background: #0a101a;
+                    color: #a855f7;
+                    border: 1px solid #a855f740;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    font-size: 11px;
+                    letter-spacing: 1px;
+                }
+                QPushButton:hover {
+                    background: #150d24;
+                    border-color: #a855f7;
+                    color: #c084fc;
+                }
+            """)
+            self._term_print("🖥️ GUI Remote stopped.")
+            show_toast(self, "GUI Remote stopped", "info", 2000)
+            return
+
+        # Start in worker thread (installs deps, starts VNC, etc.)
+        self.gui_remote_btn.setEnabled(False)
+        self.gui_remote_btn.setText("⏳ ...")
+        self._term_print("🖥️ Setting up GUI Remote (VNC + noVNC)...")
+
+        def _start_gui_remote():
+            return self.gui_remote.start()
+
+        w = WorkerThread(_start_gui_remote)
+        w.finished.connect(self._on_gui_remote_started)
+        w.error.connect(lambda e: (
+            self._term_print(f"[ERROR] GUI Remote failed: {e}"),
+            self._restore_gui_remote_btn(),
+        ))
+        self._start_worker(w)
+
+    def _on_gui_remote_started(self, result):
+        """Called when GUI Remote setup completes."""
+        actions = result.get("actions", [])
+        errors = result.get("errors", [])
+        url = result.get("url", "")
+        vnc_url = result.get("vnc_url", "")
+
+        for a in actions:
+            self._term_print(f"  ✅ {a}")
+        for e in errors:
+            self._term_print(f"  ⚠ {e}")
+
+        if result.get("success"):
+            password = self.gui_remote.VNC_PASSWORD
+
+            self._term_print("")
+            self._term_print("╔══════════════════════════════════════════════════╗")
+            self._term_print("║   🖥️  JAMES GUI REMOTE — ACTIVE                ║")
+            self._term_print(f"║                                                  ║")
+            self._term_print(f"║   Browser:  {url:<36s}║")
+            self._term_print(f"║   VNC:      {vnc_url:<36s}║")
+            self._term_print(f"║   Password: {password:<36s}║")
+            self._term_print(f"║                                                  ║")
+            self._term_print("║   Open the Browser URL on ANY device to see      ║")
+            self._term_print("║   the full JAMES GUI — click, drag, everything.  ║")
+            self._term_print("║                                                  ║")
+            self._term_print("║   VNC clients: use the VNC address above.        ║")
+            self._term_print("╚══════════════════════════════════════════════════╝")
+
+            # Update button
+            self.gui_remote_btn.setEnabled(True)
+            self.gui_remote_btn.setText("🟣 GUI ON")
+            self.gui_remote_btn.setStyleSheet("""
+                QPushButton {
+                    background: #a855f7;
+                    color: #000000;
+                    border: 1px solid #a855f7;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    font-size: 11px;
+                    letter-spacing: 1px;
+                }
+                QPushButton:hover {
+                    background: #9333ea;
+                }
+                QPushButton:pressed {
+                    background: #7e22ce;
+                }
+            """)
+
+            show_toast(self, f"GUI Remote → {url}", "success", 5000)
+
+            # Chat notification
+            self.chat_panel.chat_log.append(
+                f'<div style="color: #a855f7; padding: 8px; margin: 4px 0; '
+                f'background: #a855f710; border-radius: 6px; border-left: 3px solid #a855f7;">'
+                f'🖥️ <b>GUI REMOTE ACTIVE</b><br>'
+                f'Browser: <a href="{url}" style="color: #00f0ff;">{url}</a><br>'
+                f'VNC: <code>{vnc_url}</code> (password: <code>{password}</code>)<br>'
+                f'Open the browser URL on <b>any device</b> on your network — '
+                f'you\'ll see this exact GUI, fully interactive.</div>'
+            )
+        else:
+            self._term_print("❌ GUI Remote failed to start. Check errors above.")
+            show_toast(self, "GUI Remote failed — see terminal", "error", 4000)
+            self._restore_gui_remote_btn()
+
+    def _restore_gui_remote_btn(self):
+        self.gui_remote_btn.setEnabled(True)
+        self.gui_remote_btn.setText("🖥️ GUI REMOTE")
+
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export Log", "/home/malcolm/Desktop/james_log.json", "JSON (*.json)")
         if path:
@@ -2896,4 +3043,10 @@ class MainWindow(QMainWindow):
         # Stop timers
         self._ctx_timer.stop()
         self._clock_timer.stop()
+        # Stop remote servers
+        try:
+            if self.gui_remote.is_running():
+                self.gui_remote.stop()
+        except Exception:
+            pass
         event.accept()

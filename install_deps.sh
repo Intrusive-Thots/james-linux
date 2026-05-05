@@ -76,8 +76,11 @@ CORE_PKGS=(
     testssl.sh
     # SSH
     openssh-server
-    # Remote Desktop
+    # Remote Desktop / GUI Streaming
     xrdp
+    x11vnc
+    novnc
+    websockify
     # OSINT
     theharvester
     # IoT
@@ -340,6 +343,8 @@ TOOLS=(
     "mosquitto_sub:mosquitto_sub --help"
     "hcitool:hcitool --help"
     "macchanger:macchanger -h"
+    "x11vnc:x11vnc -version"
+    "websockify:websockify --help"
 )
 
 AVAILABLE=0
