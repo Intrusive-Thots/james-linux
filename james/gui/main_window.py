@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import (
     QPlainTextEdit, QLineEdit, QPushButton, QLabel, QGroupBox,
     QGridLayout, QComboBox, QSplitter, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFileDialog, QStatusBar, QFrame, QScrollArea,
-    QToolButton, QSizePolicy, QShortcut, QAction,
+    QToolButton, QSizePolicy, QShortcut, QAction, QApplication, QMenu,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QTextCursor, QColor, QKeySequence
@@ -89,6 +89,243 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("JAMES — Linux Pentesting Agent")
         self.setMinimumSize(1100, 720)
+
+        # ── Global dark theme stylesheet ────────────────────────
+        self.setStyleSheet("""
+            /* ── Base ── */
+            QMainWindow, QWidget {
+                background-color: #0a0f1a;
+                color: #c8d6e5;
+                font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+                font-size: 12px;
+            }
+
+            /* ── Tab bar ── */
+            QTabWidget::pane {
+                border: none;
+                background: #0a0f1a;
+            }
+            QTabBar::tab {
+                background: #0b1120;
+                color: #5a7a9a;
+                border: 1px solid #141e30;
+                border-bottom: none;
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QTabBar::tab:selected {
+                background: #0d1a2a;
+                color: #00f0ff;
+                border-color: #00f0ff40;
+                border-bottom: 2px solid #00f0ff;
+            }
+            QTabBar::tab:hover:!selected {
+                background: #101828;
+                color: #8ab0d0;
+            }
+
+            /* ── Buttons ── */
+            QPushButton {
+                background: #0d1528;
+                color: #8a9abf;
+                border: 1px solid #1a2e48;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background: #142040;
+                color: #00f0ff;
+                border-color: #00f0ff60;
+            }
+            QPushButton:pressed {
+                background: #00f0ff20;
+            }
+            QPushButton:disabled {
+                background: #080c14;
+                color: #2a3a4a;
+                border-color: #0f1520;
+            }
+            QPushButton#dangerBtn {
+                background: #1a0808;
+                color: #ff4757;
+                border-color: #ff475740;
+            }
+            QPushButton#dangerBtn:hover {
+                background: #2d0a0a;
+                border-color: #ff4757;
+            }
+
+            /* ── Inputs ── */
+            QLineEdit, QComboBox {
+                background: #0b1120;
+                color: #c8d6e5;
+                border: 1px solid #1a2e48;
+                border-radius: 4px;
+                padding: 5px 8px;
+                selection-background-color: #00f0ff30;
+            }
+            QLineEdit:focus, QComboBox:focus {
+                border-color: #00f0ff60;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 24px;
+            }
+            QComboBox QAbstractItemView {
+                background: #0b1120;
+                color: #c8d6e5;
+                border: 1px solid #1a2e48;
+                selection-background-color: #00f0ff30;
+                selection-color: #00f0ff;
+            }
+
+            /* ── Tables ── */
+            QTableWidget {
+                background: #060a12;
+                alternate-background-color: #0a0f18;
+                gridline-color: #141e30;
+                border: 1px solid #141e30;
+                border-radius: 4px;
+                selection-background-color: #00f0ff15;
+                selection-color: #00f0ff;
+            }
+            QTableWidget::item {
+                padding: 4px 8px;
+                border-bottom: 1px solid #0f1520;
+            }
+            QTableWidget::item:selected {
+                background: #00f0ff15;
+                color: #00f0ff;
+            }
+            QHeaderView::section {
+                background: #0b1120;
+                color: #5a8aaa;
+                border: none;
+                border-bottom: 2px solid #1a2e48;
+                border-right: 1px solid #141e30;
+                padding: 6px 8px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+
+            /* ── Group boxes ── */
+            QGroupBox {
+                border: 1px solid #1a2e48;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 16px;
+                font-weight: bold;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 2px 12px;
+                color: #5a8aaa;
+            }
+
+            /* ── Scrollbars ── */
+            QScrollBar:vertical {
+                background: #080c14;
+                width: 10px;
+                border: none;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #1a2e48;
+                min-height: 30px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #2a4a6a;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+                border: none;
+                height: 0px;
+            }
+            QScrollBar:horizontal {
+                background: #080c14;
+                height: 10px;
+                border: none;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #1a2e48;
+                min-width: 30px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #2a4a6a;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+                border: none;
+                width: 0px;
+            }
+
+            /* ── PlainTextEdit (terminal) ── */
+            QPlainTextEdit {
+                background: #060a12;
+                color: #c8d6e5;
+                border: 1px solid #141e30;
+                border-radius: 4px;
+                font-family: 'JetBrains Mono', monospace;
+            }
+
+            /* ── Status bar ── */
+            QStatusBar {
+                background: #080c14;
+                color: #3a5a7a;
+                border-top: 1px solid #141e30;
+                font-size: 11px;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+
+            /* ── Labels ── */
+            QLabel {
+                background: transparent;
+            }
+
+            /* ── Splitter ── */
+            QSplitter::handle {
+                background: #141e30;
+                width: 2px;
+            }
+
+            /* ── Tool tips ── */
+            QToolTip {
+                background: #0d1a2a;
+                color: #c8d6e5;
+                border: 1px solid #00f0ff40;
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 11px;
+            }
+
+            /* ── Message Box ── */
+            QMessageBox {
+                background: #0a0f1a;
+            }
+            QMessageBox QLabel {
+                color: #c8d6e5;
+            }
+
+            /* ── Scroll Area ── */
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+        """)
 
         self._build_ui()
         self.append_output.connect(self._do_append)
@@ -1095,9 +1332,58 @@ class MainWindow(QMainWindow):
         self.recon_table = QTableWidget(0, 5)
         self.recon_table.setHorizontalHeaderLabels(["Host", "Port", "State", "Service", "Version"])
         self.recon_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.recon_table.setAlternatingRowColors(True)
+        self.recon_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.recon_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.recon_table.customContextMenuRequested.connect(self._recon_context_menu)
         lay.addWidget(self.recon_table)
 
         return w
+
+    def _recon_context_menu(self, pos):
+        """Right-click context menu for recon results table."""
+        from PyQt5.QtWidgets import QMenu
+        item = self.recon_table.itemAt(pos)
+        if not item:
+            return
+        row = item.row()
+        host = self.recon_table.item(row, 0)
+        host_text = host.text() if host else ""
+        port_item = self.recon_table.item(row, 1)
+        port_text = port_item.text() if port_item else ""
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background: #0d1528; color: #c8d6e5; border: 1px solid #1a2e48; border-radius: 6px; padding: 4px; }
+            QMenu::item { padding: 6px 20px; border-radius: 4px; }
+            QMenu::item:selected { background: #00f0ff20; color: #00f0ff; }
+        """)
+
+        if host_text:
+            copy_ip = menu.addAction(f"📋 Copy: {host_text}")
+            copy_ip.triggered.connect(lambda: QApplication.clipboard().setText(host_text))
+
+            menu.addSeparator()
+
+            full_scan = menu.addAction(f"📋 Full Scan → {host_text}")
+            full_scan.triggered.connect(lambda: self._run_agent_cmd(f"full scan {host_text}"))
+
+            web_pwn = menu.addAction(f"🌐 Web Pwn → {host_text}")
+            web_pwn.triggered.connect(lambda: self._run_agent_cmd(f"web pwn http://{host_text}"))
+
+            brute = menu.addAction(f"🔓 Brute → {host_text}")
+            brute.triggered.connect(lambda: self._run_agent_cmd(f"brute {host_text}"))
+
+            menu.addSeparator()
+
+            set_target = menu.addAction(f"🎯 Set as Target")
+            set_target.triggered.connect(lambda: self._set_target_from_menu(host_text))
+
+        if port_text:
+            copy_port = menu.addAction(f"📋 Copy: {host_text}:{port_text}")
+            copy_port.triggered.connect(lambda: QApplication.clipboard().setText(f"{host_text}:{port_text}"))
+
+        menu.exec_(self.recon_table.mapToGlobal(pos))
 
     def _do_recon_cmd(self, cmd: str):
         """Run a recon command from the Recon tab buttons."""
@@ -1222,9 +1508,11 @@ class MainWindow(QMainWindow):
         self.ap_table.setHorizontalHeaderLabels(["BSSID", "ESSID", "Channel", "Encryption", "Signal"])
         self.ap_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.ap_table.setMaximumHeight(180)
-        self.ap_table.setStyleSheet("QTableWidget { background: #060a12; gridline-color: #141e30; }")
+        self.ap_table.setAlternatingRowColors(True)
         self.ap_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.ap_table.itemDoubleClicked.connect(self._ap_table_select)
+        self.ap_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ap_table.customContextMenuRequested.connect(self._ap_context_menu)
         ap_lay.addWidget(self.ap_table)
         lay.addWidget(ap_group)
 
@@ -1388,9 +1676,23 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(w)
         lay.setContentsMargins(12, 12, 12, 12)
 
+        # Header row
+        header_row = QHBoxLayout()
+        self.log_count_label = QLabel("📋 0 tasks logged")
+        self.log_count_label.setStyleSheet("color: #5a8aaa; font-weight: bold; font-size: 12px;")
+        header_row.addWidget(self.log_count_label)
+        header_row.addStretch()
+
+        refresh_log_btn = QPushButton("↻ Refresh")
+        refresh_log_btn.clicked.connect(self._refresh_log_table)
+        header_row.addWidget(refresh_log_btn)
+        lay.addLayout(header_row)
+
         self.log_table = QTableWidget(0, 5)
         self.log_table.setHorizontalHeaderLabels(["Time", "Action", "Tool", "Status", "Details"])
         self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.log_table.setAlternatingRowColors(True)
+        self.log_table.setSelectionBehavior(QTableWidget.SelectRows)
         lay.addWidget(self.log_table)
 
         btn_row = QHBoxLayout()
@@ -1411,8 +1713,75 @@ class MainWindow(QMainWindow):
         """)
         report_btn.clicked.connect(self._generate_gui_report)
         btn_row.addWidget(report_btn)
+
+        clear_log_btn = QPushButton("🗑️ Clear Log")
+        clear_log_btn.clicked.connect(lambda: self.log_table.setRowCount(0))
+        btn_row.addWidget(clear_log_btn)
+
+        btn_row.addStretch()
         lay.addLayout(btn_row)
         return w
+
+    # ── context menu helpers ─────────────────────────────────────
+
+    def _run_agent_cmd(self, cmd: str):
+        """Send a command through the agent chat — universal entry point for all buttons/menus."""
+        self.tabs.setCurrentIndex(0)
+        self.chat_panel.input_field.setText(cmd)
+        self.chat_panel._on_send()
+
+    def _set_target_from_menu(self, target: str):
+        """Set a target from a right-click menu."""
+        self.chat_panel.agent.context["target"] = target
+        if target not in self.known_targets:
+            self.known_targets.add(target)
+            self._update_all_target_comboboxes()
+        self._refresh_context_strip()
+        show_toast(self, f"Target set: {target}", "info", 2000)
+
+    def _ap_context_menu(self, pos):
+        """Right-click context menu for the AP table."""
+        from PyQt5.QtWidgets import QMenu
+        item = self.ap_table.itemAt(pos)
+        if not item:
+            return
+        row = item.row()
+        bssid = self.ap_table.item(row, 0).text() if self.ap_table.item(row, 0) else ""
+        essid = self.ap_table.item(row, 1).text() if self.ap_table.item(row, 1) else ""
+        channel = self.ap_table.item(row, 2).text() if self.ap_table.item(row, 2) else ""
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background: #0d1528; color: #c8d6e5; border: 1px solid #1a2e48; border-radius: 6px; padding: 4px; }
+            QMenu::item { padding: 6px 20px; border-radius: 4px; }
+            QMenu::item:selected { background: #ff6b3520; color: #ff6b35; }
+        """)
+
+        if bssid:
+            copy_bssid = menu.addAction(f"📋 Copy BSSID: {bssid}")
+            copy_bssid.triggered.connect(lambda: QApplication.clipboard().setText(bssid))
+        if essid:
+            copy_essid = menu.addAction(f"📋 Copy ESSID: {essid}")
+            copy_essid.triggered.connect(lambda: QApplication.clipboard().setText(essid))
+
+        menu.addSeparator()
+
+        if bssid:
+            deauth_act = menu.addAction(f"💀 Deauth → {essid or bssid}")
+            deauth_act.triggered.connect(lambda: (
+                self.deauth_bssid.setCurrentText(bssid),
+                self._do_deauth(),
+            ))
+
+            blitz_act = menu.addAction(f"🔥 Wi-Fi Blitz → {essid or bssid}")
+            blitz_act.triggered.connect(self._do_wifi_blitz)
+
+            menu.addSeparator()
+
+            set_target = menu.addAction(f"🎯 Set as Target")
+            set_target.triggered.connect(lambda: self._set_target_from_menu(bssid))
+
+        menu.exec_(self.ap_table.mapToGlobal(pos))
 
     # ── actions ─────────────────────────────────────────────────
 
@@ -1926,9 +2295,25 @@ class MainWindow(QMainWindow):
             self.log_table.setItem(row, 0, QTableWidgetItem(e["timestamp"]))
             self.log_table.setItem(row, 1, QTableWidgetItem(e["action"]))
             self.log_table.setItem(row, 2, QTableWidgetItem(e["tool"]))
-            self.log_table.setItem(row, 3, QTableWidgetItem(e["status"]))
+
+            status_text = e["status"]
+            status_item = QTableWidgetItem(status_text)
+            if status_text.lower() in ("ok", "success", "done"):
+                status_item.setForeground(QColor("#00ff88"))
+            elif status_text.lower() in ("error", "failed", "timeout"):
+                status_item.setForeground(QColor("#ff4757"))
+            else:
+                status_item.setForeground(QColor("#ffcc00"))
+            self.log_table.setItem(row, 3, status_item)
+
             details = json.dumps(e.get("result", {}))[:120] if e.get("result") else ""
             self.log_table.setItem(row, 4, QTableWidgetItem(details))
+
+        # Update counter
+        try:
+            self.log_count_label.setText(f"📋 {len(log)} tasks logged")
+        except AttributeError:
+            pass
 
     # ── helpers ─────────────────────────────────────────────────
 

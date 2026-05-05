@@ -455,40 +455,35 @@ class ChatPanel(QWidget):
     Running on Parrot OS with <span style="color:#00f0ff;">35+ tools</span>,
     <span style="color:#ff6b35;">{len(self.orch.list_skills())} skill workflows</span>,
     and <span style="color:#00ff88;">persistent loot caching</span>.<br>
-    Tell me what you want to do in plain English.
+    <span style="color:#a855f7; font-weight: bold;">No typing needed!</span>
+    Use the <span style="color:#00f0ff;">Command Palette</span> (Dashboard tab) or
+    <span style="color:#ff6b35;">right-click</span> scan results for instant actions.
   </div>
   <div style="color: #4a6a8a; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin-bottom: 8px;">
-    QUICK START
+    WAYS TO OPERATE
   </div>
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
-      <td style="padding: 4px 8px; color: #00f0ff;">scan 192.168.1.0/24</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ discover hosts &amp; open ports</td>
+      <td style="padding: 4px 8px; color: #a855f7;">⚡ Command Palette</td>
+      <td style="padding: 4px 8px; color: #4a6a8a;">→ Dashboard tab: 32 one-click action buttons</td>
     </tr>
     <tr>
-      <td style="padding: 4px 8px; color: #ff6b35;">wifi blitz wlan0</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ PMKID + Handshake + WPS auto-chain</td>
+      <td style="padding: 4px 8px; color: #ff6b35;">🖱️ Right-click menus</td>
+      <td style="padding: 4px 8px; color: #4a6a8a;">→ Recon &amp; AP tables: scan, copy, attack</td>
     </tr>
     <tr>
-      <td style="padding: 4px 8px; color: #ff6b35;">web pwn http://target</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ WAF + SQLi + DirBust + Nikto chain</td>
+      <td style="padding: 4px 8px; color: #00f0ff;">💬 Type a command</td>
+      <td style="padding: 4px 8px; color: #4a6a8a;">→ e.g. "scan 192.168.1.0/24" or "help"</td>
     </tr>
     <tr>
-      <td style="padding: 4px 8px; color: #00f0ff;">scan aps wlan0mon</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ list nearby Wi-Fi networks</td>
-    </tr>
-    <tr>
-      <td style="padding: 4px 8px; color: #00ff88;">show loot</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ view all cracked keys</td>
-    </tr>
-    <tr>
-      <td style="padding: 4px 8px; color: #00f0ff;">help</td>
-      <td style="padding: 4px 8px; color: #4a6a8a;">→ full command reference</td>
+      <td style="padding: 4px 8px; color: #00ff88;">🏷️ Click suggestions</td>
+      <td style="padding: 4px 8px; color: #4a6a8a;">→ chips below this box after each response</td>
     </tr>
   </table>
   <div style="color: #1a3050; font-size: 10px; margin-top: 12px; line-height: 1.6;">
     ⌨ <span style="color:#2a4a5a;">Ctrl+1-7</span> switch tabs
     │ <span style="color:#2a4a5a;">Ctrl+K</span> kill all
+    │ <span style="color:#2a4a5a;">Ctrl+R</span> reboot
     │ <span style="color:#2a4a5a;">Ctrl+L</span> clear terminal
     │ <span style="color:#2a4a5a;">Ctrl+/</span> focus chat
     │ <span style="color:#2a4a5a;">Esc</span> agent tab
@@ -501,7 +496,7 @@ class ChatPanel(QWidget):
 
         # Show default suggestion chips
         self.suggestion_bar.set_chips(
-            ["scan 192.168.1.0/24", "list interfaces", "show loot", "list skills", "help"],
+            ["status", "list interfaces", "show loot", "list skills", "help"],
             {}
         )
 
