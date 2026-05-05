@@ -1038,7 +1038,7 @@ class MainWindow(QMainWindow):
                 ("OS Detect",       "os detect",        "OS fingerprinting"),
                 ("Masscan",         "masscan",          "65535 port scan"),
                 ("Stealth Recon",   "stealth recon",    "passive OSINT chain"),
-                ("Net Sweep",       "run skill network_sweep", "ARP + ping sweep"),
+                ("ARP Scan",        "arp scan",         "LAN host discovery"),
             ]),
             ("📡 WI-FI", "#ff6b35", [
                 ("List Interfaces", "list interfaces",  None),
@@ -1048,31 +1048,35 @@ class MainWindow(QMainWindow):
                 ("Show Loot",       "show loot",        "cracked keys"),
             ]),
             ("🌐 WEB", "#a855f7", [
-                ("Web Scan",        "nikto",            "Nikto vulnerability scan"),
-                ("Dir Brute",       "gobuster",         "directory enumeration"),
-                ("SQL Inject",      "sqlmap",           "automated SQL injection"),
+                ("Nikto",           "nikto",            "web vulnerability scan"),
+                ("Dir Bust",        "gobuster",         "directory brute-force"),
+                ("SQLMap",          "sqlmap",           "SQL injection test"),
                 ("SSL Audit",       "ssl scan",         "TLS/SSL check"),
                 ("WAF Detect",      "waf detect",       "firewall detection"),
                 ("Web Pwn",         "web pwn",          "full web attack chain"),
             ]),
-            ("🕵️ OSINT", "#5a9abf", [
-                ("OSINT Harvest",   "osint",            "emails + subdomains"),
+            ("🔎 DISCOVERY", "#22c55e", [
+                ("SMB Enum",        "smb enum",         "shares, users, OS info"),
+                ("DNS Lookup",      "dns lookup",       "resolve domain records"),
                 ("WHOIS",           "whois",            "domain registration"),
-                ("DNS Enum",        "dns enum",         "DNS records"),
+                ("DNS Enum",        "dns enum",         "full DNS enumeration"),
+                ("OSINT",           "osint",            "emails + subdomains"),
             ]),
             ("💣 EXPLOIT", "#ff4757", [
-                ("Brute SSH",       "brute",            "Hydra brute-force"),
+                ("Brute SSH",       "brute",            "Hydra SSH brute-force"),
+                ("Brute SMB",       "brute {target} smb", "Hydra SMB brute-force"),
                 ("MITM",            "mitm",             "ARP poisoning"),
                 ("Responder",       "responder",        "LLMNR/NBT-NS capture"),
-                ("Reverse Shell",   "reverse shell",    "payload + listener"),
-                ("Net Dominate",    "network dominate", "full network attack chain"),
+                ("Sniff",           "sniff",            "packet capture"),
+                ("Rev Shell",       "reverse shell",    "payload + listener"),
+                ("Net Dominate",    "network dominate", "full network attack"),
             ]),
             ("⚙️ SYSTEM", "#2a6a4a", [
-                ("System Check",    "status",           "tool status"),
-                ("List Skills",     "list skills",      "38 skill workflows"),
-                ("List Wordlists",  "list wordlists",   "wordlist arsenal"),
+                ("Status",          "status",           "tool status check"),
+                ("Skills",          "list skills",      "skill workflows"),
+                ("Wordlists",       "list wordlists",   "wordlist arsenal"),
                 ("Net Guard",       "net guard",        "protection status"),
-                ("Show Primers",    "show primers",     "AI guidance"),
+                ("Primers",         "show primers",     "AI guidance docs"),
                 ("Report",          "report",           "HTML session report"),
             ]),
         ]
@@ -1205,23 +1209,34 @@ class MainWindow(QMainWindow):
         TARGET_CMDS = {
             "quick scan", "full scan", "os detect", "masscan", "stealth recon",
             "nikto", "gobuster", "sqlmap", "ssl scan", "waf detect", "web pwn",
-            "osint", "whois", "dns enum", "brute", "mitm", "network dominate",
+            "osint", "whois", "dns enum", "dns lookup", "brute", "mitm",
+            "network dominate", "smb enum", "sniff",
         }
 
         full_cmd = cmd
-        for prefix in TARGET_CMDS:
-            if cmd == prefix:
-                if not target:
-                    # Focus the target input so user can type/select
-                    self.palette_target.setFocus()
-                    show_toast(self, "Enter a target first →", "warning", 2000)
-                    return
-                full_cmd = f"{cmd} {target}"
-                # Save to known targets
-                if target not in self.known_targets:
-                    self.known_targets.add(target)
-                    self._update_all_target_comboboxes()
-                break
+
+        # Handle {target} template in commands like "brute {target} smb"
+        if "{target}" in cmd:
+            if not target:
+                self.palette_target.setFocus()
+                show_toast(self, "Enter a target first →", "warning", 2000)
+                return
+            full_cmd = cmd.replace("{target}", target)
+            if target not in self.known_targets:
+                self.known_targets.add(target)
+                self._update_all_target_comboboxes()
+        else:
+            for prefix in TARGET_CMDS:
+                if cmd == prefix:
+                    if not target:
+                        self.palette_target.setFocus()
+                        show_toast(self, "Enter a target first →", "warning", 2000)
+                        return
+                    full_cmd = f"{cmd} {target}"
+                    if target not in self.known_targets:
+                        self.known_targets.add(target)
+                        self._update_all_target_comboboxes()
+                    break
 
         # Send through the agent (switch to Agent tab to see response)
         self.tabs.setCurrentIndex(0)
