@@ -206,8 +206,49 @@ def test_intent_routing():
     print(f"\n  Intent patterns: {len(INTENT_PATTERNS)}")
     print(f"  Unique intents:  {len(all_intents)}")
 
+    # ── Pronoun Resolution Tests ──────────────────────────────────
+    print("\n" + "=" * 60)
+    print("Pronoun Resolution Tests")
+    print("=" * 60)
+
+    # Set a target in context
+    agent.context["target"] = "10.0.0.5"
+    agent.context["target_url"] = "http://10.0.0.5"
+
+    PRONOUN_CASES = [
+        ("scan it",         "scan 10.0.0.5"),
+        ("brute that",      "brute 10.0.0.5"),
+        ("full scan deeper","full scan 10.0.0.5"),
+        ("nikto it",        "nikto 10.0.0.5"),
+        ("gobuster that",   "gobuster 10.0.0.5"),
+        ("smb enum it",     "smb enum 10.0.0.5"),
+        ("hack it",         "network dominate 10.0.0.5"),
+        ("pwn that",        "network dominate 10.0.0.5"),
+        ("deeper",          "full scan 10.0.0.5"),
+        ("go deeper",       "full scan 10.0.0.5"),
+        ("ports",           "scan 10.0.0.5"),
+        ("web that",        "web pwn http://10.0.0.5"),
+    ]
+
+    p_passed = 0
+    p_failed = 0
+    for raw, expected in PRONOUN_CASES:
+        resolved = agent._resolve_pronouns(raw)
+        if resolved == expected:
+            p_passed += 1
+        else:
+            p_failed += 1
+            print(f"  ❌ FAIL: \"{raw}\"")
+            print(f"          Expected: {expected}")
+            print(f"          Got:      {resolved}")
+
+    print(f"\n  ✅ Pronoun tests passed: {p_passed}")
+    if p_failed:
+        print(f"  ❌ Pronoun tests failed: {p_failed}")
+    print(f"  📊 Pronoun total:  {len(PRONOUN_CASES)}")
+
     # Exit code for CI
-    sys.exit(1 if failed or missing_handlers else 0)
+    sys.exit(1 if failed or missing_handlers or p_failed else 0)
 
 
 if __name__ == "__main__":

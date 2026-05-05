@@ -10,11 +10,14 @@ import os
 import re
 import json
 import logging
+from datetime import datetime
 import shlex
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 try:
     from google import genai
@@ -145,7 +148,17 @@ class Agent:
     _PERSIST_KEYS = {
         "target", "interface", "wordlist", "domain", "lhost", "lport",
         "gateway", "username", "target_url", "target_bssid",
+        "discovered_services", "scan_history", "victim",
     }
+
+    # Pronouns / shorthand that reference last target
+    _PRONOUN_RE = re.compile(
+        r"^(?:scan|recon|enumerate|full scan|deep scan|brute|nikto|gobuster|"
+        r"sqlmap|smb enum|dns lookup|whois|osint|ssl scan|waf detect|"
+        r"web scan|web pwn|os detect|masscan|crack|sniff)\s+"
+        r"(?:it|that|this|them|target|host|again|more|same|deeper)$",
+        re.I
+    )
 
     def __init__(self, orchestrator: Orchestrator):
         self.orch = orchestrator
@@ -187,6 +200,9 @@ class Agent:
         if not text:
             return ""
 
+        # ── Pronoun / shorthand resolution ──────────────────────
+        text = self._resolve_pronouns(text)
+
         self.history.append({"role": "user", "content": text})
 
         # Try LLM first
@@ -213,29 +229,84 @@ class Agent:
         self._save_context()
         return resp
 
+    def _resolve_pronouns(self, text: str) -> str:
+        """Replace pronouns like 'it', 'that', 'deeper' with the actual target."""
+        target = self.context.get("target", "")
+        if not target:
+            return text
+
+        # "scan it", "brute that", "full scan deeper"
+        if self._PRONOUN_RE.match(text.strip()):
+            # Replace the pronoun word at the end with the target
+            parts = text.rsplit(None, 1)
+            if len(parts) == 2:
+                resolved = f"{parts[0]} {target}"
+                logger.info("Pronoun resolved: '%s' → '%s'", text, resolved)
+                return resolved
+
+        # "what ports" / "what services" — show last scan context
+        lower = text.lower().strip()
+        if lower in ("what ports", "open ports", "show ports", "ports"):
+            return f"scan {target}"
+        if lower in ("what services", "services", "show services"):
+            return f"full scan {target}"
+        if lower in ("hack it", "hack that", "pwn it", "pwn that", "attack it", "attack that"):
+            return f"network dominate {target}"
+        if lower in ("web it", "web that", "web attack"):
+            url = self.context.get("target_url", f"http://{target}")
+            return f"web pwn {url}"
+        if lower in ("deeper", "go deeper", "more", "enumerate more", "dig deeper"):
+            return f"full scan {target}"
+
+        return text
+
     def _process_with_llm(self, text: str) -> Optional[str]:
         try:
             system_prompt = """You are JAMES, an autonomous pentesting agent running on Parrot OS.
 You control various pentesting tools. Map the user's natural language to the correct JSON action.
+Be aggressive and thorough — always pick the most relevant attack tool.
 Available Actions:
 - {"action": "quick_recon", "target": "<IP/Domain>"} -> Fast nmap scan
-- {"action": "full_scan", "target": "<IP/Domain>"} -> Deep nmap scan
+- {"action": "full_scan", "target": "<IP/Domain>"} -> Deep nmap scan  
 - {"action": "os_detect", "target": "<IP>"} -> OS fingerprinting
+- {"action": "arp_discover"} -> LAN host discovery via ARP
 - {"action": "list_interfaces"} -> List Wi-Fi interfaces
 - {"action": "monitor_on", "iface": "<interface>"} -> Start monitor mode
 - {"action": "monitor_off", "iface": "<interface>"} -> Stop monitor mode
 - {"action": "deauth", "bssid": "<mac>", "count": <int>} -> Send deauth frames
+- {"action": "nikto_scan", "target": "<URL>"} -> Web vulnerability scan
+- {"action": "dir_brute", "target": "<URL>"} -> Directory brute-force
+- {"action": "sqli_scan", "target": "<URL>"} -> SQL injection test
+- {"action": "smb_enum", "target": "<IP>"} -> SMB shares/users enumeration
+- {"action": "dns_lookup", "domain": "<domain>", "type": "ANY"} -> DNS resolution
+- {"action": "brute", "target": "<IP>", "service": "ssh"} -> Network brute-force (ssh/ftp/smb/rdp)
+- {"action": "web_pwn", "target": "<URL>"} -> Full web attack chain
+- {"action": "stealth_recon", "target": "<domain>"} -> Passive OSINT chain
+- {"action": "network_dominate", "target": "<IP/CIDR>"} -> Full network attack
 - {"action": "crack_wpa", "file": "<capture_file>", "wordlist": "<path>"} -> Crack WPA
 - {"action": "crack_hash", "file": "<hash_file>", "wordlist": "<path>"} -> Crack hash
-- {"action": "autopwn", "iface": "<interface>"} -> Fully autonomous Wi-Fi audit (recon, target, deauth, capture, crack)
-- {"action": "run_skill", "name": "<skill_name>"} -> Run automated skill workflow (e.g., wifi_audit, full_recon, smb_audit, web_recon)
+- {"action": "autopwn", "iface": "<interface>"} -> Fully autonomous Wi-Fi audit
+- {"action": "run_skill", "name": "<skill_name>"} -> Run automated skill workflow
 - {"action": "set_context", "key": "<key>", "value": "<value>"} -> Set context variable
 - {"action": "chat", "message": "<text>"} -> Respond conversationally if no tool is needed
 
 Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
 """
+            # Inject current context so LLM knows what's active
+            ctx_info = ""
+            if self.context.get("target"):
+                ctx_info += f"Current target: {self.context['target']}\n"
+            if self.context.get("interface"):
+                ctx_info += f"Active interface: {self.context['interface']}\n"
+            svcs = self.context.get("discovered_services", {})
+            if svcs:
+                for tgt, info in list(svcs.items())[:3]:
+                    ctx_info += f"Known services on {tgt}: {', '.join(info.get('services', []))}\n"
+
             # Build conversation history for LLM context
             contents = ""
+            if ctx_info:
+                contents += f"[System Context]\n{ctx_info}\n"
             for msg in self.history[-10:]:
                 role = "User" if msg["role"] == "user" else "Agent"
                 contents += f"{role}: {msg['content']}\\n"
@@ -303,11 +374,77 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                 class MockMatch:
                     def group(self, i): return data.get("name")
                 return self._do_run_skill(MockMatch(), None)
+            elif action == "autopwn":
+                class MockMatch:
+                    def group(self, i): return data.get("iface")
+                return self._do_autopwn(MockMatch(), None)
             elif action == "set_context":
                 key = data.get("key")
                 val = data.get("value")
                 self.context[key] = val
                 return f"✅ Context updated (via AI): {key} = {val}"
+            # ── New tool actions ────────────────────────────────
+            elif action == "arp_discover":
+                return self._do_arp_discover(re.match(r"(.*)", ""), None)
+            elif action == "nikto_scan":
+                target = data.get("target", "")
+                self.context["target"] = target
+                result = self.orch.nikto_scan(target)
+                vulns = result.get("vulnerabilities", [])
+                lines = [f"🌐 Nikto Scan — {target}", f"{len(vulns)} finding(s)", ""]
+                for v in vulns[:20]:
+                    lines.append(f"  ⚠ {v}")
+                return "\n".join(lines)
+            elif action == "dir_brute":
+                target = data.get("target", "")
+                self.context["target_url"] = target
+                result = self.orch.dir_bust(target)
+                if result.get("findings"):
+                    lines = [f"📂 Dir Bust — {target}", f"Found {result['total']} path(s)", ""]
+                    for f in result["findings"][:20]:
+                        lines.append(f"  [{f['status']}] {f['path']}  ({f['size']}B)")
+                    return "\n".join(lines)
+                return f"📂 Dir Bust — {target}\n\nNo paths found."
+            elif action == "sqli_scan":
+                target = data.get("target", "")
+                result = self.orch.sqli_scan(target)
+                if result.get("injectable"):
+                    return f"💉 INJECTABLE! {result['vuln_count']} vuln(s) on {target}"
+                return f"💉 SQLMap — {target} — not injectable."
+            elif action == "smb_enum":
+                target = data.get("target", "")
+                self.context["target"] = target
+                result = self.orch.smb_enum(target)
+                lines = [f"📂 SMB — {target}", f"{result.get('share_count', 0)} share(s), {result.get('user_count', 0)} user(s)"]
+                for s in result.get("shares", []):
+                    lines.append(f"  📂 {s['name']} ({s['type']})")
+                return "\n".join(lines)
+            elif action == "dns_lookup":
+                domain = data.get("domain", "")
+                rtype = data.get("type", "ANY")
+                result = self.orch.dns_lookup(domain, record_type=rtype)
+                records = result.get("records", [])
+                lines = [f"🔎 DNS — {domain} ({rtype})", f"{len(records)} record(s)"]
+                for r in records[:15]:
+                    lines.append(f"  → {r}")
+                return "\n".join(lines)
+            elif action == "brute":
+                target = data.get("target", "")
+                service = data.get("service", "ssh")
+                self.context["target"] = target
+                result = self.orch.brute_service(target, service)
+                if result.get("found"):
+                    creds = result["credentials"]
+                    return f"🔑 CRACKED! {target} ({service}): {creds[0]['login']}:{creds[0]['password']}"
+                return f"🔒 No creds found for {target} ({service})"
+            elif action in ("web_pwn", "stealth_recon", "network_dominate"):
+                # Route these through the regex handler for the one-click hacks
+                class MockMatch:
+                    def group(self, i): return data.get("target")
+                handler = getattr(self, f"_do_oneclick_{action}", None)
+                if handler:
+                    return handler(MockMatch(), None)
+                return None
             else:
                 return None  # Let regex handle unknown actions
         except Exception as e:
@@ -454,12 +591,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         target = m.group(1).strip()
         self.context["target"] = target
         result = self.orch.quick_recon(target)
+        self._remember_services(target, result)
         return self._format_scan(result, target, "Quick")
 
     def _do_full_scan(self, m, raw) -> str:
         target = m.group(1).strip()
         self.context["target"] = target
         result = self.orch.full_scan(target)
+        self._remember_services(target, result)
         return self._format_scan(result, target, "Full")
 
     def _do_os_detect(self, m, raw) -> str:
@@ -1217,31 +1356,94 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         lines.append(self._suggest_next(hosts))
         return "\n".join(lines)
 
+    def _remember_services(self, target: str, result: dict):
+        """Track discovered services/ports per target in context for smart suggestions."""
+        services = self.context.setdefault("discovered_services", {})
+        target_svcs = services.setdefault(target, {"ports": [], "services": []})
+        scan_history = self.context.setdefault("scan_history", [])
+
+        for host in result.get("hosts", []):
+            for p in host.get("ports", []):
+                port_id = f"{p['port']}/{p['protocol']}"
+                if port_id not in target_svcs["ports"]:
+                    target_svcs["ports"].append(port_id)
+                svc = p.get("service", "")
+                if svc and svc not in target_svcs["services"]:
+                    target_svcs["services"].append(svc)
+
+        scan_history.append({
+            "target": target,
+            "time": datetime.now().isoformat(),
+            "ports_found": len(target_svcs["ports"]),
+        })
+        # Keep scan history manageable
+        if len(scan_history) > 50:
+            self.context["scan_history"] = scan_history[-50:]
+
     def _suggest_next(self, hosts: list) -> str:
-        suggestions = ["\n  💡 Suggested next steps:"]
+        target = self.context.get("target", "<target>")
+        suggestions = ["\n  💡 JAMES recommends:"]
         all_services = set()
         all_ports = set()
         for h in hosts:
             for p in h.get("ports", []):
-                all_services.add(p.get("service", ""))
+                all_services.add(p.get("service", "").lower())
                 all_ports.add(str(p.get("port", "")))
 
-        if "ssh" in all_services:
-            suggestions.append("    → run skill brute_ssh       (SSH brute-force)")
-        if "http" in all_services or "https" in all_services or "80" in all_ports or "443" in all_ports:
-            suggestions.append("    → run skill full_web_audit   (nikto + gobuster + sqlmap)")
-            suggestions.append("    → waf detect <url>           (check for WAF)")
-        if "smb" in all_services or "microsoft-ds" in all_services or "445" in all_ports:
-            suggestions.append("    → run skill ad_domain_recon  (AD enumeration)")
+        # SSH
+        if "ssh" in all_services or "22" in all_ports:
+            suggestions.append(f"    → brute {target} ssh         ⚡ SSH brute-force")
+        # Web
+        if any(s in all_services for s in ("http", "https", "http-proxy")) or any(p in all_ports for p in ("80", "443", "8080", "8443")):
+            web_target = f"http://{target}"
+            suggestions.append(f"    → nikto {web_target}         ⚡ web vuln scan")
+            suggestions.append(f"    → gobuster {web_target}      ⚡ dir brute-force")
+            suggestions.append(f"    → waf detect {web_target}    ⚡ WAF detection")
+            if "443" in all_ports:
+                suggestions.append(f"    → ssl scan {target}          ⚡ TLS audit")
+        # SMB
+        if any(s in all_services for s in ("smb", "microsoft-ds", "netbios-ssn")) or "445" in all_ports:
+            suggestions.append(f"    → smb enum {target}          ⚡ SMB shares/users")
+            suggestions.append(f"    → brute {target} smb         ⚡ SMB brute-force")
+        # FTP
         if "ftp" in all_services or "21" in all_ports:
-            suggestions.append("    → run skill brute_ftp        (FTP brute-force)")
-        if "443" in all_ports:
-            suggestions.append("    → ssl scan <target>          (TLS audit)")
-        if "3306" in all_ports or "5432" in all_ports:
-            suggestions.append("    → run skill brute_multi      (multi-protocol brute)")
+            suggestions.append(f"    → brute {target} ftp         ⚡ FTP brute-force")
+        # DNS
+        if "domain" in all_services or "53" in all_ports:
+            suggestions.append(f"    → dns enum {target}          ⚡ DNS zone transfer")
+        # SNMP
+        if "snmp" in all_services or "161" in all_ports:
+            suggestions.append(f"    → ! snmpwalk -c public {target}  ⚡ SNMP enum")
+        # RDP
+        if "ms-wbt-server" in all_services or "3389" in all_ports:
+            suggestions.append(f"    → brute {target} rdp         ⚡ RDP brute-force")
+        # VNC
+        if "vnc" in all_services or "5900" in all_ports:
+            suggestions.append(f"    → brute {target} vnc         ⚡ VNC brute-force")
+        # SMTP
+        if "smtp" in all_services or "25" in all_ports:
+            suggestions.append(f"    → ! smtp-user-enum -U /usr/share/wordlists/names.txt -t {target}  ⚡ SMTP enum")
+        # LDAP
+        if "ldap" in all_services or "389" in all_ports:
+            suggestions.append(f"    → ! ldapsearch -x -H ldap://{target} -b '' -s base  ⚡ LDAP enum")
+        # DB
+        if "mysql" in all_services or "3306" in all_ports:
+            suggestions.append(f"    → brute {target} mysql       ⚡ MySQL brute-force")
+        if "postgresql" in all_services or "5432" in all_ports:
+            suggestions.append(f"    → brute {target} postgres    ⚡ Postgres brute-force")
+        # Redis / Mongo
+        if "6379" in all_ports:
+            suggestions.append(f"    → ! redis-cli -h {target} INFO  ⚡ Redis enum")
+        if "27017" in all_ports:
+            suggestions.append(f"    → ! mongosh {target} --eval 'db.adminCommand({{listDatabases:1}})'  ⚡ MongoDB enum")
+
         if len(suggestions) == 1:
-            suggestions.append("    → full scan <target>         (deeper enumeration)")
-            suggestions.append("    → run skill vuln_scan        (vulnerability scan)")
+            suggestions.append(f"    → full scan {target}         ⚡ deeper enumeration")
+            suggestions.append(f"    → osint {target}             ⚡ OSINT recon")
+
+        # Cap at 6 suggestions
+        if len(suggestions) > 7:
+            suggestions = suggestions[:7]
         return "\n".join(suggestions)
 
     def _fallback(self, text: str) -> str:
@@ -1295,8 +1497,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("nikto",     "nikto <url>"),
         ("gobuster",  "gobuster <url>"),
         ("mitm",      "mitm <victim> <gateway>"),
-        ("arp",       "mitm <victim> <gateway>"),
+        ("arp",       "arp scan"),
+        ("arp scan",  "arp scan"),
         ("responder", "responder <iface>"),
+        ("smb",       "smb enum <target>"),
+        ("enum4linux","smb enum <target>"),
+        ("dns",       "dns lookup <domain>"),
+        ("nslookup",  "dns lookup <domain>"),
+        ("resolve",   "dns lookup <domain>"),
         ("skill",     "list skills"),
         ("run",       "run skill <name>"),
         ("status",    "status"),
@@ -1326,6 +1534,10 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("cleanup",    "kill james"),
         ("restore",    "kill james"),
         ("fix wifi",   "kill james"),
+        ("discover",   "arp scan"),
+        ("hosts",      "arp scan"),
+        ("sniff",      "sniff <iface>"),
+        ("packet",     "sniff <iface>"),
     ]
 
     def _fuzzy_suggest(self, text: str) -> str:
