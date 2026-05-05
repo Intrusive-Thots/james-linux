@@ -889,10 +889,29 @@ class MainWindow(QMainWindow):
         subtitle = QLabel("Autonomous Pentesting Agent")
         subtitle.setStyleSheet("color: #3a5a7a; font-size: 11px; letter-spacing: 1px; background: transparent;")
         lay.addWidget(subtitle)
+
+        # ── Network info badge (IP + ports) ────────────────────
+        from james.remote.server import get_local_ip
+        self._header_ip = get_local_ip()
+        self.net_info_label = QLabel()
+        self.net_info_label.setStyleSheet("""
+            background-color: #0a0f18;
+            color: #5a8aaa;
+            border: 1px solid #1a2a40;
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+        """)
+        self.net_info_label.setToolTip("Your LAN IP and active service ports")
+        lay.addWidget(self.net_info_label)
+        self._refresh_net_label()
+
         lay.addStretch()
 
         # version badge
-        ver = QLabel("v0.5.0")
+        ver = QLabel("v0.6.3")
         ver.setStyleSheet("""
             background-color: #00f0ff18;
             color: #00f0ff;
@@ -920,6 +939,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.clock_label)
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._update_clock)
+        self._clock_timer.timeout.connect(self._refresh_net_label)   # piggyback on clock
         self._clock_timer.start(1000)
         self._update_clock()
 
@@ -2989,6 +3009,53 @@ class MainWindow(QMainWindow):
 
     def _update_clock(self):
         self.clock_label.setText(datetime.now().strftime("%H:%M:%S"))
+
+    def _refresh_net_label(self):
+        """Update the header network info badge with IP + active ports."""
+        from james.remote.server import get_local_ip
+        ip = get_local_ip()
+        self._header_ip = ip
+
+        parts = [f"🌐 {ip}"]
+
+        # Check which services are active
+        services = []
+        try:
+            if self.remote_server.is_running():
+                services.append(":1337")
+        except Exception:
+            pass
+        try:
+            if self.gui_remote.is_running():
+                services.append(":6080")
+        except Exception:
+            pass
+
+        if services:
+            parts.append("  │  " + "  ".join(services))
+            self.net_info_label.setStyleSheet("""
+                background-color: #0a1520;
+                color: #00f0ff;
+                border: 1px solid #00f0ff40;
+                border-radius: 4px;
+                padding: 3px 10px;
+                font-size: 10px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: bold;
+            """)
+        else:
+            self.net_info_label.setStyleSheet("""
+                background-color: #0a0f18;
+                color: #5a8aaa;
+                border: 1px solid #1a2a40;
+                border-radius: 4px;
+                padding: 3px 10px;
+                font-size: 10px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: bold;
+            """)
+
+        self.net_info_label.setText("".join(parts))
 
     def _start_worker(self, worker: WorkerThread):
         self._workers.append(worker)
