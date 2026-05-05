@@ -46,246 +46,347 @@ WEB_UI = """<!DOCTYPE html>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-  --bg: #06090f;
-  --surface: #0b1120;
+  --bg-main: #06090f;
+  --bg-panel: #0b1120;
+  --bg-header: #0d1528;
+  --bg-term: #05080f;
   --border: #141e30;
   --cyan: #00f0ff;
-  --green: #22c55e;
-  --orange: #ff6b35;
-  --red: #ff4757;
-  --purple: #a855f7;
+  --cyan-dim: #00f0ff40;
+  --green: #00ff88;
   --text: #c8d6e5;
-  --muted: #4a5568;
+  --muted: #5a8aaa;
 }
 body {
-  background: var(--bg);
+  background: var(--bg-main);
   color: var(--text);
   font-family: 'Inter', sans-serif;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 24px;
+  background: linear-gradient(90deg, var(--bg-panel) 0%, var(--bg-header) 50%, var(--bg-panel) 100%);
+  border-bottom: 2px solid var(--cyan-dim);
+  padding: 0 20px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
+}
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
 }
 .header h1 {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: bold;
   color: var(--cyan);
-  letter-spacing: 2px;
+  letter-spacing: 4px;
 }
-.header .status {
+.header .subtitle {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--muted);
+  gap: 15px;
 }
-.header .status .dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--green);
-  animation: pulse 2s infinite;
+.badge {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: bold;
+  color: var(--cyan);
 }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+.status {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.main {
+.main-area {
+  display: flex;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  max-width: 900px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 20px;
-  gap: 16px;
+  overflow: hidden;
+  padding: 10px;
+  gap: 10px;
 }
-.quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.quick-actions button {
-  background: var(--surface);
-  color: var(--text);
+/* LEFT: Command Palette */
+.sidebar {
+  width: 250px;
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-header {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  font-weight: bold;
   font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.palette-group {
+  padding: 10px;
+}
+.palette-title {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.palette-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: left;
   font-family: 'Inter', sans-serif;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  margin-bottom: 4px;
 }
-.quick-actions button:hover {
-  border-color: var(--cyan);
+.palette-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--cyan-dim);
   color: var(--cyan);
-  background: #00f0ff10;
 }
-.quick-actions button.danger:hover {
-  border-color: var(--red);
-  color: var(--red);
-  background: #ff475710;
-}
-.quick-actions button.web:hover {
-  border-color: var(--purple);
-  color: var(--purple);
-}
-.quick-actions button.hack:hover {
-  border-color: var(--orange);
-  color: var(--orange);
-}
-.output-area {
+/* CENTER: Chat */
+.chat-panel {
   flex: 1;
-  background: var(--surface);
+  background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  overflow-y: auto;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 400px;
+}
+.context-ticker {
+  background: #0a1520;
+  border-bottom: 1px solid var(--cyan-dim);
+  padding: 6px 12px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  display: flex;
+  gap: 15px;
+  overflow-x: auto;
+}
+.context-ticker span b { color: var(--cyan); }
+.quick-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.qa-btn {
+  background: #0d1a2a;
+  color: var(--text);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.qa-btn:hover { background: #142540; border-color: var(--cyan); color: var(--cyan); }
+.qa-btn.danger { border-color: rgba(255, 71, 87, 0.4); color: #ff4757; }
+.qa-btn.danger:hover { border-color: #ff4757; background: rgba(255, 71, 87, 0.1); }
+.chat-log {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  font-family: 'Inter', sans-serif;
+}
+.msg {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+.msg.user { align-items: flex-end; }
+.msg.agent { align-items: flex-start; }
+.bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: 13px;
-  line-height: 1.6;
-  min-height: 400px;
-  max-height: 60vh;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.output-area .msg {
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
+.msg.user .bubble {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid var(--cyan-dim);
+  border-bottom-right-radius: 2px;
 }
-.output-area .msg.user {
-  background: #00f0ff08;
-  border-left: 3px solid var(--cyan);
+.msg.agent .bubble {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-bottom-left-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
 }
-.output-area .msg.agent {
-  background: #22c55e08;
-  border-left: 3px solid var(--green);
-}
-.output-area .msg .label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin-bottom: 4px;
-}
-.output-area .msg.user .label { color: var(--cyan); }
-.output-area .msg.agent .label { color: var(--green); }
-.input-area {
+.chat-input {
+  padding: 15px;
+  border-top: 1px solid var(--border);
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  background: var(--bg-panel);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
-.input-area input {
+.chat-input input {
   flex: 1;
-  background: var(--surface);
+  background: var(--bg-main);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 18px;
-  color: var(--text);
+  border-radius: 6px;
+  padding: 12px 15px;
+  color: var(--cyan);
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
 }
-.input-area input:focus {
-  border-color: var(--cyan);
-}
-.input-area input::placeholder {
-  color: var(--muted);
-}
-.input-area button {
-  background: linear-gradient(135deg, #00f0ff, #0088ff);
+.chat-input input:focus { border-color: var(--cyan); }
+.chat-input button {
+  background: linear-gradient(135deg, var(--cyan), #0088ff);
   color: #000;
   border: none;
-  border-radius: 10px;
-  padding: 14px 28px;
-  font-weight: 700;
+  border-radius: 6px;
+  padding: 0 25px;
+  font-weight: bold;
   font-size: 14px;
   cursor: pointer;
-  transition: transform 0.1s;
 }
-.input-area button:hover { transform: scale(1.02); }
-.input-area button:active { transform: scale(0.98); }
-.input-area button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.context-bar {
+/* RIGHT: Terminal */
+.terminal-panel {
+  width: 350px;
+  background: var(--bg-term);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+}
+.term-header {
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
   font-size: 11px;
   color: var(--muted);
-  padding: 8px 0;
-  flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
-.context-bar span {
-  background: var(--surface);
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
+.term-output {
+  flex: 1;
+  padding: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.4;
 }
-.context-bar span b { color: var(--cyan); }
-@media (max-width: 600px) {
-  .main { padding: 12px; }
-  .quick-actions button { padding: 6px 10px; font-size: 11px; }
-  .input-area input { padding: 12px; font-size: 13px; }
-  .input-area button { padding: 12px 20px; }
-}
+.term-output .sys { color: var(--muted); }
+.term-output .cmd { color: var(--cyan); }
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>⚡ JAMES REMOTE</h1>
-  <div class="status">
-    <div class="dot"></div>
-    <span id="connStatus">Connected</span>
-    <span id="contextTarget"></span>
+  <div class="header-left">
+    <h1>⚡ JAMES</h1>
+    <span class="subtitle">Autonomous Pentesting Agent</span>
+  </div>
+  <div class="header-right">
+    <div class="badge">v0.6.3</div>
+    <div class="status">● ONLINE</div>
   </div>
 </div>
 
-<div class="main">
-  <div class="context-bar" id="contextBar"></div>
-
-  <div class="quick-actions">
-    <button onclick="send('status')">⚙️ Status</button>
-    <button onclick="send('arp scan')">🔍 ARP Scan</button>
-    <button onclick="send('list interfaces')">📡 Interfaces</button>
-    <button onclick="send('scan aps')">📶 Scan APs</button>
-    <button onclick="send('show loot')">🔑 Loot</button>
-    <button onclick="send('list skills')">📋 Skills</button>
-    <button onclick="promptSend('scan')">🎯 Scan Target</button>
-    <button class="web" onclick="promptSend('nikto')">🌐 Nikto</button>
-    <button class="web" onclick="promptSend('gobuster')">📁 Dir Bust</button>
-    <button class="web" onclick="promptSend('sqlmap')">💉 SQLMap</button>
-    <button class="hack" onclick="promptSend('brute')">🔓 Brute</button>
-    <button class="hack" onclick="promptSend('smb enum')">📂 SMB</button>
-    <button class="hack" onclick="send('wifi blitz')">🔥 Blitz</button>
-    <button class="danger" onclick="send('kill james')">🛑 Kill All</button>
-    <button onclick="send('help')">❓ Help</button>
-    <button onclick="send('report')">📊 Report</button>
-  </div>
-
-  <div class="output-area" id="output">
-    <div class="msg agent">
-      <div class="label">JAMES</div>
-      JAMES Remote Control ready. Type a command or click a button above.
+<div class="main-area">
+  <!-- LEFT: Command Palette -->
+  <div class="sidebar">
+    <div class="sidebar-header">Command Palette</div>
+    <div class="palette-group">
+      <div class="palette-title">Core Actions</div>
+      <button class="palette-btn" onclick="send('status')">⚡ Status</button>
+      <button class="palette-btn" onclick="send('list interfaces')">📡 Interfaces</button>
+      <button class="palette-btn" onclick="send('show loot')">🔑 View Loot</button>
+    </div>
+    <div class="palette-group">
+      <div class="palette-title">Recon & Web</div>
+      <button class="palette-btn" onclick="promptSend('scan')">🎯 Scan Target</button>
+      <button class="palette-btn" onclick="promptSend('nikto')">🌐 Nikto Scan</button>
+      <button class="palette-btn" onclick="promptSend('gobuster')">📁 Dir Bust</button>
+    </div>
+    <div class="palette-group">
+      <div class="palette-title">Wireless</div>
+      <button class="palette-btn" onclick="send('scan aps')">📶 Scan APs</button>
+      <button class="palette-btn" onclick="send('wifi blitz')">🔥 Auto Blitz</button>
+    </div>
+    <div class="palette-group">
+      <div class="palette-title">Exploitation</div>
+      <button class="palette-btn" onclick="promptSend('brute')">🔓 Brute Force</button>
+      <button class="palette-btn" onclick="promptSend('smb enum')">📂 SMB Enum</button>
+      <button class="palette-btn" onclick="promptSend('sqlmap')">💉 SQLMap</button>
     </div>
   </div>
 
-  <div class="input-area">
-    <input type="text" id="cmdInput" placeholder="Type a command... (e.g. scan 192.168.1.1)"
-           autocomplete="off" autofocus>
-    <button id="sendBtn" onclick="sendInput()">SEND</button>
+  <!-- CENTER: Chat -->
+  <div class="chat-panel">
+    <div class="context-ticker" id="contextBar">
+      <span><b>Target:</b> none</span>
+      <span><b>Iface:</b> wlan0</span>
+    </div>
+    <div class="quick-actions">
+      <button class="qa-btn" onclick="send('status')">Status</button>
+      <button class="qa-btn" onclick="send('list interfaces')">Interfaces</button>
+      <button class="qa-btn" onclick="send('arp scan')">ARP Scan</button>
+      <button class="qa-btn" onclick="send('scan aps')">Scan APs</button>
+      <button class="qa-btn" onclick="send('show loot')">Loot</button>
+      <button class="qa-btn danger" onclick="send('kill james')">🛑 Kill All</button>
+    </div>
+    <div class="chat-log" id="output">
+      <div class="msg agent"><div class="bubble">JAMES Remote Control ready. Type a command or use the palette.</div></div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="cmdInput" placeholder="> Type command..." autocomplete="off" autofocus>
+      <button id="sendBtn" onclick="sendInput()">SEND</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Terminal -->
+  <div class="terminal-panel">
+    <div class="term-header">Terminal / Logs</div>
+    <div class="term-output" id="termOutput">
+      <span class="sys">JAMES Remote Server initialized.</span><br>
+      <span class="sys">Listening on :1337</span><br>
+    </div>
   </div>
 </div>
 
 <script>
 const output = document.getElementById('output');
+const termOutput = document.getElementById('termOutput');
 const cmdInput = document.getElementById('cmdInput');
 const sendBtn = document.getElementById('sendBtn');
 const contextBar = document.getElementById('contextBar');
@@ -297,17 +398,26 @@ cmdInput.addEventListener('keydown', e => {
 function addMsg(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + role;
-  const label = document.createElement('div');
-  label.className = 'label';
-  label.textContent = role === 'user' ? 'YOU' : 'JAMES';
-  div.appendChild(label);
-  div.appendChild(document.createTextNode(text));
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  div.appendChild(bubble);
   output.appendChild(div);
   output.scrollTop = output.scrollHeight;
 }
 
+function addTerm(text, type='sys') {
+  const span = document.createElement('span');
+  span.className = type;
+  span.textContent = text;
+  termOutput.appendChild(span);
+  termOutput.appendChild(document.createElement('br'));
+  termOutput.scrollTop = termOutput.scrollHeight;
+}
+
 function send(cmd) {
   addMsg('user', cmd);
+  addTerm('> ' + cmd, 'cmd');
   sendBtn.disabled = true;
   cmdInput.disabled = true;
 
@@ -319,10 +429,12 @@ function send(cmd) {
   .then(r => r.json())
   .then(data => {
     addMsg('agent', data.response || '(no response)');
+    addTerm(data.response || 'Done.', 'sys');
     if (data.context) updateContext(data.context);
   })
   .catch(err => {
     addMsg('agent', '[ERROR] ' + err.message);
+    addTerm('[ERROR] ' + err.message, 'sys');
   })
   .finally(() => {
     sendBtn.disabled = false;
@@ -348,17 +460,26 @@ function updateContext(ctx) {
   if (ctx.target) parts.push('<span><b>Target:</b> ' + ctx.target + '</span>');
   if (ctx.interface) parts.push('<span><b>Iface:</b> ' + ctx.interface + '</span>');
   if (ctx.domain) parts.push('<span><b>Domain:</b> ' + ctx.domain + '</span>');
+  if (ctx.bssid) parts.push('<span><b>BSSID:</b> ' + ctx.bssid + '</span>');
   const svcs = ctx.discovered_services || {};
   for (const [t, info] of Object.entries(svcs).slice(0, 2)) {
     if (info.services && info.services.length > 0) {
       parts.push('<span><b>' + t + ':</b> ' + info.services.join(', ') + '</span>');
     }
   }
+  if (parts.length === 0) {
+    parts.push('<span><b>Status:</b> Idle</span>');
+  }
   contextBar.innerHTML = parts.join('');
 }
 
 // Initial context fetch
-fetch('/api/context').then(r => r.json()).then(updateContext).catch(() => {});
+fetch('/api/status')
+  .then(r => r.json())
+  .then(data => {
+    if (data.context) updateContext(data.context);
+  })
+  .catch(e => console.error(e));
 </script>
 </body>
 </html>"""
