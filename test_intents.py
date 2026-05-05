@@ -155,6 +155,14 @@ def test_intent_routing():
         ("capture handshake on wlan0mon",  "capture"),
         ("sniff packets on wlan0mon",     "capture"),
         ("autopwn wlan0",                 "autopwn"),
+
+        # ── Remote access ─────────────────────────────────────
+        ("enable remote",                 "remote_access"),
+        ("remote access",                 "remote_access"),
+        ("enable ssh",                    "remote_access"),
+        ("start ssh",                     "remote_access"),
+        ("remote control",                "remote_access"),
+        ("ssh server",                    "remote_access"),
     ]
 
     passed = 0

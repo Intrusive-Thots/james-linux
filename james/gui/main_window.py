@@ -30,6 +30,7 @@ from PyQt5.QtGui import QFont, QTextCursor, QColor, QKeySequence
 from james.core.orchestrator import Orchestrator
 from james.gui.chat_panel import ChatPanel
 from james.gui.toast import show_toast
+from james.remote.server import RemoteServer
 
 # Skill categories for the One-Click Tests tab
 SKILL_CATEGORIES = {
@@ -363,6 +364,7 @@ class MainWindow(QMainWindow):
 
         # AI Agent chat — the primary interface (with Quick Actions sidebar)
         self.chat_panel = ChatPanel(self.orch)
+        self.remote_server = RemoteServer(self.chat_panel.agent, port=1337)
         agent_tab = self._make_agent_tab()
         self.tabs.addTab(agent_tab, "🤖 Agent")
         self.tabs.setTabToolTip(0, "Conversational AI — talk to JAMES in plain English")
@@ -973,6 +975,34 @@ class MainWindow(QMainWindow):
         self.kill_btn.clicked.connect(self._do_kill_james)
         lay.addWidget(self.kill_btn)
 
+        # REMOTE CONTROL button — start/stop web remote
+        self.remote_btn = QPushButton("🌐 REMOTE")
+        self.remote_btn.setToolTip("Start/stop web remote control (access JAMES from another device)")
+        self.remote_btn.setFixedHeight(32)
+        self.remote_btn.setFixedWidth(110)
+        self.remote_btn.setStyleSheet("""
+            QPushButton {
+                background: #0a1a10;
+                color: #22c55e;
+                border: 1px solid #22c55e40;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: #0d2418;
+                border-color: #22c55e;
+                color: #4ade80;
+            }
+            QPushButton:pressed {
+                background: #22c55e;
+                color: #000000;
+            }
+        """)
+        self.remote_btn.clicked.connect(self._do_toggle_remote)
+        lay.addWidget(self.remote_btn)
+
         return w
 
     # ── Dashboard tab ───────────────────────────────────────────
@@ -1076,7 +1106,7 @@ class MainWindow(QMainWindow):
                 ("Skills",          "list skills",      "skill workflows"),
                 ("Wordlists",       "list wordlists",   "wordlist arsenal"),
                 ("Net Guard",       "net guard",        "protection status"),
-                ("Primers",         "show primers",     "AI guidance docs"),
+                ("Remote",          "enable remote",    "enable SSH + web remote"),
                 ("Report",          "report",           "HTML session report"),
             ]),
         ]
@@ -2475,6 +2505,144 @@ class MainWindow(QMainWindow):
     def _restore_reboot_btn(self):
         self.reboot_btn.setEnabled(True)
         self.reboot_btn.setText("🔄 REBOOT")
+
+    def _do_toggle_remote(self):
+        """Start/stop the JAMES Remote Control server + configure SSH/firewall."""
+        if self.remote_server.is_running():
+            # Stop
+            self.remote_server.stop()
+            self.remote_btn.setText("🌐 REMOTE")
+            self.remote_btn.setStyleSheet(self.remote_btn.styleSheet().replace(
+                "color: #000000;\n                border: 1px solid #22c55e;",
+                "color: #22c55e;\n                border: 1px solid #22c55e40;"
+            ))
+            self._term_print("🌐 Remote server stopped.")
+            show_toast(self, "Remote server stopped", "info", 2000)
+            return
+
+        # ── Start: configure system for remote access ────────
+        self.remote_btn.setEnabled(False)
+        self.remote_btn.setText("⏳ ...")
+        self._term_print("🌐 Configuring remote access...")
+
+        def _setup_remote():
+            import subprocess
+            results = []
+
+            # 1. Enable SSH
+            try:
+                subprocess.run(
+                    ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
+                    capture_output=True, timeout=10
+                )
+                results.append("SSH enabled")
+            except Exception:
+                # Try installing openssh-server if not present
+                try:
+                    subprocess.run(
+                        ["sudo", "-n", "apt-get", "install", "-y", "openssh-server"],
+                        capture_output=True, timeout=60
+                    )
+                    subprocess.run(
+                        ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
+                        capture_output=True, timeout=10
+                    )
+                    results.append("SSH installed + enabled")
+                except Exception as e:
+                    results.append(f"SSH setup failed: {e}")
+
+            # 2. Firewall — open ports 22 (SSH) and 1337 (JAMES Remote)
+            for port in [22, 1337]:
+                try:
+                    # Try ufw first
+                    subprocess.run(
+                        ["sudo", "-n", "ufw", "allow", str(port)],
+                        capture_output=True, timeout=5
+                    )
+                except Exception:
+                    pass
+                try:
+                    # Also try iptables as fallback
+                    subprocess.run(
+                        ["sudo", "-n", "iptables", "-I", "INPUT", "-p", "tcp",
+                         "--dport", str(port), "-j", "ACCEPT"],
+                        capture_output=True, timeout=5
+                    )
+                except Exception:
+                    pass
+            results.append("Firewall ports 22,1337 opened")
+
+            # 3. Start the web server
+            self.remote_server.start()
+            results.append(f"Web server on port 1337")
+
+            return results
+
+        w = WorkerThread(_setup_remote)
+        w.finished.connect(self._on_remote_started)
+        w.error.connect(lambda e: (
+            self._term_print(f"[ERROR] Remote setup failed: {e}"),
+            self._restore_remote_btn(),
+        ))
+        self._start_worker(w)
+
+    def _on_remote_started(self, results):
+        """Called when remote setup is complete."""
+        from james.remote.server import get_local_ip
+
+        url = self.remote_server.url
+        ip = get_local_ip()
+
+        for r in results:
+            self._term_print(f"  ✅ {r}")
+
+        self._term_print("")
+        self._term_print("╔══════════════════════════════════════════╗")
+        self._term_print("║   🌐 JAMES REMOTE CONTROL ACTIVE        ║")
+        self._term_print(f"║   Web Panel:  {url:<27s}║")
+        self._term_print(f"║   SSH:        ssh malcolm@{ip:<15s}║")
+        self._term_print(f"║   Port:       1337                       ║")
+        self._term_print("║                                          ║")
+        self._term_print("║   Open the Web Panel URL on any device   ║")
+        self._term_print("║   connected to the same network.         ║")
+        self._term_print("╚══════════════════════════════════════════╝")
+
+        # Update button to show active state
+        self.remote_btn.setEnabled(True)
+        self.remote_btn.setText("🟢 REMOTE ON")
+        self.remote_btn.setStyleSheet("""
+            QPushButton {
+                background: #22c55e;
+                color: #000000;
+                border: 1px solid #22c55e;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: #16a34a;
+            }
+            QPushButton:pressed {
+                background: #15803d;
+            }
+        """)
+
+        show_toast(self, f"Remote active → {url}", "success", 5000)
+
+        # Also show in agent chat
+        self.chat_panel.chat_log.append(
+            f'<div style="color: #22c55e; padding: 8px; margin: 4px 0; '
+            f'background: #22c55e10; border-radius: 6px; border-left: 3px solid #22c55e;">'
+            f'🌐 <b>REMOTE CONTROL ACTIVE</b><br>'
+            f'Web Panel: <a href="{url}" style="color: #00f0ff;">{url}</a><br>'
+            f'SSH: <code>ssh malcolm@{ip}</code><br>'
+            f'Open the URL on any device on your network to control JAMES.</div>'
+        )
+
+    def _restore_remote_btn(self):
+        self.remote_btn.setEnabled(True)
+        self.remote_btn.setText("🌐 REMOTE")
 
     def _export_log(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export Log", "/home/malcolm/Desktop/james_log.json", "JSON (*.json)")

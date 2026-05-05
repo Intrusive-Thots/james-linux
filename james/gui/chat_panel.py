@@ -66,7 +66,8 @@ _CONTEXT_CHIPS = {
     "show_primer": ["net guard", "list skills", "help"],
     "net_guard_status": ["list interfaces", "scan aps", "status"],
     "show_loot": ["report", "status"],
-    "help": ["status", "list skills", "list interfaces", "arp scan"],
+    "remote_access": ["status", "list interfaces", "report"],
+    "help": ["status", "list skills", "list interfaces", "arp scan", "enable remote"],
 
     # Default
     "default": ["status", "list skills", "help", "show loot", "arp scan"],

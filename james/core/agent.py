@@ -121,6 +121,7 @@ INTENT_PATTERNS = [
     (r"(?:history|log|task\s*log)", "show_log"),
     (r"(?:report|generate\s*report|export\s*report)", "report"),
     (r"(?:show\s*loot|loot|cracked|captured\s*keys|show\s*keys)", "show_loot"),
+    (r"(?:remote\s*(?:access|control)|enable\s*(?:remote|ssh)|start\s*ssh|ssh\s*server)", "remote_access"),
     (r"(?:kill\s*james|kill\s*all|stop\s*everything|emergency\s*stop|stop\s*all\s*tools?|cleanup\s*all|nuke|abort|kill\s*tools?|shut\s*down|shutdown)", "kill_james"),
     (r"(?:clear|reset)", "clear"),
 
@@ -1142,6 +1143,89 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         lines = [f"🔑 Cracked Keys ({loot['cracked_count']}):"]
         for entry in loot["keys"]:
             lines.append(f"  • {entry['essid'] or entry['id']}: {entry['key']}  [{entry['method']}]  ({entry['when'][:10]})")
+        return "\n".join(lines)
+
+    def _do_remote_access(self, m, raw) -> str:
+        """Enable SSH + remote access on this machine."""
+        import subprocess
+        from james.remote.server import get_local_ip
+
+        ip = get_local_ip()
+        lines = ["🌐 Configuring remote access...\n"]
+
+        # 1. Enable SSH
+        try:
+            r = subprocess.run(
+                ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
+                capture_output=True, text=True, timeout=10
+            )
+            if r.returncode == 0:
+                lines.append("  ✅ SSH service enabled and running")
+            else:
+                # Try installing
+                subprocess.run(
+                    ["sudo", "-n", "apt-get", "install", "-y", "openssh-server"],
+                    capture_output=True, timeout=60
+                )
+                subprocess.run(
+                    ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
+                    capture_output=True, timeout=10
+                )
+                lines.append("  ✅ SSH installed and enabled")
+        except Exception as e:
+            lines.append(f"  ⚠ SSH setup issue: {e}")
+
+        # 2. Open firewall ports
+        for port, label in [(22, "SSH"), (1337, "JAMES Remote")]:
+            try:
+                subprocess.run(
+                    ["sudo", "-n", "ufw", "allow", str(port)],
+                    capture_output=True, timeout=5
+                )
+            except Exception:
+                pass
+            try:
+                subprocess.run(
+                    ["sudo", "-n", "iptables", "-I", "INPUT", "-p", "tcp",
+                     "--dport", str(port), "-j", "ACCEPT"],
+                    capture_output=True, timeout=5
+                )
+            except Exception:
+                pass
+            lines.append(f"  ✅ Port {port} ({label}) opened")
+
+        # 3. Enable xrdp if available (graphical remote)
+        try:
+            r = subprocess.run(
+                ["sudo", "-n", "systemctl", "enable", "--now", "xrdp"],
+                capture_output=True, timeout=10
+            )
+            if r.returncode == 0:
+                lines.append("  ✅ xRDP enabled (port 3389 — use Remote Desktop)")
+                try:
+                    subprocess.run(
+                        ["sudo", "-n", "ufw", "allow", "3389"],
+                        capture_output=True, timeout=5
+                    )
+                    subprocess.run(
+                        ["sudo", "-n", "iptables", "-I", "INPUT", "-p", "tcp",
+                         "--dport", "3389", "-j", "ACCEPT"],
+                        capture_output=True, timeout=5
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            lines.append("  ⓘ xRDP not installed (install with: sudo apt install xrdp)")
+
+        lines.append("")
+        lines.append("  ══════════════════════════════════════")
+        lines.append(f"  SSH:          ssh malcolm@{ip}")
+        lines.append(f"  JAMES Remote: http://{ip}:1337")
+        lines.append(f"  RDP:          {ip}:3389 (if xrdp installed)")
+        lines.append("  ══════════════════════════════════════")
+        lines.append("")
+        lines.append("  💡 Click the 🌐 REMOTE button in the toolbar to")
+        lines.append("     start the web control panel.")
         return "\n".join(lines)
 
     def _do_scan_aps(self, m, raw) -> str:
