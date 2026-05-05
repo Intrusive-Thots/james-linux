@@ -16,12 +16,91 @@ import argparse
 import logging
 import threading
 import getpass
+import fcntl
+import os
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("james")
+
+# ── Singleton lock ────────────────────────────────────────────
+LOCK_FILE = "/tmp/.james.lock"
+_lock_fd = None
+
+
+def acquire_singleton_lock() -> bool:
+    """
+    Try to acquire an exclusive lock so only one JAMES instance runs.
+    Returns True if lock acquired, False if another instance is running.
+    The lock is held for the entire process lifetime and auto-released
+    on crash/exit by the OS.
+    """
+    global _lock_fd
+    try:
+        _lock_fd = open(LOCK_FILE, "w")
+        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fd.write(str(os.getpid()))
+        _lock_fd.flush()
+        return True
+    except (IOError, OSError):
+        # Another instance holds the lock
+        try:
+            with open(LOCK_FILE, "r") as f:
+                other_pid = f.read().strip()
+        except Exception:
+            other_pid = "unknown"
+        logger.warning("Another JAMES instance is running (PID %s)", other_pid)
+        return False
+
+
+def _show_already_running_dialog():
+    """Show a GUI error dialog when another instance is running."""
+    try:
+        from PyQt5.QtWidgets import QApplication, QMessageBox
+        app = QApplication(sys.argv)
+        try:
+            with open(LOCK_FILE, "r") as f:
+                other_pid = f.read().strip()
+        except Exception:
+            other_pid = "?"
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("JAMES Already Running")
+        msg.setText("Another JAMES instance is already running.")
+        msg.setInformativeText(
+            f"PID: {other_pid}\n\n"
+            "Only one instance can run at a time.\n"
+            "Close the other instance first, or kill it:\n\n"
+            f"  kill {other_pid}"
+        )
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #0b1120;
+                color: #c8d6e5;
+            }
+            QMessageBox QLabel {
+                color: #c8d6e5;
+                font-size: 13px;
+            }
+            QPushButton {
+                background: #141e30;
+                color: #00f0ff;
+                border: 1px solid #00f0ff40;
+                border-radius: 6px;
+                padding: 8px 24px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #1a2940;
+                border-color: #00f0ff;
+            }
+        """)
+        msg.exec_()
+    except Exception:
+        pass
 
 
 def run_gui():
@@ -168,15 +247,29 @@ def main():
 
     args = parser.parse_args()
 
+    # Setup doesn't need singleton lock
     if args.setup:
         run_setup()
-    elif args.install_service:
+        return
+    if args.install_service:
         from james.server.service import install_service
         install_service()
-    elif args.remove_service:
+        return
+    if args.remove_service:
         from james.server.service import uninstall_service
         uninstall_service()
-    elif args.server:
+        return
+
+    # ── Singleton check ───────────────────────────────────────
+    if not acquire_singleton_lock():
+        if args.server:
+            print("❌ Another JAMES instance is already running. Exiting.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            _show_already_running_dialog()
+            sys.exit(1)
+
+    if args.server:
         run_server()
     elif args.both:
         run_both()
@@ -186,3 +279,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
