@@ -651,6 +651,43 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda _, c=cmd: self._qa_send(c))
             lay.addWidget(btn)
 
+        # Discovery shortcuts
+        disc_sep = QLabel("DISCOVERY")
+        disc_sep.setStyleSheet(
+            "color: #22c55e; font-size: 10px; font-weight: bold; "
+            "letter-spacing: 2px; background: transparent; margin-top: 10px;"
+        )
+        lay.addWidget(disc_sep)
+
+        disc_actions = [
+            ("🔍 ARP Scan",         "arp scan"),
+            ("📂 SMB Enum",         "smb enum {target}"),
+            ("🔎 DNS Lookup",       "dns lookup {target}"),
+            ("📁 Dir Bust",         "gobuster {target}"),
+            ("🌐 Nikto Scan",       "nikto {target}"),
+        ]
+
+        for label, cmd in disc_actions:
+            btn = QPushButton(label)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #001a0d;
+                    color: #22c55e;
+                    border: 1px solid #22c55e30;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    text-align: left;
+                    font-size: 11px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background: #002a1a;
+                    border-color: #22c55e;
+                }
+            """)
+            btn.clicked.connect(lambda _, c=cmd: self._qa_send(c))
+            lay.addWidget(btn)
+
         lay.addStretch()
 
         # Current context display
@@ -1467,6 +1504,17 @@ class MainWindow(QMainWindow):
 
             brute = menu.addAction(f"🔓 Brute → {host_text}")
             brute.triggered.connect(lambda: self._run_agent_cmd(f"brute {host_text}"))
+
+            menu.addSeparator()
+
+            smb_act = menu.addAction(f"📂 SMB Enum → {host_text}")
+            smb_act.triggered.connect(lambda: self._run_agent_cmd(f"smb enum {host_text}"))
+
+            nikto_act = menu.addAction(f"🌐 Nikto Scan → {host_text}")
+            nikto_act.triggered.connect(lambda: self._run_agent_cmd(f"nikto http://{host_text}"))
+
+            dir_act = menu.addAction(f"📁 Dir Bust → {host_text}")
+            dir_act.triggered.connect(lambda: self._run_agent_cmd(f"gobuster http://{host_text}"))
 
             menu.addSeparator()
 

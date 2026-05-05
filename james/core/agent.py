@@ -58,6 +58,12 @@ INTENT_PATTERNS = [
     (r"(?:scan\s*aps|nearby\s*aps|nearby\s*networks|show\s*aps)(?:\s+(\S+))?", "scan_aps"),
     # Stealth/passive recon must be before the generic 'recon' catch-all
     (r"(?:stealth\s*recon|passive\s*recon|silent\s*recon)\s+(\S+)", "oneclick_stealth_recon"),
+    # Discovery (must be before generic recon catch-all)
+    (r"(?:arp\s*scan|arp\s*discover|lan\s*scan|network\s*discover|host\s*discover)(?:\s+(\S+))?", "arp_discover"),
+    (r"(?:web\s*vuln\s*scan)\s+(\S+)", "nikto_scan"),
+    (r"(?:smb\s*enum|enum4linux|smb\s*scan|netbios)\s+(\S+)", "smb_enum"),
+    (r"(?:dns\s*lookup|nslookup|resolve)\s+(\S+)(?:\s+(\S+))?", "dns_lookup"),
+    # Generic recon catch-all (MUST be last in this section)
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
     # Wi-Fi
@@ -80,7 +86,7 @@ INTENT_PATTERNS = [
     (r"(?:whois)\s+(\S+)", "whois"),
     (r"(?:dns\s*enum|dns\s*recon|dig)\s+(\S+)", "dns_enum"),
 
-    # Web (extras not already handled above)
+
     (r"(?:gobuster|dir\s*brute|dir\s*bust)\s+(\S+)", "dir_brute"),
     (r"(?:sqlmap|sqli|sql\s*inject(?:ion)?)\s+(\S+)", "sqli"),
 
@@ -340,6 +346,8 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     full scan <target>     Deep service + script scan
     masscan <target>       Ultra-fast full port scan (65535 ports)
     os detect <target>     OS fingerprinting (needs root)
+    arp scan               LAN host discovery via ARP
+    smb enum <target>      SMB/NetBIOS enumeration
 
   📡 Wi-Fi
     list interfaces        Show wireless adapters
@@ -352,6 +360,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     osint <domain>         Harvest emails, subdomains, IPs
     whois <domain>         Domain registration lookup
     dns enum <domain>      DNS record enumeration
+    dns lookup <domain>    Quick DNS resolution
     waf detect <url>       Detect web application firewall
     ssl scan <target>      SSL/TLS security audit
     nikto <url>            Web vulnerability scan
@@ -362,7 +371,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     mitm <victim> [gw]     ARP poisoning MITM
     responder [interface]  LLMNR/NBT-NS hash capture
     sniff [interface]      Packet capture & analysis
-    brute <target> [proto] Hydra brute-force
+    brute <target> [proto] Hydra brute-force (ssh,ftp,http...)
 
   💣 Exploit
     reverse shell [port]   Generate payloads + start listener
@@ -769,27 +778,36 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_web_scan(self, m, raw) -> str:
         url = m.group(1).strip()
         self.context["target_url"] = url
-        result = self.orch.layer.run(f"nikto -h {url} -maxtime 120s", timeout=130)
-        output = result.stdout[-2000:]
-        return f"🌐 Nikto Scan — {url}\n\n{output}"
+        result = self.orch.nikto_scan(url)
+        vulns = result.get("vulnerabilities", [])
+        lines = [f"🌐 Nikto Scan — {url}", f"{len(vulns)} finding(s)", ""]
+        if result.get("server_info"):
+            lines.append(f"  Server: {result['server_info']}")
+        for v in vulns[:20]:
+            lines.append(f"  ⚠ {v}")
+        return "\n".join(lines)
 
     def _do_dir_brute(self, m, raw) -> str:
         url = m.group(1).strip()
         self.context["target_url"] = url
-        result = self.orch.layer.run(
-            f"gobuster dir -u {url} -w /usr/share/wordlists/dirb/common.txt -t 20 --no-error -q",
-            timeout=180
-        )
-        return f"📂 Directory Scan — {url}\n\n{result.stdout[:2500]}"
+        result = self.orch.dir_bust(url)
+        if result.get("findings"):
+            lines = [f"📂 Directory Scan — {url}", f"Found {result['total']} path(s):", ""]
+            for f in result["findings"][:20]:
+                lines.append(f"  [{f['status']}] {f['path']}  ({f['size']}B)")
+            return "\n".join(lines)
+        return f"📂 Directory Scan — {url}\n\nNo paths found."
 
     def _do_sqli(self, m, raw) -> str:
         url = m.group(1).strip()
         self.context["target_url"] = url
-        result = self.orch.layer.run(
-            f"sqlmap -u '{url}' --batch --crawl=2 --level=2 --risk=1 --threads=5",
-            timeout=300
-        )
-        return f"💉 SQLMap — {url}\n\n{result.stdout[-2500:]}"
+        result = self.orch.sqli_scan(url)
+        if result.get("injectable"):
+            lines = [f"💉 SQLMap — {url}", f"⚠ INJECTABLE! {result['vuln_count']} vuln(s) found:", ""]
+            for v in result.get("vulnerabilities", [])[:10]:
+                lines.append(f"  {v}")
+            return "\n".join(lines)
+        return f"💉 SQLMap — {url}\n\nNot injectable (or WAF blocking)."
 
     def _do_mitm(self, m, raw) -> str:
         victim = m.group(1).strip()
@@ -844,15 +862,63 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         target = m.group(1).strip()
         proto = m.group(2).strip() if m.group(2) else "ssh"
         username = self.context.get("username", "admin")
-        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
         self.context["target"] = target
-        result = self.orch.layer.run(
-            f"hydra -l {username} -P {wordlist} {target} {proto} -t 4 -f",
-            timeout=300
-        )
-        if "login:" in result.stdout:
-            return f"🔑 Hydra FOUND credentials!\n\n{result.stdout[-1000:]}"
-        return f"🔒 Hydra — no credentials found for {username}@{target} ({proto})\n\n{result.stdout[-500:]}"
+        result = self.orch.brute_service(target, proto, username=username)
+        if result.get("found"):
+            lines = [f"🔑 Hydra — Credentials FOUND for {target} ({proto})!", ""]
+            for cred in result["credentials"]:
+                lines.append(f"  Login: {cred['login']}  Password: {cred['password']}")
+            return "\n".join(lines)
+        return f"🔒 Hydra — no credentials found for {username}@{target} ({proto})"
+
+    def _do_arp_discover(self, m, raw) -> str:
+        iface = m.group(1).strip() if m.group(1) else ""
+        result = self.orch.arp_discover(interface=iface)
+        hosts = result.get("hosts", [])
+        if hosts:
+            lines = [f"🔍 ARP Discovery — {len(hosts)} host(s) found", ""]
+            lines.append(f"{'IP':16s}  {'MAC':18s}  Vendor")
+            lines.append("─" * 60)
+            for h in hosts[:25]:
+                lines.append(f"  {h['ip']:16s}  {h['mac']:18s}  {h['vendor']}")
+            return "\n".join(lines)
+        return "🔍 ARP Discovery — no hosts found on this network."
+
+    def _do_nikto_scan(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+        result = self.orch.nikto_scan(target)
+        vulns = result.get("vulnerabilities", [])
+        lines = [f"🌐 Nikto Scan — {target}", f"{len(vulns)} finding(s)", ""]
+        if result.get("server_info"):
+            lines.append(f"  Server: {result['server_info']}")
+        for v in vulns[:20]:
+            lines.append(f"  ⚠ {v}")
+        return "\n".join(lines)
+
+    def _do_smb_enum(self, m, raw) -> str:
+        target = m.group(1).strip()
+        self.context["target"] = target
+        result = self.orch.smb_enum(target)
+        lines = [f"📂 SMB Enumeration — {target}",
+                 f"{result.get('share_count', 0)} share(s), {result.get('user_count', 0)} user(s)", ""]
+        if result.get("os_info"):
+            lines.append(f"  OS: {result['os_info']}")
+        for s in result.get("shares", []):
+            lines.append(f"  📂 {s['name']} ({s['type']})")
+        for u in result.get("users", [])[:10]:
+            lines.append(f"  👤 {u}")
+        return "\n".join(lines)
+
+    def _do_dns_lookup(self, m, raw) -> str:
+        domain = m.group(1).strip()
+        rtype = m.group(2).strip() if m.lastindex and m.lastindex >= 2 and m.group(2) else "ANY"
+        result = self.orch.dns_lookup(domain, record_type=rtype)
+        records = result.get("records", [])
+        lines = [f"🔎 DNS Lookup — {domain} ({rtype})", f"{len(records)} record(s)", ""]
+        for r in records[:20]:
+            lines.append(f"  → {r}")
+        return "\n".join(lines)
 
     def _do_reverse_shell(self, m, raw) -> str:
         port = m.group(1) if m.group(1) else "4444"

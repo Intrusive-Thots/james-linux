@@ -105,6 +105,21 @@ def test_intent_routing():
         ("reverse shell",                 "reverse_shell"),
         ("msf 10.0.0.1",                  "msf"),
 
+        # ── Discovery (new tools) ─────────────────────────────
+        ("arp scan",                      "arp_discover"),
+        ("arp discover",                  "arp_discover"),
+        ("lan scan",                      "arp_discover"),
+        ("network discover",             "arp_discover"),
+        ("host discover",                "arp_discover"),
+        ("web vuln scan http://target.com", "nikto_scan"),
+        ("smb enum 10.0.0.1",            "smb_enum"),
+        ("enum4linux 10.0.0.5",          "smb_enum"),
+        ("smb scan 10.0.0.1",            "smb_enum"),
+        ("dns lookup google.com",         "dns_lookup"),
+        ("nslookup target.com",           "dns_lookup"),
+        ("resolve target.com A",          "dns_lookup"),
+        ("gobuster http://target.com",    "dir_brute"),
+
         # ── System / management ────────────────────────────────
         ("system check",                  "system_check"),
         ("status",                        "system_check"),

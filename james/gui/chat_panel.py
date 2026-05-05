@@ -38,11 +38,17 @@ _CONTEXT_CHIPS = {
     "scan_aps": ["wifi blitz {interface}", "capture handshake on {interface}", "kill james"],
 
     # After web commands
-    "web_scan": ["web pwn {target}", "run skill full_web_audit", "sqlmap {target}"],
-    "dir_brute": ["web pwn {target}", "nikto {target}"],
+    "web_scan": ["web pwn {target}", "run skill full_web_audit", "sqlmap {target}", "gobuster {target}"],
+    "nikto_scan": ["gobuster {target}", "sqlmap {target}", "web pwn {target}"],
+    "dir_brute": ["web pwn {target}", "nikto {target}", "sqlmap {target}"],
     "waf_detect": ["web pwn {target}", "stealth recon {target}"],
     "sqli": ["web pwn {target}"],
     "oneclick_web_pwn": ["run skill full_web_audit", "status"],
+
+    # After discovery
+    "arp_discover": ["scan {target}", "smb enum {target}", "full scan {target}"],
+    "smb_enum": ["brute {target} smb", "full scan {target}", "network dominate {target}"],
+    "dns_lookup": ["osint {target}", "whois {target}", "dns enum {target}"],
 
     # After wifi attack
     "deauth": ["capture handshake on {interface}", "scan aps"],
@@ -50,17 +56,20 @@ _CONTEXT_CHIPS = {
     "autopwn": ["show loot", "kill james"],
     "crack_wpa": ["show loot"],
 
+    # After brute/exploit
+    "brute": ["full scan {target}", "show loot", "smb enum {target}"],
+
     # After system/info commands
-    "system_check": ["list skills", "list interfaces", "list wordlists"],
+    "system_check": ["list skills", "list interfaces", "list wordlists", "arp scan"],
     "list_skills": ["run skill full_recon", "run skill wifi_audit", "help"],
     "list_wordlists": ["list skills", "status"],
     "show_primer": ["net guard", "list skills", "help"],
     "net_guard_status": ["list interfaces", "scan aps", "status"],
     "show_loot": ["report", "status"],
-    "help": ["status", "list skills", "list interfaces"],
+    "help": ["status", "list skills", "list interfaces", "arp scan"],
 
     # Default
-    "default": ["status", "list skills", "help", "show loot", "kill james"],
+    "default": ["status", "list skills", "help", "show loot", "arp scan"],
 }
 
 

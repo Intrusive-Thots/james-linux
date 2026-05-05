@@ -639,3 +639,419 @@ class Hcxtools:
             "eapol_count": eapol_count,
             "output": result.stdout
         }
+
+
+class Gobuster:
+    """Wrapper around gobuster — directory/vhost/dns bruteforcer."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def dir_scan(
+        self,
+        url: str,
+        *,
+        wordlist: str = "/usr/share/wordlists/dirb/common.txt",
+        extensions: str = "php,html,txt,bak,js",
+        threads: int = 50,
+        timeout: int = 300,
+    ) -> dict:
+        """Directory bruteforce against a web target."""
+        cmd = (
+            f"gobuster dir -u {shlex.quote(url)} "
+            f"-w {shlex.quote(wordlist)} "
+            f"-x {shlex.quote(extensions)} "
+            f"-t {int(threads)} "
+            f"--no-color -q"
+        )
+        result = self.layer.run(cmd, timeout=timeout)
+
+        findings = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            # Gobuster output: /path  (Status: 200) [Size: 1234]
+            match = re.match(
+                r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)]",
+                stripped,
+            )
+            if match:
+                findings.append({
+                    "path": match.group(1),
+                    "status": int(match.group(2)),
+                    "size": int(match.group(3)),
+                    "url": f"{url.rstrip('/')}{match.group(1)}",
+                })
+
+        return {
+            "command": cmd,
+            "url": url,
+            "findings": findings,
+            "total": len(findings),
+            "output": result.stdout[-3000:],
+        }
+
+    def dns_scan(
+        self,
+        domain: str,
+        *,
+        wordlist: str = "/usr/share/wordlists/dirb/common.txt",
+        timeout: int = 180,
+    ) -> dict:
+        """DNS subdomain bruteforce."""
+        cmd = (
+            f"gobuster dns -d {shlex.quote(domain)} "
+            f"-w {shlex.quote(wordlist)} --no-color -q"
+        )
+        result = self.layer.run(cmd, timeout=timeout)
+
+        subdomains = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("Found:"):
+                sub = stripped.replace("Found:", "").strip()
+                if sub:
+                    subdomains.append(sub)
+
+        return {
+            "command": cmd,
+            "domain": domain,
+            "subdomains": subdomains,
+            "total": len(subdomains),
+        }
+
+
+class SQLMapWrapper:
+    """Wrapper around sqlmap — automated SQL injection tool."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(
+        self,
+        url: str,
+        *,
+        data: Optional[str] = None,
+        level: int = 3,
+        risk: int = 2,
+        timeout: int = 300,
+    ) -> dict:
+        """Run sqlmap against a URL. Auto-batch mode for non-interactive use."""
+        parts = [
+            f"sqlmap -u {shlex.quote(url)}",
+            f"--level={int(level)}",
+            f"--risk={int(risk)}",
+            "--batch",
+            "--threads=4",
+            "--random-agent",
+        ]
+        if data:
+            parts.append(f"--data={shlex.quote(data)}")
+        cmd = " ".join(parts)
+        result = self.layer.run(cmd, timeout=timeout)
+
+        vulns = []
+        injectable = False
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "is vulnerable" in stripped.lower():
+                injectable = True
+            if "Type:" in stripped and "Payload:" in stripped:
+                vulns.append(stripped)
+            elif "injectable" in stripped.lower():
+                injectable = True
+
+        return {
+            "command": cmd,
+            "url": url,
+            "injectable": injectable,
+            "vulnerabilities": vulns,
+            "vuln_count": len(vulns),
+            "output": result.stdout[-4000:],
+        }
+
+    def dump_db(self, url: str, *, database: Optional[str] = None, timeout: int = 600) -> dict:
+        """Dump a database (if injectable)."""
+        parts = [
+            f"sqlmap -u {shlex.quote(url)}",
+            "--batch",
+            "--dump",
+            "--threads=4",
+        ]
+        if database:
+            parts.append(f"-D {shlex.quote(database)}")
+        cmd = " ".join(parts)
+        result = self.layer.run(cmd, timeout=timeout)
+        return {
+            "command": cmd,
+            "output": result.stdout[-5000:],
+        }
+
+
+class Hydra:
+    """Wrapper around hydra — network login bruteforcer."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def brute(
+        self,
+        target: str,
+        service: str = "ssh",
+        *,
+        username: Optional[str] = None,
+        userlist: Optional[str] = None,
+        password: Optional[str] = None,
+        passlist: Optional[str] = None,
+        port: Optional[int] = None,
+        threads: int = 16,
+        timeout: int = 300,
+    ) -> dict:
+        """Bruteforce a network service (ssh, ftp, http, etc)."""
+        parts = ["hydra"]
+
+        if username:
+            parts.append(f"-l {shlex.quote(username)}")
+        elif userlist:
+            parts.append(f"-L {shlex.quote(userlist)}")
+        else:
+            parts.append("-l admin")
+
+        if password:
+            parts.append(f"-p {shlex.quote(password)}")
+        elif passlist:
+            parts.append(f"-P {shlex.quote(passlist)}")
+        else:
+            parts.append("-P /usr/share/wordlists/rockyou.txt")
+
+        parts.append(f"-t {int(threads)}")
+        if port:
+            parts.append(f"-s {int(port)}")
+        parts.append(f"-f")  # stop on first found
+        parts.append(shlex.quote(target))
+        parts.append(shlex.quote(service))
+
+        cmd = " ".join(parts)
+        result = self.layer.run(cmd, timeout=timeout)
+
+        credentials = []
+        for line in result.stdout.splitlines():
+            # Hydra output: [22][ssh] host: 192.168.1.1   login: admin   password: admin123
+            match = re.search(
+                r"login:\s*(\S+)\s+password:\s*(\S+)",
+                line,
+            )
+            if match:
+                credentials.append({
+                    "login": match.group(1),
+                    "password": match.group(2),
+                })
+
+        return {
+            "command": cmd,
+            "target": target,
+            "service": service,
+            "found": len(credentials) > 0,
+            "credentials": credentials,
+            "output": result.stdout[-3000:],
+        }
+
+
+class NiktoScanner:
+    """Wrapper around nikto — web vulnerability scanner."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(
+        self,
+        target: str,
+        *,
+        port: Optional[int] = None,
+        tuning: str = "",
+        timeout: int = 300,
+    ) -> dict:
+        """Scan a web server for known vulnerabilities."""
+        parts = [f"nikto -h {shlex.quote(target)} -nointeractive"]
+        if port:
+            parts.append(f"-p {int(port)}")
+        if tuning:
+            parts.append(f"-Tuning {shlex.quote(tuning)}")
+
+        cmd = " ".join(parts)
+        result = self.layer.run(cmd, timeout=timeout)
+
+        vulns = []
+        server_info = ""
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            # Nikto lines starting with + are findings
+            if stripped.startswith("+ "):
+                finding = stripped[2:]
+                if "Server:" in finding:
+                    server_info = finding
+                elif "OSVDB" in finding or "vulnerability" in finding.lower():
+                    vulns.append(finding)
+                else:
+                    vulns.append(finding)
+
+        return {
+            "command": cmd,
+            "target": target,
+            "server_info": server_info,
+            "vulnerabilities": vulns,
+            "vuln_count": len(vulns),
+            "output": result.stdout[-4000:],
+        }
+
+
+class ArpScanner:
+    """Wrapper around arp-scan — fast LAN host discovery."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(
+        self,
+        interface: Optional[str] = None,
+        *,
+        network: Optional[str] = None,
+        timeout: int = 30,
+    ) -> dict:
+        """Scan local network for hosts via ARP."""
+        parts = ["arp-scan"]
+        if interface:
+            parts.append(f"-I {shlex.quote(interface)}")
+        if network:
+            parts.append(shlex.quote(network))
+        else:
+            parts.append("-l")  # local network
+
+        cmd = " ".join(parts)
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+
+        hosts = []
+        for line in result.stdout.splitlines():
+            # arp-scan output: 192.168.1.1\t00:11:22:33:44:55\tVendor Name
+            match = re.match(
+                r"(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F:]+)\s*(.*)",
+                line.strip(),
+            )
+            if match:
+                hosts.append({
+                    "ip": match.group(1),
+                    "mac": match.group(2),
+                    "vendor": match.group(3).strip(),
+                })
+
+        return {
+            "command": cmd,
+            "hosts": hosts,
+            "host_count": len(hosts),
+            "output": result.stdout[-2000:],
+        }
+
+
+class Enum4LinuxScanner:
+    """Wrapper around enum4linux — SMB/NetBIOS enumeration."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def enumerate(self, target: str, *, timeout: int = 120) -> dict:
+        """Full SMB enumeration of a target."""
+        cmd = f"enum4linux -a {shlex.quote(target)}"
+        result = self.layer.run(cmd, timeout=timeout)
+
+        shares = []
+        users = []
+        os_info = ""
+
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "Sharename" not in stripped and ("Disk" in stripped or "IPC" in stripped):
+                parts = stripped.split()
+                if len(parts) >= 2:
+                    shares.append({"name": parts[0], "type": parts[1]})
+            if "user:" in stripped.lower():
+                match = re.search(r"user:\[(.+?)\]", stripped)
+                if match:
+                    users.append(match.group(1))
+            if "OS:" in stripped or "os=" in stripped.lower():
+                os_info = stripped
+
+        return {
+            "command": cmd,
+            "target": target,
+            "shares": shares,
+            "share_count": len(shares),
+            "users": users,
+            "user_count": len(users),
+            "os_info": os_info,
+            "output": result.stdout[-4000:],
+        }
+
+
+class DNSEnumerator:
+    """DNS enumeration via dig, host, and dnsrecon."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def lookup(self, domain: str, *, record_type: str = "ANY", timeout: int = 15) -> dict:
+        """DNS lookup for a domain."""
+        cmd = f"dig {shlex.quote(domain)} {shlex.quote(record_type)} +short"
+        result = self.layer.run(cmd, timeout=timeout)
+        records = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        return {
+            "command": cmd,
+            "domain": domain,
+            "record_type": record_type,
+            "records": records,
+        }
+
+    def zone_transfer(self, domain: str, *, nameserver: Optional[str] = None, timeout: int = 30) -> dict:
+        """Attempt a DNS zone transfer (AXFR)."""
+        if nameserver:
+            cmd = f"dig @{shlex.quote(nameserver)} {shlex.quote(domain)} AXFR +short"
+        else:
+            cmd = f"dig {shlex.quote(domain)} AXFR +short"
+        result = self.layer.run(cmd, timeout=timeout)
+        records = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        return {
+            "command": cmd,
+            "success": len(records) > 0,
+            "records": records,
+            "record_count": len(records),
+        }
+
+    def reverse_lookup(self, ip: str, *, timeout: int = 10) -> dict:
+        """Reverse DNS lookup."""
+        cmd = f"dig -x {shlex.quote(ip)} +short"
+        result = self.layer.run(cmd, timeout=timeout)
+        hostnames = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        return {
+            "command": cmd,
+            "ip": ip,
+            "hostnames": hostnames,
+        }
+
+    def whois(self, target: str, *, timeout: int = 15) -> dict:
+        """WHOIS lookup for a domain or IP."""
+        cmd = f"whois {shlex.quote(target)}"
+        result = self.layer.run(cmd, timeout=timeout)
+
+        info = {}
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            for key in ("Registrar:", "Creation Date:", "Expiration Date:",
+                        "Name Server:", "Organization:", "OrgName:",
+                        "NetRange:", "CIDR:", "Country:"):
+                if stripped.startswith(key):
+                    info[key.rstrip(":")] = stripped[len(key):].strip()
+
+        return {
+            "command": cmd,
+            "target": target,
+            "info": info,
+            "output": result.stdout[:3000],
+        }

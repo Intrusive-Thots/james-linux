@@ -22,6 +22,8 @@ from james.tools.parrot import (
     Nmap, AircrackSuite, Hashcat, John,
     Masscan, Responder, TheHarvester, SSLScan, WafDetector, Ettercap,
     Reaver, Hcxtools,
+    Gobuster, SQLMapWrapper, Hydra, NiktoScanner,
+    ArpScanner, Enum4LinuxScanner, DNSEnumerator,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +98,13 @@ class Orchestrator:
         self.ettercap = Ettercap(self.layer)
         self.reaver = Reaver(self.layer)
         self.hcxtools = Hcxtools(self.layer)
+        self.gobuster = Gobuster(self.layer)
+        self.sqlmap = SQLMapWrapper(self.layer)
+        self.hydra = Hydra(self.layer)
+        self.nikto = NiktoScanner(self.layer)
+        self.arp_scanner = ArpScanner(self.layer)
+        self.enum4linux = Enum4LinuxScanner(self.layer)
+        self.dns_enum = DNSEnumerator(self.layer)
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates
@@ -292,6 +301,7 @@ class Orchestrator:
             "reaver", "bully", "mdk4", "wifite", "hcxdumptool",
             "enum4linux", "smbclient", "arp-scan", "netdiscover",
             "hostapd", "dnsmasq", "hcxpcapngtool",
+            "dig", "whois", "dnsrecon",
         ]
         # Single shell command: print each tool that IS found
         check_cmds = " ".join(f"which {t} 2>/dev/null && echo FOUND:{t};" for t in tools)
@@ -737,6 +747,116 @@ class Orchestrator:
         self._finish(entry, {"aps": aps, "count": len(aps)})
         self._print(f"[WPS] Found {len(aps)} WPS-enabled AP(s)")
         return {"aps": aps, "count": len(aps)}
+
+    # ── NEW TOOL METHODS ───────────────────────────────────────
+
+    def dir_bust(self, url: str, *, wordlist: str = "/usr/share/wordlists/dirb/common.txt",
+                 extensions: str = "php,html,txt,bak,js") -> dict:
+        """Directory bruteforce with gobuster."""
+        entry = self._start("dir_bust", "gobuster", {"url": url})
+        self._print(f"[GOBUSTER] Directory bruteforce → {url}")
+        result = self.gobuster.dir_scan(url, wordlist=wordlist, extensions=extensions)
+        self._finish(entry, result)
+        if result.get("findings"):
+            self._print(f"[GOBUSTER] Found {result['total']} path(s)")
+            for f in result["findings"][:10]:
+                self._print(f"  [{f['status']}] {f['path']}  ({f['size']}B)")
+        else:
+            self._print("[GOBUSTER] No paths found.")
+        return result
+
+    def sqli_scan(self, url: str, *, data: str = "") -> dict:
+        """SQL injection scan with sqlmap."""
+        entry = self._start("sqli_scan", "sqlmap", {"url": url})
+        self._print(f"[SQLMAP] Testing → {url}")
+        result = self.sqlmap.scan(url, data=data or None)
+        self._finish(entry, result)
+        if result.get("injectable"):
+            self._print(f"[SQLMAP] ⚠ INJECTABLE! {result['vuln_count']} vuln(s) found")
+        else:
+            self._print("[SQLMAP] Not injectable (or WAF blocking).")
+        return result
+
+    def brute_service(self, target: str, service: str = "ssh", *,
+                      username: str = "admin", passlist: str = "") -> dict:
+        """Brute-force a network service with hydra."""
+        entry = self._start("brute", "hydra", {"target": target, "service": service})
+        self._print(f"[HYDRA] Brute → {target} ({service})")
+        wl = passlist or self._find_wordlist()
+        result = self.hydra.brute(target, service, username=username, passlist=wl)
+        self._finish(entry, result)
+        if result.get("found"):
+            for cred in result["credentials"]:
+                self._print(f"[HYDRA] 🔓 CRACKED! {cred['login']}:{cred['password']}")
+                self.cache_cracked_key(f"{target}:{service}", cred["password"],
+                                       method="hydra", essid=cred["login"])
+        else:
+            self._print("[HYDRA] No credentials found.")
+        return result
+
+    def nikto_scan(self, target: str) -> dict:
+        """Web vulnerability scan with nikto."""
+        entry = self._start("nikto_scan", "nikto", {"target": target})
+        self._print(f"[NIKTO] Scanning → {target}")
+        result = self.nikto.scan(target)
+        self._finish(entry, result)
+        self._print(f"[NIKTO] {result.get('vuln_count', 0)} finding(s)")
+        if result.get("server_info"):
+            self._print(f"  Server: {result['server_info']}")
+        return result
+
+    def arp_discover(self, interface: str = "", network: str = "") -> dict:
+        """Fast LAN host discovery via ARP scan."""
+        entry = self._start("arp_discover", "arp-scan", {"interface": interface})
+        self._print("[ARP-SCAN] Discovering LAN hosts...")
+        result = self.arp_scanner.scan(interface=interface or None, network=network or None)
+        self._finish(entry, result)
+        self._print(f"[ARP-SCAN] Found {result.get('host_count', 0)} host(s)")
+        for h in result.get("hosts", [])[:20]:
+            self._print(f"  {h['ip']:16s}  {h['mac']}  {h['vendor']}")
+        # Auto-add discovered hosts to known targets
+        for h in result.get("hosts", []):
+            ip = h.get("ip", "")
+            if ip and not ip.endswith(".1") and not ip.endswith(".255"):
+                self.loot_cache.setdefault("discovered_hosts", {})[ip] = {
+                    "mac": h.get("mac", ""), "vendor": h.get("vendor", ""),
+                    "discovered_at": datetime.now().isoformat(),
+                }
+        self._save_loot()
+        return result
+
+    def smb_enum(self, target: str) -> dict:
+        """SMB/NetBIOS enumeration with enum4linux."""
+        entry = self._start("smb_enum", "enum4linux", {"target": target})
+        self._print(f"[SMB] Enumerating → {target}")
+        result = self.enum4linux.enumerate(target)
+        self._finish(entry, result)
+        self._print(f"[SMB] {result.get('share_count', 0)} share(s), {result.get('user_count', 0)} user(s)")
+        for s in result.get("shares", []):
+            self._print(f"  📂 {s['name']} ({s['type']})")
+        for u in result.get("users", [])[:10]:
+            self._print(f"  👤 {u}")
+        return result
+
+    def dns_lookup(self, domain: str, record_type: str = "ANY") -> dict:
+        """DNS lookup."""
+        entry = self._start("dns_lookup", "dig", {"domain": domain, "type": record_type})
+        result = self.dns_enum.lookup(domain, record_type=record_type)
+        self._finish(entry, result)
+        self._print(f"[DNS] {domain} ({record_type}): {len(result.get('records', []))} record(s)")
+        for r in result.get("records", [])[:10]:
+            self._print(f"  → {r}")
+        return result
+
+    def whois_lookup(self, target: str) -> dict:
+        """WHOIS lookup."""
+        entry = self._start("whois", "whois", {"target": target})
+        result = self.dns_enum.whois(target)
+        self._finish(entry, result)
+        self._print(f"[WHOIS] {target}")
+        for k, v in result.get("info", {}).items():
+            self._print(f"  {k}: {v}")
+        return result
 
     # ── ONE-CLICK HACKS ────────────────────────────────────────
 
