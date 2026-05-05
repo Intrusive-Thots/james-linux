@@ -24,6 +24,7 @@ from james.tools.parrot import (
     Reaver, Hcxtools,
     Gobuster, SQLMapWrapper, Hydra, NiktoScanner,
     ArpScanner, Enum4LinuxScanner, DNSEnumerator,
+    IoTScanner, WPA3Attacker,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,8 @@ class Orchestrator:
         self.arp_scanner = ArpScanner(self.layer)
         self.enum4linux = Enum4LinuxScanner(self.layer)
         self.dns_enum = DNSEnumerator(self.layer)
+        self.iot = IoTScanner(self.layer)
+        self.wpa3 = WPA3Attacker(self.layer)
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates

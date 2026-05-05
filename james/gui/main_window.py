@@ -1077,6 +1077,26 @@ class MainWindow(QMainWindow):
                 ("AutoPwn",         "autopwn",          "end-to-end Wi-Fi crack"),
                 ("Show Loot",       "show loot",        "cracked keys"),
             ]),
+            ("🔓 WPS/WEP", "#f59e0b", [
+                ("WPS Scan",        "wash",             "find WPS-enabled APs"),
+                ("Pixie Dust",      "run skill wps_pixie", "fast WPS PIN attack"),
+                ("WPS Brute",       "wps brute",        "full WPS PIN brute"),
+                ("WEP Attack",      "wep attack",       "IV capture + crack"),
+                ("Bully",           "run skill wps_pixie", "bully pixie dust"),
+            ]),
+            ("🔐 WPA2/3", "#3b82f6", [
+                ("Handshake",       "run skill handshake_harvest", "4-way capture"),
+                ("PMKID",           "run skill pmkid_attack", "clientless PMKID"),
+                ("WPA3 Check",      "wpa3 check",       "detect SAE/WPA3"),
+                ("WPA3 Downgrade",  "wpa3 downgrade",   "transition mode exploit"),
+                ("Crack WPA",       "crack wpa",        "hashcat/aircrack"),
+            ]),
+            ("🏠 IoT", "#06b6d4", [
+                ("IoT Scan",        "iot scan",         "banner grab IoT ports"),
+                ("BLE Scan",        "ble scan",         "Bluetooth LE devices"),
+                ("MQTT Probe",      "mqtt scan",        "open MQTT brokers"),
+                ("UPnP/mDNS",       "! avahi-browse -a -t", "local IoT services"),
+            ]),
             ("🌐 WEB", "#a855f7", [
                 ("Nikto",           "nikto",            "web vulnerability scan"),
                 ("Dir Bust",        "gobuster",         "directory brute-force"),

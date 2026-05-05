@@ -163,6 +163,28 @@ def test_intent_routing():
         ("start ssh",                     "remote_access"),
         ("remote control",                "remote_access"),
         ("ssh server",                    "remote_access"),
+
+        # ── WPS / WEP / WPA3 / IoT ───────────────────────────
+        ("wash",                          "wash_scan"),
+        ("wps scan",                      "wash_scan"),
+        ("scan wps wlan0mon",             "wash_scan"),
+        ("wps detect",                    "wash_scan"),
+        ("wep attack AA:BB:CC:DD:EE:FF",  "wep_attack"),
+        ("crack wep AA:BB:CC:DD:EE:FF",   "wep_attack"),
+        ("wps brute AA:BB:CC:DD:EE:FF 6", "wps_brute"),
+        ("wps pin AA:BB:CC:DD:EE:FF 11",  "wps_brute"),
+        ("brute wps AA:BB:CC:DD:EE:FF 1", "wps_brute"),
+        ("wpa3 check AA:BB:CC:DD:EE:FF",  "wpa3_check"),
+        ("sae detect AA:BB:CC:DD:EE:FF",  "wpa3_check"),
+        ("wpa3 downgrade AA:BB:CC:DD:EE:FF 6", "wpa3_downgrade"),
+        ("dragonblood AA:BB:CC:DD:EE:FF 11","wpa3_downgrade"),
+        ("iot scan 192.168.1.100",         "iot_scan"),
+        ("device scan 10.0.0.50",          "iot_scan"),
+        ("smart home scan 192.168.1.1",    "iot_scan"),
+        ("ble scan",                       "ble_scan"),
+        ("bluetooth scan",                 "ble_scan"),
+        ("mqtt scan 192.168.1.100",        "mqtt_scan"),
+        ("mqtt probe 10.0.0.5",            "mqtt_scan"),
     ]
 
     passed = 0

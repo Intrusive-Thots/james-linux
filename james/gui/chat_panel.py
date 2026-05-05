@@ -56,6 +56,16 @@ _CONTEXT_CHIPS = {
     "autopwn": ["show loot", "kill james"],
     "crack_wpa": ["show loot"],
 
+    # After WPS/WEP/WPA3/IoT
+    "wash_scan": ["wps brute {target}", "run skill wps_pixie", "scan aps"],
+    "wep_attack": ["show loot", "scan aps", "kill james"],
+    "wps_brute": ["show loot", "wash", "kill james"],
+    "wpa3_check": ["wpa3 downgrade {target}", "scan aps", "capture handshake on {interface}"],
+    "wpa3_downgrade": ["crack wpa", "show loot", "scan aps"],
+    "iot_scan": ["mqtt scan {target}", "ble scan", "brute {target}"],
+    "ble_scan": ["iot scan {target}", "scan aps"],
+    "mqtt_scan": ["iot scan {target}", "brute {target}"],
+
     # After brute/exploit
     "brute": ["full scan {target}", "show loot", "smb enum {target}"],
 
@@ -67,7 +77,7 @@ _CONTEXT_CHIPS = {
     "net_guard_status": ["list interfaces", "scan aps", "status"],
     "show_loot": ["report", "status"],
     "remote_access": ["status", "list interfaces", "report"],
-    "help": ["status", "list skills", "list interfaces", "arp scan", "enable remote"],
+    "help": ["status", "list skills", "list interfaces", "wash", "ble scan"],
 
     # Default
     "default": ["status", "list skills", "help", "show loot", "arp scan"],
