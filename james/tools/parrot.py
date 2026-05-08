@@ -6,11 +6,11 @@ Each wrapper executes via NativeLayer and parses raw output into
 dictionaries suitable for the AI orchestrator or the GUI.
 """
 
+import tempfile
 import json
 import re
 import shlex
 import xml.etree.ElementTree as ET
-from typing import Optional
 
 from james.layers.native import NativeLayer, CommandResult
 
@@ -25,7 +25,7 @@ class Nmap:
         self,
         target: str,
         *,
-        ports: Optional[str] = None,
+        ports: str | None = None,
         flags: str = "-sV",
         sudo: bool = False,
         timeout: int = 300,
@@ -149,9 +149,9 @@ class AircrackSuite:
         self,
         interface: str,
         *,
-        channel: Optional[int] = None,
-        bssid: Optional[str] = None,
-        write_prefix: Optional[str] = None,
+        channel: int | None = None,
+        bssid: str | None = None,
+        write_prefix: str | None = None,
     ):
         """
         Start airodump-ng in the background. Returns the Popen handle.
@@ -176,8 +176,6 @@ class AircrackSuite:
         stations = []
         section = 0  
         
-        import logging
-        logger = logging.getLogger(__name__)
         
         for line in csv_content.splitlines():
             line = line.strip()
@@ -229,7 +227,7 @@ class AircrackSuite:
         bssid: str,
         *,
         count: int = 10,
-        client: Optional[str] = None,
+        client: str | None = None,
     ) -> CommandResult:
         """Send deauthentication frames."""
         client_arg = f"-c {shlex.quote(client)}" if client else ""
@@ -243,7 +241,7 @@ class AircrackSuite:
         capture_file: str,
         wordlist: str,
         *,
-        bssid: Optional[str] = None,
+        bssid: str | None = None,
     ) -> dict:
         """
         Run aircrack-ng against a capture file.
@@ -319,7 +317,7 @@ class AircrackSuite:
             "output": result.stdout[-2000:],
         }
 
-    def crack_wep(self, capture_file: str, *, bssid: Optional[str] = None) -> dict:
+    def crack_wep(self, capture_file: str, *, bssid: str | None = None) -> dict:
         """Crack WEP key from captured IVs."""
         bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
         cmd = f"aircrack-ng {bssid_arg} {shlex.quote(capture_file)}"
@@ -363,7 +361,7 @@ class Hashcat:
         wordlist: str,
         *,
         hash_mode: int = 0,
-        rules: Optional[str] = None,
+        rules: str | None = None,
         timeout: int = 600,
     ) -> dict:
         rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
@@ -394,8 +392,8 @@ class John:
         self,
         hash_file: str,
         *,
-        wordlist: Optional[str] = None,
-        fmt: Optional[str] = None,
+        wordlist: str | None = None,
+        fmt: str | None = None,
         timeout: int = 600,
     ) -> dict:
         parts = ["john"]
@@ -904,7 +902,7 @@ class SQLMapWrapper:
         self,
         url: str,
         *,
-        data: Optional[str] = None,
+        data: str | None = None,
         level: int = 3,
         risk: int = 2,
         timeout: int = 300,
@@ -943,7 +941,7 @@ class SQLMapWrapper:
             "output": result.stdout[-4000:],
         }
 
-    def dump_db(self, url: str, *, database: Optional[str] = None, timeout: int = 600) -> dict:
+    def dump_db(self, url: str, *, database: str | None = None, timeout: int = 600) -> dict:
         """Dump a database (if injectable)."""
         parts = [
             f"sqlmap -u {shlex.quote(url)}",
@@ -972,11 +970,11 @@ class Hydra:
         target: str,
         service: str = "ssh",
         *,
-        username: Optional[str] = None,
-        userlist: Optional[str] = None,
-        password: Optional[str] = None,
-        passlist: Optional[str] = None,
-        port: Optional[int] = None,
+        username: str | None = None,
+        userlist: str | None = None,
+        password: str | None = None,
+        passlist: str | None = None,
+        port: int | None = None,
         threads: int = 16,
         timeout: int = 300,
     ) -> dict:
@@ -1040,7 +1038,7 @@ class NiktoScanner:
         self,
         target: str,
         *,
-        port: Optional[int] = None,
+        port: int | None = None,
         tuning: str = "",
         timeout: int = 300,
     ) -> dict:
@@ -1086,9 +1084,9 @@ class ArpScanner:
 
     def scan(
         self,
-        interface: Optional[str] = None,
+        interface: str | None = None,
         *,
-        network: Optional[str] = None,
+        network: str | None = None,
         timeout: int = 30,
     ) -> dict:
         """Scan local network for hosts via ARP."""
@@ -1183,7 +1181,7 @@ class DNSEnumerator:
             "records": records,
         }
 
-    def zone_transfer(self, domain: str, *, nameserver: Optional[str] = None, timeout: int = 30) -> dict:
+    def zone_transfer(self, domain: str, *, nameserver: str | None = None, timeout: int = 30) -> dict:
         """Attempt a DNS zone transfer (AXFR)."""
         if nameserver:
             cmd = f"dig @{shlex.quote(nameserver)} {shlex.quote(domain)} AXFR +short"
@@ -1258,7 +1256,6 @@ class IoTScanner:
         # Use raw SSDP M-SEARCH via Python
         cmd = (
             f'timeout {timeout} python3 -c "'
-            'import socket,struct;'
             's=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP);'
             's.settimeout(5);'
             's.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);'
@@ -1400,7 +1397,6 @@ class WPA3Attacker:
         lines.append(f"Deauth sent: {result.returncode == 0}")
 
         # Step 2: Capture in hopes of WPA2 fallback handshake
-        import tempfile
         prefix = tempfile.mktemp(dir="/tmp", prefix="wpa3_downgrade_")
         cap_cmd = (
             f"timeout {timeout} airodump-ng -c {channel} --bssid {shlex.quote(bssid)} "
@@ -1432,7 +1428,6 @@ class WPA3Attacker:
         """
         cmd = (
             f"timeout {timeout} python3 -c \""
-            "import socket,time,struct,sys;"
             "results=[];"
             "for i in range(5):"
             " try:"

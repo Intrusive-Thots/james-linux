@@ -7,7 +7,6 @@ Real-time bidirectional communication for:
   - Task status push notifications
 """
 
-import json
 import asyncio
 import logging
 from typing import Set

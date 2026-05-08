@@ -14,7 +14,6 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from james.layers.native import NativeLayer
 from james.core.net_guard import NetworkGuard
@@ -40,7 +39,7 @@ class TaskEntry:
         self.action = action
         self.tool = tool
         self.params = params
-        self.result: Optional[dict] = None
+        self.result: dict | None = None
         self.status = "pending"  # pending | running | done | error
 
     def as_dict(self) -> dict:
@@ -111,19 +110,19 @@ class Orchestrator:
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates
-        self.on_task_update: Optional[callable] = None
-        self.on_print: Optional[callable] = None
+        self.on_task_update: callable | None = None
+        self.on_print: callable | None = None
         # progress callback: (phase_name: str, phase_num: int, total_phases: int)
-        self.on_progress: Optional[callable] = None
+        self.on_progress: callable | None = None
 
         # Result cache — persists cracked keys, scan summaries across sessions
         self.loot_cache: dict = self._load_loot()
 
         # Tool name → object lookup for skill execution (built once)
-        self._tool_map: Optional[dict] = None
+        self._tool_map: dict | None = None
 
         # Skill list cache — avoids re-globbing 37 JSON files on every call
-        self._skill_cache: Optional[list[str]] = None
+        self._skill_cache: list[str] | None = None
 
         # Network self-protection — prevents severing own connection
         self.net_guard = NetworkGuard(enabled=True)
@@ -160,7 +159,7 @@ class Orchestrator:
         self._save_loot()
         self._print(f"[LOOT] Cached key for {essid or bssid_or_id}: {key}")
 
-    def get_cached_key(self, bssid_or_id: str) -> Optional[str]:
+    def get_cached_key(self, bssid_or_id: str) -> str | None:
         """Check if we already cracked this target."""
         entry = self.loot_cache.get("cracked_keys", {}).get(bssid_or_id)
         return entry["key"] if entry else None
@@ -179,7 +178,7 @@ class Orchestrator:
 
     # ── auto wordlist detection ─────────────────────────────────
 
-    def find_wordlist(self, category: str = "password") -> Optional[str]:
+    def find_wordlist(self, category: str = "password") -> str | None:
         """Auto-detect the best available wordlist on the system.
 
         Categories: 'password' (default), 'wifi', 'web', 'usernames', 'subdomains'

@@ -7,8 +7,10 @@ clickable suggestion chips, and an animated thinking indicator.
 """
 
 import re
+from .approvals_db import ApprovalsDB
 
 from PyQt5.QtWidgets import (
+    QMessageBox,
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
     QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
     QApplication, QCompleter, QListWidget, QListWidgetItem,
@@ -589,6 +591,20 @@ class ChatPanel(QWidget):
         """Inject a suggestion chip command into the input and send it."""
         self.input_field.setText(cmd)
         self._on_send()
+
+
+    def require_approval(self, action: str) -> bool:
+        """HITL: Prompt user for approval before dangerous action."""
+        reply = QMessageBox.question(
+            self,
+            "Approval Required",
+            f"Are you sure you want to execute: {action}?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        approved = reply == QMessageBox.Yes
+        ApprovalsDB().log_approval(action, approved)
+        return approved
 
     def _show_welcome(self):
         self._append_system_msg("━━━ Session Started ━━━")

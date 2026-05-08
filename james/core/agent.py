@@ -15,7 +15,6 @@ import shlex
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +271,7 @@ class Agent:
 
         return text
 
-    def _process_with_llm(self, text: str) -> Optional[str]:
+    def _process_with_llm(self, text: str) -> str | None:
         try:
             system_prompt = """You are JAMES, an autonomous pentesting agent running on Parrot OS.
 You control various pentesting tools. Map the user's natural language to the correct JSON action.
