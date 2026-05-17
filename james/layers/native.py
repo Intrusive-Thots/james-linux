@@ -12,7 +12,7 @@ import os
 import signal
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,11 @@ class NativeLayer:
         self._sudo_pass: Optional[str] = None
         self._bg_procs: list[subprocess.Popen] = []  # process registry
 
+        # Allow sudo password from environment (never hardcode it)
+        env_pass = os.environ.get("JAMES_SUDO_PASS")
+        if env_pass:
+            self._sudo_pass = env_pass
+
         # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility
         current_path = os.environ.get("PATH", "")
         for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
@@ -79,7 +84,7 @@ class NativeLayer:
         timeout: Optional[int] = None,
         cwd: Optional[str] = None,
         env: Optional[dict] = None,
-        on_output: Optional[callable] = None,
+        on_output: Optional[Callable[[str], None]] = None,
     ) -> CommandResult:
         """
         Run a shell command and return a structured result.
@@ -97,7 +102,9 @@ class NativeLayer:
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
 
-        logger.info("exec → %s  (timeout=%ss)", cmd, effective_timeout)
+        # Log short utility commands at DEBUG to avoid log flooding from polling
+        log_level = logging.DEBUG if effective_timeout <= 5 else logging.INFO
+        logger.log(log_level, "exec → %s  (timeout=%ss)", cmd, effective_timeout)
 
         if on_output:
             return self._run_streaming(cmd, effective_timeout, cwd, merged_env, on_output)
@@ -126,7 +133,7 @@ class NativeLayer:
             stderr=subprocess.DEVNULL,
             cwd=cwd,
             env=merged_env,
-            preexec_fn=os.setsid,  # own process group for clean kill
+            start_new_session=True,  # own process group for clean kill
         )
         self._bg_procs.append(proc)
         return proc
@@ -171,34 +178,59 @@ class NativeLayer:
 
     # ── internals ───────────────────────────────────────────────
 
-    def _prepare_command(self, command: str, sudo: bool = True) -> str:
-        """Always escalate to root via sudo with password piped in."""
-        if self._is_root:
+    def _prepare_command(self, command: str, sudo: bool = False) -> str:
+        """Optionally wrap command with sudo privilege escalation.
+
+        If sudo is requested and we are not already root, pipes the
+        stored password via stdin to ``sudo -S``. The password must
+        have been set via ``set_sudo_password()`` or the
+        ``JAMES_SUDO_PASS`` environment variable.
+        """
+        if not sudo or self._is_root:
             return command
-        password = self._sudo_pass or 'malcolm'  # fallback for backwards compat
-        return f"echo {shlex.quote(password)} | sudo -S {command}"
+        if not self._sudo_pass:
+            logger.warning(
+                "sudo requested but no password configured — "
+                "set via set_sudo_password() or JAMES_SUDO_PASS env var. "
+                "Attempting passwordless sudo."
+            )
+            return f"sudo -n {command}"
+        return f"echo {shlex.quote(self._sudo_pass)} | sudo -S {command}"
 
     def _run_blocking(self, cmd, timeout, cwd, env) -> CommandResult:
+        proc = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=cwd,
+            env=env,
+            start_new_session=True,  # own session for clean kill
+        )
         try:
-            proc = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=cwd,
-                env=env,
-            )
+            stdout, stderr = proc.communicate(timeout=timeout)
             return CommandResult(
                 command=cmd,
                 returncode=proc.returncode,
-                stdout=proc.stdout,
-                stderr=proc.stderr,
+                stdout=stdout,
+                stderr=stderr,
             )
         except subprocess.TimeoutExpired:
             logger.warning("Command timed out after %ss: %s", timeout, cmd)
+            # Kill the entire process group to avoid zombies
+            try:
+                pgid = os.getpgid(proc.pid)
+                os.killpg(pgid, signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                proc.kill()
+            stdout, stderr = proc.communicate(timeout=5)
             return CommandResult(
-                command=cmd, returncode=-1, stdout="", stderr="", timed_out=True
+                command=cmd,
+                returncode=-1,
+                stdout=stdout or "",
+                stderr=stderr or "",
+                timed_out=True,
             )
 
     def _run_streaming(self, cmd, timeout, cwd, env, on_output) -> CommandResult:

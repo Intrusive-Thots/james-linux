@@ -5,6 +5,10 @@ Lightweight HTTP server that exposes JAMES agent commands
 via a web API + slick browser-based UI. Access JAMES from
 any device on the same network.
 
+Security: A random bearer token is generated on each startup.
+The token is displayed in the terminal and embedded in the web UI.
+All /api/cmd requests require the token via Authorization header.
+
 Usage:
     server = RemoteServer(agent, port=1337)
     server.start()   # starts in background thread
@@ -13,30 +17,23 @@ Usage:
 
 import json
 import logging
+import secrets
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 from datetime import datetime
 
+from james.utils.net import get_local_ip
+
 logger = logging.getLogger(__name__)
 
 
-def get_local_ip() -> str:
-    """Get the machine's LAN IP address."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-
 # ── Web UI HTML ────────────────────────────────────────────────
+# The {{AUTH_TOKEN}} placeholder is replaced at runtime with the
+# session-specific bearer token so the browser UI can authenticate.
 
-WEB_UI = """<!DOCTYPE html>
+WEB_UI_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -385,6 +382,7 @@ body {
 </div>
 
 <script>
+const AUTH_TOKEN = '{{AUTH_TOKEN}}';
 const output = document.getElementById('output');
 const termOutput = document.getElementById('termOutput');
 const cmdInput = document.getElementById('cmdInput');
@@ -423,7 +421,10 @@ function send(cmd) {
 
   fetch('/api/cmd', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + AUTH_TOKEN
+    },
     body: JSON.stringify({cmd: cmd})
   })
   .then(r => r.json())
@@ -474,7 +475,9 @@ function updateContext(ctx) {
 }
 
 // Initial context fetch
-fetch('/api/status')
+fetch('/api/status', {
+  headers: {'Authorization': 'Bearer ' + AUTH_TOKEN}
+})
   .then(r => r.json())
   .then(data => {
     if (data.context) updateContext(data.context);
@@ -491,16 +494,51 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logger.debug("Remote: %s", format % args)
 
+    def _check_auth(self) -> bool:
+        """Verify the Bearer token. Returns True if valid."""
+        expected = getattr(self.server, 'auth_token', None)
+        if not expected:
+            return True  # no token configured
+
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if secrets.compare_digest(token, expected):
+                return True
+
+        self.send_response(401)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "unauthorized"}).encode("utf-8"))
+        return False
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/" or path == "/index.html":
-            self._respond_html(WEB_UI)
+            # Inject the auth token into the HTML template
+            token = getattr(self.server, 'auth_token', '')
+            html = WEB_UI_TEMPLATE.replace('{{AUTH_TOKEN}}', token)
+            self._respond_html(html)
         elif path == "/api/context":
+            if not self._check_auth():
+                return
             agent = self.server.james_agent
             ctx = {k: v for k, v in agent.context.items()
                    if k in ("target", "interface", "domain", "target_url",
                             "discovered_services", "lhost", "lport")}
             self._respond_json(ctx)
+        elif path == "/api/status":
+            if not self._check_auth():
+                return
+            agent = self.server.james_agent
+            ctx = {k: v for k, v in agent.context.items()
+                   if k in ("target", "interface", "domain", "target_url",
+                            "discovered_services", "lhost", "lport")}
+            self._respond_json({
+                "status": "ok",
+                "time": datetime.now().isoformat(),
+                "context": ctx,
+            })
         elif path == "/api/health":
             self._respond_json({"status": "ok", "time": datetime.now().isoformat()})
         else:
@@ -510,6 +548,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         if path == "/api/cmd":
+            if not self._check_auth():
+                return
+
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length).decode("utf-8")
             try:
@@ -542,14 +583,12 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def _respond_html(self, html: str):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(html.encode("utf-8"))
 
     def _respond_json(self, data: dict, code: int = 200):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
 
@@ -558,7 +597,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
 
@@ -568,6 +607,9 @@ class RemoteServer:
 
     Runs in a background thread, serves a web UI + API
     that lets you control JAMES from any browser on the network.
+
+    A random bearer token is generated on startup to prevent
+    unauthenticated access from other devices on the LAN.
     """
 
     def __init__(self, agent, port: int = 1337):
@@ -576,6 +618,7 @@ class RemoteServer:
         self.server = None
         self._thread = None
         self.running = False
+        self.auth_token = secrets.token_urlsafe(32)
 
     @property
     def url(self) -> str:
@@ -590,6 +633,7 @@ class RemoteServer:
 
         self.server = HTTPServer(("0.0.0.0", self.port), _RequestHandler)
         self.server.james_agent = self.agent
+        self.server.auth_token = self.auth_token
         self.running = True
 
         self._thread = threading.Thread(
@@ -601,6 +645,7 @@ class RemoteServer:
 
         ip = get_local_ip()
         logger.info("🌐 JAMES Remote Control active at %s", self.url)
+        logger.info("   🔑 Auth token: %s", self.auth_token)
         logger.info("   Access from any device on your network!")
 
     def stop(self):

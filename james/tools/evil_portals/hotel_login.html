@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guest WiFi - Hotel & Resort</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Georgia', serif;
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.portal {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(212,175,55,0.2);
+    border-radius: 12px;
+    padding: 48px 40px;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.logo { text-align: center; margin-bottom: 32px; }
+.logo .icon { font-size: 42px; margin-bottom: 12px; }
+.logo h1 { font-size: 20px; color: #d4af37; letter-spacing: 3px; text-transform: uppercase; }
+.logo p { color: #8899aa; font-size: 13px; margin-top: 8px; font-style: italic; }
+.form-group { margin-bottom: 18px; }
+.form-group label {
+    display: block; font-size: 11px; color: #99aabb;
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1.5px;
+    font-family: -apple-system, sans-serif;
+}
+.form-group input {
+    width: 100%; padding: 13px 16px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(212,175,55,0.2);
+    border-radius: 6px; color: #fff; font-size: 15px;
+}
+.form-group input:focus { outline: none; border-color: #d4af37; }
+.btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #d4af37, #b8860b);
+    border: none; border-radius: 6px;
+    color: #1a1a2e; font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+    margin-top: 8px;
+}
+.btn:hover { opacity: 0.9; }
+.divider {
+    text-align: center; margin: 20px 0; color: #556677; font-size: 12px;
+    font-family: -apple-system, sans-serif;
+}
+.room-btn {
+    width: 100%; padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; color: #99bbdd; font-size: 13px;
+    cursor: pointer; font-family: -apple-system, sans-serif;
+}
+.room-btn:hover { border-color: #d4af37; color: #d4af37; }
+.success { display: none; text-align: center; padding: 40px 0; }
+.success .check { font-size: 56px; margin-bottom: 16px; }
+.success h2 { color: #d4af37; font-size: 18px; }
+.success p { color: #8899aa; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="portal">
+    <div id="loginForm">
+        <div class="logo">
+            <div class="icon">🏨</div>
+            <h1>Guest WiFi</h1>
+            <p>Welcome — please sign in to access the internet</p>
+        </div>
+        <form method="POST" action="/login" onsubmit="return handleSubmit(event)">
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" name="lastname" id="lastname" placeholder="Enter your last name" required>
+            </div>
+            <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" name="room" id="room" placeholder="e.g. 420" required>
+            </div>
+            <div class="form-group">
+                <label>Email (optional)</label>
+                <input type="email" name="email" id="email" placeholder="guest@email.com">
+            </div>
+            <button type="submit" class="btn">Access WiFi</button>
+        </form>
+        <div class="divider">— or —</div>
+        <button class="room-btn" onclick="document.getElementById('email').focus()">
+            Sign in with Social Account
+        </button>
+    </div>
+    <div id="successMsg" class="success">
+        <div class="check">✅</div>
+        <h2>Welcome, Guest</h2>
+        <p>You are now connected to the hotel WiFi.<br>Checkout time: 11:00 AM</p>
+    </div>
+</div>
+<script>
+function handleSubmit(e) {
+    e.preventDefault();
+    var data = 'lastname=' + encodeURIComponent(document.getElementById('lastname').value)
+        + '&room=' + encodeURIComponent(document.getElementById('room').value)
+        + '&email=' + encodeURIComponent(document.getElementById('email').value);
+    fetch('/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data})
+    .then(function(){
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('successMsg').style.display = 'block';
+    });
+    return false;
+}
+</script>
+</body>
+</html>

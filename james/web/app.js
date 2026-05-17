@@ -42,8 +42,12 @@ function showApp() {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-screen').classList.remove('hidden');
     connectWS();
-    addAgentMessage("Hey, I'm JAMES — your autonomous pentesting agent.\n\nConnected remotely. Type 'help' for commands.");
     startClock();
+    initBackground();
+    showToast('Connected to JAMES agent', 'success');
+    // Periodically update system stats
+    updateSystemStats();
+    setInterval(updateSystemStats, 15000);
 }
 
 /* ── WebSocket ─────────────────────────────────────────────── */
@@ -99,6 +103,8 @@ function handleWSMessage(data) {
 function setWsStatus(connected) {
     const dot = document.getElementById('ws-status');
     dot.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+    const label = document.getElementById('connection-label');
+    if (label) label.textContent = connected ? 'live' : 'offline';
 }
 
 function wsSend(data) {
@@ -113,6 +119,10 @@ function sendChat() {
     const input = document.getElementById('chat-input');
     const msg = input.value.trim();
     if (!msg) return;
+
+    // Remove welcome screen on first message
+    const welcome = document.querySelector('.chat-welcome');
+    if (welcome) welcome.remove();
 
     input.value = '';
     cmdHistory.push(msg);
@@ -318,31 +328,86 @@ async function doAutoPwn() {
 async function doCrackWpa() {
     const cap = document.getElementById('crack-cap').value.trim();
     const wl = document.getElementById('crack-wl').value.trim();
+    const bssid = document.getElementById('crack-bssid').value.trim();
     if (!cap || !wl) return;
-    crackLog('Cracking WPA handshake…');
+    crackLog('⚡ Cracking WPA handshake (aircrack-ng)…');
     try {
-        const data = await apiFetch('/api/crack/wpa', 'POST', { capture_file: cap, wordlist: wl });
+        const data = await apiFetch('/api/crack/wpa', 'POST', {
+            capture_file: cap, wordlist: wl, bssid: bssid || undefined
+        });
         if (data.found) {
             crackLog(`🔑 KEY FOUND: ${data.key}`);
         } else {
-            crackLog('🔒 No key found.');
+            crackLog('🔒 No key found with straight wordlist. Try Smart Crack →');
         }
     } catch (e) {
         crackLog('Error: ' + e.message);
     }
 }
 
-async function doCrackHash() {
-    const hf = document.getElementById('hash-file').value.trim();
+async function doSmartCrackWpa() {
+    const cap = document.getElementById('crack-cap').value.trim();
     const wl = document.getElementById('crack-wl').value.trim();
-    const mode = parseInt(document.getElementById('hash-mode').value);
-    if (!hf || !wl) return;
-    crackLog('Cracking hash…');
+    const bssid = document.getElementById('crack-bssid').value.trim();
+    if (!cap || !wl) { crackLog('Enter a capture file and wordlist.'); return; }
+
+    showCrackProgress('Smart WPA Crack', ['aircrack-ng', 'hashcat+rules', 'john']);
+    crackLog('🧠 Starting Smart WPA Crack (aircrack → hashcat+rules → john)…');
     try {
-        const data = await apiFetch('/api/crack/hash', 'POST', { hash_file: hf, wordlist: wl, hash_mode: mode });
-        crackLog(data.output || JSON.stringify(data));
+        const data = await apiFetch('/api/crack/smart', 'POST', {
+            capture_file: cap, wordlist: wl, bssid: bssid || undefined
+        });
+        crackLog(`[STARTED] ${data.message}`);
+        startCrackPolling();
     } catch (e) {
         crackLog('Error: ' + e.message);
+        hideCrackProgress();
+    }
+}
+
+async function doCrackHash() {
+    const hf = document.getElementById('hash-file').value.trim();
+    const wl = document.getElementById('hash-wl').value.trim();
+    const mode = parseInt(document.getElementById('hash-mode').value);
+    if (!hf || !wl) return;
+    crackLog('⚡ Cracking hash (hashcat + auto-rules)…');
+    try {
+        const data = await apiFetch('/api/crack/hash', 'POST', {
+            hash_file: hf, wordlist: wl, hash_mode: mode
+        });
+        if (data.found && data.cracked_keys) {
+            crackLog('🔑 CRACKED:');
+            for (const k of data.cracked_keys) {
+                crackLog(`  ${k.hash} → ${k.plain}`);
+            }
+        } else {
+            crackLog('🔒 No key found. Try Smart Crack for deeper search →');
+        }
+        if (data.rules_used && data.rules_used !== 'none') {
+            crackLog(`  (rules used: ${data.rules_used})`);
+        }
+    } catch (e) {
+        crackLog('Error: ' + e.message);
+    }
+}
+
+async function doSmartCrackHash() {
+    const hf = document.getElementById('hash-file').value.trim();
+    const wl = document.getElementById('hash-wl').value.trim();
+    const mode = parseInt(document.getElementById('hash-mode').value);
+    if (!hf || !wl) { crackLog('Enter a hash file and wordlist.'); return; }
+
+    showCrackProgress('Smart Hash Crack', ['hashcat', 'hashcat+best64', 'hashcat+rockyou30k', 'john']);
+    crackLog('🧠 Starting Smart Hash Crack (cascading strategies)…');
+    try {
+        const data = await apiFetch('/api/crack/smart', 'POST', {
+            hash_file: hf, wordlist: wl, hash_mode: mode
+        });
+        crackLog(`[STARTED] ${data.message}`);
+        startCrackPolling();
+    } catch (e) {
+        crackLog('Error: ' + e.message);
+        hideCrackProgress();
     }
 }
 
@@ -350,6 +415,140 @@ function crackLog(text) {
     const el = document.getElementById('crack-output');
     el.innerHTML += escapeHtml(text) + '\n';
     el.scrollTop = el.scrollHeight;
+}
+
+// ── Crack Progress UI ──────────────────────────────────
+
+let crackPollId = null;
+
+function showCrackProgress(title, stages) {
+    const el = document.getElementById('crack-progress');
+    el.style.display = 'block';
+    document.getElementById('crack-progress-title').textContent = title;
+    const status = document.getElementById('crack-progress-status');
+    status.textContent = 'running';
+    status.className = 'progress-status running';
+    document.getElementById('crack-progress-bar').style.width = '10%';
+
+    const stagesEl = document.getElementById('crack-stages');
+    stagesEl.innerHTML = stages.map((s, i) =>
+        `<span class="stage-chip ${i === 0 ? 'active' : ''}" id="stage-${i}">${s}</span>`
+    ).join('');
+}
+
+function hideCrackProgress() {
+    const status = document.getElementById('crack-progress-status');
+    status.textContent = 'done';
+    status.className = 'progress-status done';
+    document.getElementById('crack-progress-bar').style.width = '100%';
+    if (crackPollId) { clearInterval(crackPollId); crackPollId = null; }
+}
+
+function startCrackPolling() {
+    let pollCount = 0;
+    crackPollId = setInterval(async () => {
+        pollCount++;
+        // Update progress bar (animated estimate)
+        const pct = Math.min(10 + pollCount * 3, 90);
+        document.getElementById('crack-progress-bar').style.width = pct + '%';
+
+        try {
+            const log = await apiFetch('/api/log', 'GET');
+            const recent = log.slice(-5);
+            for (const entry of recent) {
+                if (entry.action.includes('crack') || entry.action.includes('smart')) {
+                    if (entry.status === 'done') {
+                        const result = entry.result || {};
+                        if (result.found || result.success) {
+                            crackLog('🔑 CRACKED! Check Loot tab for results.');
+                            showToast('🔑 Key cracked! Check Loot tab.', 'success');
+                            const status = document.getElementById('crack-progress-status');
+                            status.textContent = 'cracked!';
+                            status.className = 'progress-status done';
+                        } else {
+                            crackLog('🔒 All strategies exhausted — key not in wordlist.');
+                            const status = document.getElementById('crack-progress-status');
+                            status.textContent = 'exhausted';
+                            status.className = 'progress-status failed';
+                        }
+                        document.getElementById('crack-progress-bar').style.width = '100%';
+                        clearInterval(crackPollId);
+                        crackPollId = null;
+                        return;
+                    }
+                }
+            }
+        } catch (_) {}
+
+        // Auto-stop after 5 minutes
+        if (pollCount > 100) {
+            crackLog('[TIMEOUT] Monitoring stopped — check Log tab for final status.');
+            hideCrackProgress();
+        }
+    }, 3000);
+}
+
+/* ── Loot ──────────────────────────────────────────────────── */
+
+async function refreshLoot() {
+    try {
+        const data = await apiFetch('/api/loot', 'GET');
+        const el = document.getElementById('loot-content');
+
+        if (!data.keys || data.keys.length === 0) {
+            el.innerHTML = `
+                <div class="loot-empty">
+                    <div class="loot-empty-icon">🔑</div>
+                    <div class="loot-empty-text">No cracked keys yet</div>
+                    <div class="loot-empty-hint">Use the Crack or Wi-Fi tab to crack passwords</div>
+                </div>`;
+            return;
+        }
+
+        let html = `<div class="loot-summary">
+            <span class="loot-count">${data.cracked_count}</span>
+            <span>credential${data.cracked_count !== 1 ? 's' : ''} cracked</span>
+        </div>
+        <div class="loot-grid">`;
+
+        for (const key of data.keys) {
+            const when = key.when ? key.when.substring(0, 19).replace('T', ' ') : 'unknown';
+            html += `
+                <div class="loot-card">
+                    <div class="loot-essid">${esc(key.essid || key.id)}</div>
+                    <div class="loot-id">${esc(key.id)}</div>
+                    <div class="loot-key-row">
+                        <span class="loot-key-label">KEY</span>
+                        <span class="loot-key-value">${esc(key.key)}</span>
+                    </div>
+                    <div class="loot-meta">
+                        <span class="loot-method">${esc(key.method)}</span>
+                        <span class="loot-time">${when}</span>
+                    </div>
+                </div>`;
+        }
+        html += '</div>';
+        el.innerHTML = html;
+        // Update badge
+        const badge = document.getElementById('loot-badge');
+        if (badge) {
+            badge.textContent = data.cracked_count;
+            badge.style.display = data.cracked_count > 0 ? 'inline-block' : 'none';
+        }
+    } catch (e) {
+        document.getElementById('loot-content').innerHTML =
+            `<p class="placeholder-text">Error: ${e.message}</p>`;
+    }
+}
+
+function exportLoot() {
+    apiFetch('/api/loot', 'GET').then(data => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'james_loot.json';
+        a.click();
+    });
 }
 
 /* ── Log ───────────────────────────────────────────────────── */
@@ -397,6 +596,10 @@ function switchTab(tabId) {
     const panel = document.getElementById(`panel-${tabId}`);
     panel.classList.remove('hidden');
     panel.classList.add('active');
+
+    // Auto-load data when switching to certain tabs
+    if (tabId === 'loot') refreshLoot();
+    if (tabId === 'log') refreshLog();
 }
 
 /* ── API Helper ────────────────────────────────────────────── */
@@ -432,9 +635,121 @@ const esc = escapeHtml;
 
 function startClock() {
     const el = document.getElementById('clock');
+    if (el) el.textContent = new Date().toLocaleTimeString();
     setInterval(() => {
-        el.textContent = new Date().toLocaleTimeString();
+        if (el) el.textContent = new Date().toLocaleTimeString();
     }, 1000);
+}
+
+/* ── Toast Notifications ───────────────────────────────────── */
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+/* ── Quick Command Chips ───────────────────────────────────── */
+
+function quickCmd(msg) {
+    const welcome = document.querySelector('.chat-welcome');
+    if (welcome) welcome.remove();
+    const input = document.getElementById('chat-input');
+    input.value = msg;
+    sendChat();
+}
+
+/* ── System Stats ──────────────────────────────────────────── */
+
+async function updateSystemStats() {
+    try {
+        const log = await apiFetch('/api/log', 'GET');
+        const el = document.getElementById('stat-tasks');
+        if (el) el.textContent = `${log.length} task${log.length !== 1 ? 's' : ''}`;
+    } catch (_) {}
+    try {
+        const loot = await apiFetch('/api/loot', 'GET');
+        const badge = document.getElementById('loot-badge');
+        if (badge && loot.cracked_count > 0) {
+            badge.textContent = loot.cracked_count;
+            badge.style.display = 'inline-block';
+        }
+    } catch (_) {}
+}
+
+/* ── Clear Log View ────────────────────────────────────────── */
+
+function clearLogView() {
+    const el = document.getElementById('log-entries');
+    if (el) el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">View Cleared</div><div class="empty-desc">Click Refresh to reload</div></div>';
+}
+
+/* ── Background Particles ──────────────────────────────────── */
+
+function initBackground() {
+    const canvas = document.getElementById('bg-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let w, h, particles = [];
+
+    function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < 40; i++) {
+        particles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: Math.random() * 1.5 + 0.5,
+            dx: (Math.random() - 0.5) * 0.3,
+            dy: (Math.random() - 0.5) * 0.3,
+            o: Math.random() * 0.3 + 0.05,
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, w, h);
+        for (const p of particles) {
+            p.x += p.dx;
+            p.y += p.dy;
+            if (p.x < 0) p.x = w;
+            if (p.x > w) p.x = 0;
+            if (p.y < 0) p.y = h;
+            if (p.y > h) p.y = 0;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0, 240, 255, ${p.o})`;
+            ctx.fill();
+        }
+        // draw connections
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(0, 240, 255, ${0.06 * (1 - dist / 120)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
 }
 
 /* ── Keyboard ──────────────────────────────────────────────── */

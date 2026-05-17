@@ -1,0 +1,158 @@
+# Wi-Fi Password Rule File for Hashcat
+# Optimized for WPA/WPA2 cracking (8-63 char passwords)
+# Rules ordered by probability (most likely mutations first)
+#
+# Format: hashcat rule syntax
+# See: https://hashcat.net/wiki/doku.php?id=rule_based_attack
+
+# ─── Pass-through (try word as-is) ───
+:
+
+# ─── Capitalization variants ───
+c
+C
+u
+l
+t
+
+# ─── Append digits (most common suffix pattern) ───
+$1
+$2
+$3
+$0
+$!
+$1$2$3
+$1$2$3$4
+$!$!
+$@
+$#
+$$
+$1$!
+$1$2$!
+$1$2$3$!
+
+# ─── Append years ───
+$2$0$2$4
+$2$0$2$5
+$2$0$2$6
+$2$0$2$3
+$2$0$2$2
+$2$0$2$1
+$2$0$2$0
+$2$0$1$9
+$2$0$1$8
+$2$0$1$7
+$2$0$1$6
+$2$0$1$5
+$2$0$1$0
+$2$0$0$0
+$1$9$9$9
+$1$9$9$8
+$1$9$9$5
+$1$9$9$0
+$1$9$8$5
+$1$9$8$0
+
+# ─── Capitalize + append year ───
+c$2$0$2$4
+c$2$0$2$5
+c$2$0$2$6
+c$2$0$2$3
+c$2$0$2$2
+c$2$0$2$1
+c$2$0$2$0
+c$2$0$1$9
+c$2$0$1$8
+c$1$9$9$9
+c$1$9$9$5
+c$1$9$9$0
+
+# ─── Capitalize + append common suffixes ───
+c$1
+c$1$2$3
+c$1$2$3$4
+c$!
+c$!$!
+c$@
+c$1$!
+c$1$2$!
+c$1$2$3$!
+
+# ─── Append common digit combos ───
+$6$9
+$4$2$0
+$6$6$6
+$7$7$7
+$9$1$1
+$0$0$7
+$0$1
+$0$7
+$1$0
+$1$1
+$1$3
+$2$1
+$2$2
+$2$3
+$3$3
+$4$4
+$5$5
+$6$6
+$7$7
+$8$8
+$9$9
+
+# ─── Common l33t substitutions ───
+sa@
+se3
+si1
+so0
+ss$
+sa@se3
+sa@se3si1
+sa@se3si1so0
+
+# ─── Capitalize + l33t ───
+csa@
+cse3
+csa@se3si1so0
+
+# ─── Prepend digits ───
+^1
+^1^2
+^1^2^3
+^!
+
+# ─── Toggle case patterns ───
+T0
+T1
+T0T2T4
+T1T3T5
+
+# ─── Duplicate word ───
+d
+
+# ─── Reverse ───
+r
+
+# ─── Rotate and append ───
+}$1$2$3
+{$1$2$3
+
+# ─── Remove first/last char + append ───
+]$1$2$3$4
+[$1$2$3$4
+
+# ─── Overwrite patterns ───
+o0W
+o0P
+o0N
+
+# ─── Capitalize + duplicate ───
+cd
+
+# ─── Append special combos common in WiFi ───
+$_$w$i$f$i
+$_$n$e$t
+$_$1$2$3
+$!$@$#
+$p$a$s$s

@@ -10,18 +10,43 @@
     <title>JAMES — Remote Agent</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <!-- Background canvas for animated particles -->
+    <canvas id="bg-canvas"></canvas>
+
     <!-- Login Screen -->
     <div id="login-screen" class="screen">
         <div class="login-card">
-            <div class="login-logo">⚡</div>
+            <div class="login-logo">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="32" r="30" stroke="url(#logo-grad)" stroke-width="2" fill="none" opacity="0.5"/>
+                    <path d="M32 8 L38 24 L32 20 L26 24 Z" fill="url(#logo-grad)"/>
+                    <path d="M32 56 L26 40 L32 44 L38 40 Z" fill="url(#logo-grad)"/>
+                    <path d="M8 32 L24 26 L20 32 L24 38 Z" fill="url(#logo-grad)"/>
+                    <path d="M56 32 L40 38 L44 32 L40 26 Z" fill="url(#logo-grad)"/>
+                    <circle cx="32" cy="32" r="6" fill="url(#logo-grad)"/>
+                    <defs>
+                        <linearGradient id="logo-grad" x1="0" y1="0" x2="64" y2="64">
+                            <stop offset="0%" stop-color="#00f0ff"/>
+                            <stop offset="100%" stop-color="#00ff88"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
             <h1 class="login-title">JAMES</h1>
             <p class="login-subtitle">Autonomous Pentesting Agent</p>
-            <input type="password" id="api-key-input" placeholder="API Key (leave blank if none set)" autocomplete="off">
-            <button id="login-btn" onclick="doLogin()">Connect</button>
+            <div class="login-version">v2.1 · Remote Dashboard</div>
+            <div class="input-group">
+                <label class="input-label" for="api-key-input">API KEY</label>
+                <input type="password" id="api-key-input" placeholder="Leave blank if none configured" autocomplete="off">
+            </div>
+            <button id="login-btn" onclick="doLogin()">
+                <span class="btn-text">Connect</span>
+                <span class="btn-icon">→</span>
+            </button>
             <p id="login-error" class="error-text"></p>
         </div>
     </div>
@@ -31,121 +56,290 @@
         <!-- Header -->
         <header id="app-header">
             <div class="header-left">
-                <span class="header-logo">⚡</span>
-                <span class="header-title">JAMES</span>
-                <span class="header-subtitle">Remote Agent</span>
+                <div class="header-logo-container">
+                    <span class="header-logo">⚡</span>
+                    <span class="header-ring"></span>
+                </div>
+                <div class="header-text">
+                    <span class="header-title">JAMES</span>
+                    <span class="header-subtitle">Remote Agent</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="system-stats" id="system-stats">
+                    <span class="stat" id="stat-uptime" title="Uptime">—</span>
+                    <span class="stat-divider">·</span>
+                    <span class="stat" id="stat-tasks" title="Tasks">0 tasks</span>
+                </div>
             </div>
             <div class="header-right">
-                <span id="ws-status" class="status-dot disconnected" title="WebSocket status"></span>
-                <span id="clock"></span>
+                <div class="connection-indicator" id="connection-indicator">
+                    <span class="status-dot disconnected" id="ws-status"></span>
+                    <span class="connection-label" id="connection-label">offline</span>
+                </div>
+                <span class="clock" id="clock"></span>
             </div>
         </header>
 
         <!-- Tab Bar -->
         <nav id="tab-bar">
-            <button class="tab active" data-tab="chat" onclick="switchTab('chat')">🤖 Agent</button>
-            <button class="tab" data-tab="recon" onclick="switchTab('recon')">🔍 Recon</button>
-            <button class="tab" data-tab="wifi" onclick="switchTab('wifi')">📡 Wi-Fi</button>
-            <button class="tab" data-tab="crack" onclick="switchTab('crack')">🔓 Crack</button>
-            <button class="tab" data-tab="log" onclick="switchTab('log')">📋 Log</button>
+            <button class="tab active" data-tab="chat" onclick="switchTab('chat')">
+                <span class="tab-icon">🤖</span>
+                <span class="tab-label">Agent</span>
+            </button>
+            <button class="tab" data-tab="recon" onclick="switchTab('recon')">
+                <span class="tab-icon">🔍</span>
+                <span class="tab-label">Recon</span>
+            </button>
+            <button class="tab" data-tab="wifi" onclick="switchTab('wifi')">
+                <span class="tab-icon">📡</span>
+                <span class="tab-label">Wi-Fi</span>
+            </button>
+            <button class="tab" data-tab="crack" onclick="switchTab('crack')">
+                <span class="tab-icon">🔓</span>
+                <span class="tab-label">Crack</span>
+            </button>
+            <button class="tab" data-tab="loot" onclick="switchTab('loot')">
+                <span class="tab-icon">🔑</span>
+                <span class="tab-label">Loot</span>
+                <span class="tab-badge" id="loot-badge" style="display:none">0</span>
+            </button>
+            <button class="tab" data-tab="log" onclick="switchTab('log')">
+                <span class="tab-icon">📋</span>
+                <span class="tab-label">Log</span>
+            </button>
         </nav>
 
         <!-- Tab Panels -->
         <main id="tab-content">
             <!-- Agent Chat -->
             <div id="panel-chat" class="panel active">
-                <div id="chat-messages"></div>
+                <div id="chat-messages">
+                    <div class="chat-welcome">
+                        <div class="welcome-icon">⚡</div>
+                        <div class="welcome-title">JAMES Agent</div>
+                        <div class="welcome-text">Connected to remote pentesting agent. Type a command or ask a question.</div>
+                        <div class="welcome-chips">
+                            <button class="chip" onclick="quickCmd('scan my network')">🔍 Scan Network</button>
+                            <button class="chip" onclick="quickCmd('list wifi interfaces')">📡 List Wi-Fi</button>
+                            <button class="chip" onclick="quickCmd('system status')">💻 System Status</button>
+                            <button class="chip" onclick="quickCmd('help')">❓ Help</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="chat-input-bar">
                     <span class="prompt-icon">❯</span>
                     <input type="text" id="chat-input" placeholder="Talk to JAMES…" autocomplete="off">
-                    <button onclick="sendChat()">Send</button>
+                    <button id="send-btn" onclick="sendChat()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
                 </div>
             </div>
 
             <!-- Recon -->
             <div id="panel-recon" class="panel hidden">
+                <div class="panel-header">
+                    <h2 class="panel-title">🔍 Reconnaissance</h2>
+                    <p class="panel-desc">Network discovery and port scanning</p>
+                </div>
                 <div class="control-row">
-                    <input type="text" id="recon-target" placeholder="Target (e.g. 192.168.1.0/24)">
-                    <button onclick="doQuickScan()">Quick Scan</button>
-                    <button onclick="doFullScan()">Full Scan</button>
+                    <div class="input-group-inline">
+                        <label class="input-label-sm">TARGET</label>
+                        <input type="text" id="recon-target" placeholder="192.168.1.0/24">
+                    </div>
+                    <button onclick="doQuickScan()" class="btn-primary">Quick Scan</button>
+                    <button onclick="doFullScan()" class="btn-secondary">Full Scan</button>
                 </div>
                 <div id="recon-results" class="results-area">
-                    <p class="placeholder-text">Enter a target and run a scan.</p>
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <div class="empty-title">Ready to Scan</div>
+                        <div class="empty-desc">Enter a target IP or CIDR range above</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Wi-Fi -->
             <div id="panel-wifi" class="panel hidden">
-                <div class="control-row">
-                    <select id="wifi-iface"><option>— select interface —</option></select>
-                    <button onclick="refreshInterfaces()">Refresh</button>
-                    <button onclick="toggleMonitor()">Toggle Monitor</button>
+                <div class="panel-header">
+                    <h2 class="panel-title">📡 Wi-Fi Operations</h2>
+                    <p class="panel-desc">Interface management, monitoring, and attacks</p>
                 </div>
-                <div class="control-row">
-                    <input type="text" id="deauth-bssid" placeholder="BSSID (AA:BB:CC:DD:EE:FF)">
-                    <input type="number" id="deauth-count" value="10" min="1" max="100" style="width:70px">
-                    <button class="danger-btn" onclick="doDeauth()">Deauth</button>
+                <div class="wifi-grid">
+                    <div class="card mini-card">
+                        <h3>Interface</h3>
+                        <div class="form-row">
+                            <select id="wifi-iface"><option value="">— select —</option></select>
+                            <button onclick="refreshInterfaces()" class="btn-icon-only" title="Refresh">↻</button>
+                        </div>
+                        <button onclick="toggleMonitor()" class="btn-secondary full-width">Toggle Monitor Mode</button>
+                    </div>
+                    <div class="card mini-card">
+                        <h3>Deauthentication</h3>
+                        <div class="form-row">
+                            <input type="text" id="deauth-bssid" placeholder="Target BSSID">
+                            <input type="number" id="deauth-count" value="10" min="1" max="100" class="input-sm">
+                        </div>
+                        <button class="danger-btn full-width" onclick="doDeauth()">⚡ Send Deauth</button>
+                    </div>
                 </div>
                 <div id="wifi-output" class="output-area"></div>
-                <div class="card" style="margin-top:10px">
-                    <h3>🔥 AutoPwn (End-to-End)</h3>
+                <div class="card autopwn-card">
+                    <div class="card-header">
+                        <h3>🔥 AutoPwn</h3>
+                        <span class="method-badge danger">end-to-end autonomous</span>
+                    </div>
+                    <p class="card-desc">Automated scan → capture → crack pipeline. Selects best targets by signal strength.</p>
                     <div class="form-row">
                         <label>Wordlist:</label>
                         <input type="text" id="autopwn-wl" value="/home/malcolm/Desktop/rockyou.txt">
                     </div>
-                    <button class="danger-btn" id="autopwn-btn" onclick="doAutoPwn()">🔥 Launch AutoPwn</button>
-                    <p id="autopwn-status" style="color:#ff5555;margin-top:8px"></p>
+                    <div class="autopwn-footer">
+                        <button class="danger-btn" id="autopwn-btn" onclick="doAutoPwn()">🔥 Launch AutoPwn</button>
+                        <span id="autopwn-status" class="autopwn-status"></span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Cracking -->
+            <!-- Cracking (enhanced) -->
             <div id="panel-crack" class="panel hidden">
-                <div class="card">
-                    <h3>WPA Handshake Crack</h3>
-                    <div class="form-row">
-                        <label>Capture file:</label>
-                        <input type="text" id="crack-cap" placeholder="/path/to/capture.cap">
-                    </div>
-                    <div class="form-row">
-                        <label>Wordlist:</label>
-                        <input type="text" id="crack-wl" value="/home/malcolm/Desktop/rockyou.txt">
-                    </div>
-                    <button onclick="doCrackWpa()">⚡ Crack WPA</button>
+                <div class="panel-header">
+                    <h2 class="panel-title">🔓 Cracking Station</h2>
+                    <p class="panel-desc">Hashcat, Aircrack, and John — with cascading smart strategies</p>
                 </div>
-                <div class="card">
-                    <h3>Hash Crack</h3>
-                    <div class="form-row">
-                        <label>Hash file:</label>
-                        <input type="text" id="hash-file" placeholder="/path/to/hashes.txt">
+                <div class="crack-grid">
+                    <!-- WPA Card -->
+                    <div class="card crack-card">
+                        <div class="card-header">
+                            <h3>📡 WPA Crack</h3>
+                            <span class="method-badge">aircrack → hashcat → john</span>
+                        </div>
+                        <div class="form-row">
+                            <label>Capture:</label>
+                            <input type="text" id="crack-cap" placeholder="/path/to/capture.cap">
+                        </div>
+                        <div class="form-row">
+                            <label>BSSID:</label>
+                            <input type="text" id="crack-bssid" placeholder="AA:BB:CC:DD:EE:FF (optional)">
+                        </div>
+                        <div class="form-row">
+                            <label>Wordlist:</label>
+                            <input type="text" id="crack-wl" value="/home/malcolm/Desktop/rockyou.txt">
+                        </div>
+                        <div class="crack-actions">
+                            <button onclick="doCrackWpa()" class="btn-primary">⚡ Quick</button>
+                            <button class="smart-btn" onclick="doSmartCrackWpa()">🧠 Smart Crack</button>
+                        </div>
                     </div>
-                    <div class="form-row">
-                        <label>Mode:</label>
-                        <select id="hash-mode">
-                            <option value="0">0 — MD5</option>
-                            <option value="100">100 — SHA1</option>
-                            <option value="1400">1400 — SHA256</option>
-                            <option value="1800">1800 — sha512crypt</option>
-                            <option value="2500">2500 — WPA/WPA2</option>
-                            <option value="3200">3200 — bcrypt</option>
-                        </select>
+
+                    <!-- Hash Card -->
+                    <div class="card crack-card">
+                        <div class="card-header">
+                            <h3>🔐 Hash Crack</h3>
+                            <span class="method-badge">hashcat + rules → john</span>
+                        </div>
+                        <div class="form-row">
+                            <label>Hash file:</label>
+                            <input type="text" id="hash-file" placeholder="/path/to/hashes.txt">
+                        </div>
+                        <div class="form-row">
+                            <label>Mode:</label>
+                            <select id="hash-mode">
+                                <optgroup label="Common">
+                                    <option value="0">0 — MD5</option>
+                                    <option value="100">100 — SHA1</option>
+                                    <option value="1400">1400 — SHA-256</option>
+                                    <option value="1700">1700 — SHA-512</option>
+                                    <option value="1800">1800 — sha512crypt ($6$)</option>
+                                    <option value="3200">3200 — bcrypt</option>
+                                    <option value="500">500 — md5crypt ($1$)</option>
+                                </optgroup>
+                                <optgroup label="Wireless">
+                                    <option value="2500">2500 — WPA/WPA2</option>
+                                    <option value="22000">22000 — WPA-PBKDF2-PMKID+EAPOL</option>
+                                    <option value="22001">22001 — WPA-PMK-PMKID+EAPOL</option>
+                                </optgroup>
+                                <optgroup label="Windows / NTLM">
+                                    <option value="1000">1000 — NTLM</option>
+                                    <option value="5600">5600 — NetNTLMv2</option>
+                                    <option value="5500">5500 — NetNTLMv1</option>
+                                </optgroup>
+                                <optgroup label="Web / DB">
+                                    <option value="400">400 — WordPress (phpass)</option>
+                                    <option value="7400">7400 — sha256crypt ($5$)</option>
+                                    <option value="10">10 — md5($pass.$salt)</option>
+                                    <option value="300">300 — MySQL4.1/5</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Wordlist:</label>
+                            <input type="text" id="hash-wl" value="/home/malcolm/Desktop/rockyou.txt">
+                        </div>
+                        <div class="crack-actions">
+                            <button onclick="doCrackHash()" class="btn-primary">⚡ Quick</button>
+                            <button class="smart-btn" onclick="doSmartCrackHash()">🧠 Smart Crack</button>
+                        </div>
                     </div>
-                    <button onclick="doCrackHash()">⚡ Crack Hash</button>
+                </div>
+
+                <!-- Progress + Output -->
+                <div class="crack-progress" id="crack-progress" style="display:none">
+                    <div class="progress-header">
+                        <span class="progress-title" id="crack-progress-title">Cracking…</span>
+                        <span class="progress-status running" id="crack-progress-status">running</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="crack-progress-bar"></div>
+                    </div>
+                    <div class="progress-stages" id="crack-stages"></div>
                 </div>
                 <div id="crack-output" class="output-area"></div>
             </div>
 
+            <!-- Loot -->
+            <div id="panel-loot" class="panel hidden">
+                <div class="panel-header">
+                    <h2 class="panel-title">🔑 Loot Vault</h2>
+                    <p class="panel-desc">All cracked credentials and captured secrets</p>
+                </div>
+                <div class="control-row">
+                    <button onclick="refreshLoot()" class="btn-secondary">↻ Refresh</button>
+                    <button onclick="exportLoot()" class="btn-secondary">📥 Export JSON</button>
+                </div>
+                <div id="loot-content" class="results-area">
+                    <div class="empty-state">
+                        <div class="empty-icon">🔑</div>
+                        <div class="empty-title">No Loot Yet</div>
+                        <div class="empty-desc">Cracked keys will appear here automatically</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Log -->
             <div id="panel-log" class="panel hidden">
+                <div class="panel-header">
+                    <h2 class="panel-title">📋 Task Log</h2>
+                    <p class="panel-desc">Chronological record of all agent operations</p>
+                </div>
                 <div class="control-row">
-                    <button onclick="refreshLog()">Refresh Log</button>
-                    <button onclick="exportLog()">Export JSON</button>
+                    <button onclick="refreshLog()" class="btn-secondary">↻ Refresh</button>
+                    <button onclick="exportLog()" class="btn-secondary">📥 Export JSON</button>
+                    <button onclick="clearLogView()" class="btn-ghost">Clear View</button>
                 </div>
                 <div id="log-entries" class="results-area">
-                    <p class="placeholder-text">No tasks logged yet.</p>
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <div class="empty-title">No Tasks Yet</div>
+                        <div class="empty-desc">Agent operations will be logged here</div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
 
     <script src="/static/app.js"></script>
 </body>

@@ -369,5 +369,30 @@ echo -e "${CYAN}═════════════════════�
 echo -e "  Packages:  ${GREEN}$INSTALLED installed${NC}, ${YELLOW}$FAILED skipped${NC}"
 echo -e "  Tools:     ${GREEN}$AVAILABLE available${NC}, ${RED}$MISSING missing${NC}"
 echo ""
+
+# Generate JAMES WiFi-optimized wordlists
+echo -e "${CYAN}[BONUS] Generating JAMES WiFi Wordlists${NC}"
+echo "─────────────────────────────────────────"
+JAMES_DIR="/home/malcolm/Desktop/james-linux"
+if [ -f "$JAMES_DIR/james/wordlists/generator.py" ]; then
+    su - malcolm -c "cd $JAMES_DIR && python3 -c '
+from james.wordlists.generator import WifiWordlistGenerator
+gen = WifiWordlistGenerator()
+common = gen.generate_wifi_common()
+numeric = gen.generate_numeric()
+ultimate = gen.get_combined_wordlist()
+c1 = sum(1 for _ in open(common))
+c2 = sum(1 for _ in open(numeric))
+c3 = sum(1 for _ in open(ultimate))
+print(f\"  wifi_common.txt:   {c1:,} candidates\")
+print(f\"  wifi_numeric.txt:  {c2:,} candidates\")
+print(f\"  wifi_ultimate.txt: {c3:,} candidates\")
+'" 2>/dev/null && ok "JAMES WiFi wordlists generated" || warn "Wordlist generation skipped"
+else
+    info "JAMES wordlist generator not found — run from JAMES GUI instead"
+fi
+
+echo ""
 echo -e "  ${CYAN}JAMES is ready for WPS/WEP/WPA2/WPA3/IoT operations.${NC}"
+echo -e "  ${CYAN}Run: python3 main.py${NC}"
 echo ""

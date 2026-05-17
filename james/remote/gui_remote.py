@@ -15,25 +15,15 @@ Usage:
 
 import logging
 import os
+import secrets
 import signal
-import socket
 import subprocess
 import time
 import threading
 
+from james.utils.net import get_local_ip
+
 logger = logging.getLogger(__name__)
-
-
-def get_local_ip() -> str:
-    """Get the machine's LAN IP address."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 class GUIRemote:
@@ -46,13 +36,13 @@ class GUIRemote:
 
     VNC_PORT = 5900
     WEB_PORT = 6080
-    VNC_PASSWORD = "james"      # Simple password; override in production
 
     def __init__(self):
         self._vnc_proc = None
         self._novnc_proc = None
         self.running = False
         self._display = os.environ.get("DISPLAY", ":0")
+        self._vnc_password: str = ""  # generated per-session
 
     @property
     def url(self) -> str:
@@ -63,6 +53,10 @@ class GUIRemote:
     def vnc_url(self) -> str:
         ip = get_local_ip()
         return f"{ip}:{self.VNC_PORT}"
+
+    def _generate_vnc_password(self) -> str:
+        """Generate a random 8-character alphanumeric VNC password."""
+        return secrets.token_urlsafe(6)[:8]  # 8 chars, URL-safe alphabet
 
     def _ensure_deps(self) -> list[str]:
         """Install missing dependencies.  Returns list of actions taken."""
@@ -77,6 +71,7 @@ class GUIRemote:
                 )
                 actions.append("Installed x11vnc")
             except Exception as e:
+                logger.warning("x11vnc install failed: %s", e)
                 actions.append(f"x11vnc install failed: {e}")
 
         # noVNC + websockify
@@ -88,7 +83,8 @@ class GUIRemote:
                     capture_output=True, timeout=60
                 )
                 actions.append("Installed noVNC + websockify")
-            except Exception:
+            except Exception as e:
+                logger.warning("noVNC apt install failed: %s — trying pip", e)
                 # Fallback: pip install websockify
                 try:
                     subprocess.run(
@@ -96,8 +92,9 @@ class GUIRemote:
                         capture_output=True, timeout=30
                     )
                     actions.append("Installed websockify via pip")
-                except Exception as e:
-                    actions.append(f"websockify install failed: {e}")
+                except Exception as e2:
+                    logger.warning("websockify pip install failed: %s", e2)
+                    actions.append(f"websockify install failed: {e2}")
 
         return actions
 
@@ -130,15 +127,19 @@ class GUIRemote:
         os.makedirs(pw_dir, exist_ok=True)
         pw_file = os.path.join(pw_dir, "vnc_passwd")
 
+        # Generate a random password each session
+        self._vnc_password = self._generate_vnc_password()
+
         try:
             proc = subprocess.run(
-                ["x11vnc", "-storepasswd", self.VNC_PASSWORD, pw_file],
+                ["x11vnc", "-storepasswd", self._vnc_password, pw_file],
                 capture_output=True, timeout=5
             )
             if proc.returncode == 0:
+                os.chmod(pw_file, 0o600)  # owner-only
                 return pw_file
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to create VNC password file: %s", e)
         return ""
 
     def start(self) -> dict:
@@ -150,6 +151,7 @@ class GUIRemote:
                 "success": bool,
                 "url": str,            # browser URL
                 "vnc_url": str,        # raw VNC address
+                "vnc_password": str,   # generated password for this session
                 "actions": [str],      # setup steps taken
                 "errors": [str],
             }
@@ -159,6 +161,7 @@ class GUIRemote:
                 "success": True,
                 "url": self.url,
                 "vnc_url": self.vnc_url,
+                "vnc_password": self._vnc_password,
                 "actions": ["Already running"],
                 "errors": [],
             }
@@ -184,7 +187,9 @@ class GUIRemote:
         # 3. Create VNC password
         pw_file = self._create_vnc_password()
         if pw_file:
-            actions.append("VNC password configured")
+            actions.append(f"VNC password configured (password: {self._vnc_password})")
+        else:
+            actions.append("VNC running without password (password file creation failed)")
 
         # 4. Open firewall ports
         for port in [self.VNC_PORT, self.WEB_PORT]:
@@ -271,11 +276,12 @@ class GUIRemote:
         # Verify
         if not errors or (self._vnc_proc and self._vnc_proc.poll() is None):
             self.running = True
-            logger.info("GUI Remote active: %s", self.url)
+            logger.info("GUI Remote active: %s (password: %s)", self.url, self._vnc_password)
             return {
                 "success": True,
                 "url": self.url,
                 "vnc_url": self.vnc_url,
+                "vnc_password": self._vnc_password,
                 "actions": actions,
                 "errors": errors,
             }
@@ -285,6 +291,7 @@ class GUIRemote:
                 "success": False,
                 "url": "",
                 "vnc_url": "",
+                "vnc_password": "",
                 "actions": actions,
                 "errors": errors,
             }
@@ -346,6 +353,7 @@ class GUIRemote:
         self._vnc_proc = None
         self._novnc_proc = None
         self.running = False
+        self._vnc_password = ""
         logger.info("GUI Remote stopped.")
 
     def is_running(self) -> bool:
