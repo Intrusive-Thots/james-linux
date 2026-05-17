@@ -29,14 +29,27 @@ def ensure_tls_certs(cert_path: str, key_path: str) -> bool:
     CERTS_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
-        subprocess.run([
-            "openssl", "req", "-x509", "-newkey", "rsa:2048",
-            "-keyout", str(key),
-            "-out", str(cert),
-            "-days", "365",
-            "-nodes",
-            "-subj", "/CN=james-agent/O=JAMES/C=US",
-        ], check=True, capture_output=True, text=True)
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-keyout",
+                str(key),
+                "-out",
+                str(cert),
+                "-days",
+                "365",
+                "-nodes",
+                "-subj",
+                "/CN=james-agent/O=JAMES/C=US",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
         # restrict permissions
         key.chmod(0o600)

@@ -20,7 +20,9 @@ SERVICE_PATH = f"/etc/systemd/system/{SERVICE_NAME}.service"
 def generate_unit_file() -> str:
     """Generate the systemd unit file content."""
     python = sys.executable
-    main_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'main.py'))
+    main_py = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "main.py")
+    )
     work_dir = os.path.dirname(main_py)
     user = os.environ.get("USER", "root")
 

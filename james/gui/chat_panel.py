@@ -9,9 +9,20 @@ clickable suggestion chips, and an animated thinking indicator.
 import re
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
-    QPushButton, QLabel, QScrollArea, QFrame, QSizePolicy,
-    QApplication, QCompleter, QListWidget, QListWidgetItem,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTextEdit,
+    QLineEdit,
+    QPushButton,
+    QLabel,
+    QScrollArea,
+    QFrame,
+    QSizePolicy,
+    QApplication,
+    QCompleter,
+    QListWidget,
+    QListWidgetItem,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer
 from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextBlockFormat
@@ -19,58 +30,97 @@ from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextBlockFormat
 from james.core.agent import Agent
 from james.core.orchestrator import Orchestrator
 
-
 # ── suggestion chip definitions ──────────────────────────────────
 
 _CONTEXT_CHIPS = {
     # After a scan result
-    "recon": ["full scan {target}", "run skill vuln_scan", "osint {target}", "network dominate {target}"],
-    "quick_recon": ["full scan {target}", "run skill vuln_scan", "os detect {target}"],
-    "full_scan": ["osint {target}", "web pwn {target}", "network dominate {target}"],
+    "recon": [
+        "full scan {target}",
+        "run skill vuln_scan",
+        "osint {target}",
+        "network dominate {target}",
+    ],
+    "quick_recon": [
+        "full scan {target}",
+        "run skill vuln_scan",
+        "os detect {target}",
+    ],
+    "full_scan": [
+        "osint {target}",
+        "web pwn {target}",
+        "network dominate {target}",
+    ],
     "masscan": ["scan {target}", "network dominate {target}"],
     "os_detect": ["stealth recon {target}", "run skill vuln_scan"],
-
     # After interface list
-    "list_interfaces": ["enable monitor {interface}", "run skill wifi_audit", "wifi blitz {interface}"],
-
+    "list_interfaces": [
+        "enable monitor {interface}",
+        "run skill wifi_audit",
+        "wifi blitz {interface}",
+    ],
     # After monitor on
-    "monitor_on": ["run skill handshake_harvest", "wifi blitz {interface}", "scan aps", "kill james"],
-    "scan_aps": ["wifi blitz {interface}", "capture handshake on {interface}", "kill james"],
-
+    "monitor_on": [
+        "run skill handshake_harvest",
+        "wifi blitz {interface}",
+        "scan aps",
+        "kill james",
+    ],
+    "scan_aps": [
+        "wifi blitz {interface}",
+        "capture handshake on {interface}",
+        "kill james",
+    ],
     # After web commands
-    "web_scan": ["web pwn {target}", "run skill full_web_audit", "sqlmap {target}", "gobuster {target}"],
+    "web_scan": [
+        "web pwn {target}",
+        "run skill full_web_audit",
+        "sqlmap {target}",
+        "gobuster {target}",
+    ],
     "nikto_scan": ["gobuster {target}", "sqlmap {target}", "web pwn {target}"],
     "dir_brute": ["web pwn {target}", "nikto {target}", "sqlmap {target}"],
     "waf_detect": ["web pwn {target}", "stealth recon {target}"],
     "sqli": ["web pwn {target}"],
     "oneclick_web_pwn": ["run skill full_web_audit", "status"],
-
     # After discovery
-    "arp_discover": ["scan {target}", "smb enum {target}", "full scan {target}"],
-    "smb_enum": ["brute {target} smb", "full scan {target}", "network dominate {target}"],
+    "arp_discover": [
+        "scan {target}",
+        "smb enum {target}",
+        "full scan {target}",
+    ],
+    "smb_enum": [
+        "brute {target} smb",
+        "full scan {target}",
+        "network dominate {target}",
+    ],
     "dns_lookup": ["osint {target}", "whois {target}", "dns enum {target}"],
-
     # After wifi attack
     "deauth": ["capture handshake on {interface}", "scan aps"],
     "oneclick_wifi_blitz": ["show loot", "scan aps", "kill james"],
     "autopwn": ["show loot", "kill james"],
     "crack_wpa": ["show loot"],
-
     # After WPS/WEP/WPA3/IoT
     "wash_scan": ["wps brute {target}", "run skill wps_pixie", "scan aps"],
     "wep_attack": ["show loot", "scan aps", "kill james"],
     "wps_brute": ["show loot", "wash", "kill james"],
-    "wpa3_check": ["wpa3 downgrade {target}", "scan aps", "capture handshake on {interface}"],
+    "wpa3_check": [
+        "wpa3 downgrade {target}",
+        "scan aps",
+        "capture handshake on {interface}",
+    ],
     "wpa3_downgrade": ["crack wpa", "show loot", "scan aps"],
     "iot_scan": ["mqtt scan {target}", "ble scan", "brute {target}"],
     "ble_scan": ["iot scan {target}", "scan aps"],
     "mqtt_scan": ["iot scan {target}", "brute {target}"],
-
     # After brute/exploit
     "brute": ["full scan {target}", "show loot", "smb enum {target}"],
-
     # After system/info commands
-    "system_check": ["list skills", "list interfaces", "list wordlists", "arp scan"],
+    "system_check": [
+        "list skills",
+        "list interfaces",
+        "list wordlists",
+        "arp scan",
+    ],
     "list_skills": ["run skill full_recon", "run skill wifi_audit", "help"],
     "list_wordlists": ["list skills", "status"],
     "show_primer": ["net guard", "list skills", "help"],
@@ -78,7 +128,6 @@ _CONTEXT_CHIPS = {
     "show_loot": ["report", "status"],
     "remote_access": ["status", "list interfaces", "report"],
     "help": ["status", "list skills", "list interfaces", "wash", "ble scan"],
-
     # Default
     "default": ["status", "list skills", "help", "show loot", "arp scan"],
 }
@@ -86,7 +135,8 @@ _CONTEXT_CHIPS = {
 
 class AgentWorker(QThread):
     """Run agent.process() off the GUI thread."""
-    result_ready = pyqtSignal(str, str)   # (response, intent)
+
+    result_ready = pyqtSignal(str, str)  # (response, intent)
     error = pyqtSignal(str)
 
     def __init__(self, agent: Agent, user_input: str):
@@ -154,7 +204,9 @@ class SuggestionBar(QWidget):
                 }
             """)
             final_cmd = cmd
-            btn.clicked.connect(lambda _, c=final_cmd: self.command_selected.emit(c))
+            btn.clicked.connect(
+                lambda _, c=final_cmd: self.command_selected.emit(c)
+            )
             self._layout.insertWidget(self._layout.count() - 1, btn)
             self._buttons.append(btn)
 
@@ -228,7 +280,11 @@ class ChatPanel(QWidget):
         self._ctx_target_lbl = QLabel("🎯 —")
         self._ctx_iface_lbl = QLabel("📡 —")
         self._ctx_ap_lbl = QLabel("📶 —")
-        for lbl in (self._ctx_target_lbl, self._ctx_iface_lbl, self._ctx_ap_lbl):
+        for lbl in (
+            self._ctx_target_lbl,
+            self._ctx_iface_lbl,
+            self._ctx_ap_lbl,
+        ):
             lbl.setStyleSheet(
                 "color: #3a5a7a; font-size: 10px; font-family: 'JetBrains Mono'; "
                 "background: transparent;"
@@ -312,7 +368,9 @@ class ChatPanel(QWidget):
         bar_layout.addWidget(prompt_label)
 
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Talk to JAMES… or just click buttons above ☝")
+        self.input_field.setPlaceholderText(
+            "Talk to JAMES… or just click buttons above ☝"
+        )
         self.input_field.setStyleSheet("""
             QLineEdit {
                 background-color: transparent;
@@ -327,22 +385,69 @@ class ChatPanel(QWidget):
 
         # ── autocomplete on the input field ─────────────────────
         _ALL_COMMANDS = [
-            "status", "help", "list interfaces", "list skills", "list wordlists",
-            "scan aps", "arp scan", "show loot", "report", "kill james",
-            "enable monitor", "disable monitor", "wifi blitz", "autopwn",
-            "wash", "wps scan", "wps brute", "wep attack", "ble scan",
-            "bluetooth scan", "mqtt scan", "iot scan", "wpa3 check",
-            "wpa3 downgrade", "scan", "full scan", "quick scan", "os detect",
-            "masscan", "stealth recon", "nikto", "gobuster", "sqlmap",
-            "ssl scan", "waf detect", "web pwn", "smb enum", "dns lookup",
-            "dns enum", "whois", "osint", "brute", "mitm", "responder",
-            "sniff", "net guard", "network dominate", "reverse shell",
-            "enable remote", "run skill", "clear", "reboot",
-            "capture handshake on", "deauth", "crack wpa",
-            "run skill wifi_audit", "run skill full_recon",
-            "run skill handshake_harvest", "run skill pmkid_attack",
-            "run skill wps_pixie", "run skill wep_full_crack",
-            "run skill iot_recon", "run skill wpa3_assessment",
+            "status",
+            "help",
+            "list interfaces",
+            "list skills",
+            "list wordlists",
+            "scan aps",
+            "arp scan",
+            "show loot",
+            "report",
+            "kill james",
+            "enable monitor",
+            "disable monitor",
+            "wifi blitz",
+            "autopwn",
+            "wash",
+            "wps scan",
+            "wps brute",
+            "wep attack",
+            "ble scan",
+            "bluetooth scan",
+            "mqtt scan",
+            "iot scan",
+            "wpa3 check",
+            "wpa3 downgrade",
+            "scan",
+            "full scan",
+            "quick scan",
+            "os detect",
+            "masscan",
+            "stealth recon",
+            "nikto",
+            "gobuster",
+            "sqlmap",
+            "ssl scan",
+            "waf detect",
+            "web pwn",
+            "smb enum",
+            "dns lookup",
+            "dns enum",
+            "whois",
+            "osint",
+            "brute",
+            "mitm",
+            "responder",
+            "sniff",
+            "net guard",
+            "network dominate",
+            "reverse shell",
+            "enable remote",
+            "run skill",
+            "clear",
+            "reboot",
+            "capture handshake on",
+            "deauth",
+            "crack wpa",
+            "run skill wifi_audit",
+            "run skill full_recon",
+            "run skill handshake_harvest",
+            "run skill pmkid_attack",
+            "run skill wps_pixie",
+            "run skill wep_full_crack",
+            "run skill iot_recon",
+            "run skill wpa3_assessment",
             "run skill wifi_full_protocol_audit",
         ]
         completer = QCompleter(_ALL_COMMANDS, self)
@@ -400,36 +505,38 @@ class ChatPanel(QWidget):
     def _append_user_msg(self, text: str):
         html = (
             '<div style="margin: 10px 0 10px 60px; padding: 12px 16px; '
-            'background-color: #0d2137; '
+            "background-color: #0d2137; "
             'border-left: 3px solid #00f0ff; border-radius: 8px;">'
             f'<span style="color: #00f0ff; font-weight: bold; font-size: 11px; letter-spacing: 1px;">YOU ❯</span> '
             f'<span style="color: #e8f0f8;">{_escape(text)}</span>'
-            '</div>'
+            "</div>"
         )
         self.chat_log.append(html)
 
     def _append_agent_msg(self, text: str):
-        formatted = _escape(text).replace('\n', '<br>').replace('  ', '&nbsp;&nbsp;')
+        formatted = (
+            _escape(text).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
+        )
         html = (
             '<div style="margin: 10px 40px 10px 0; padding: 14px 16px; '
-            'background-color: #081018; '
+            "background-color: #081018; "
             'border-left: 3px solid #00ff88; border-radius: 8px;">'
             f'<span style="color: #00ff88; font-weight: bold; font-size: 11px; letter-spacing: 1px;">JAMES ⚡</span><br>'
             f'<span style="color: #c8d6e5; line-height: 1.7;">{formatted}</span>'
-            '</div>'
+            "</div>"
         )
         self.chat_log.append(html)
         self.chat_log.moveCursor(QTextCursor.End)
 
     def _append_error_msg(self, text: str):
-        formatted = _escape(text).replace('\n', '<br>')
+        formatted = _escape(text).replace("\n", "<br>")
         html = (
             '<div style="margin: 10px 40px 10px 0; padding: 14px 16px; '
-            'background-color: #120808; '
+            "background-color: #120808; "
             'border-left: 3px solid #ff4757; border-radius: 8px;">'
             f'<span style="color: #ff4757; font-weight: bold; font-size: 11px; letter-spacing: 1px;">ERROR ✕</span><br>'
             f'<span style="color: #e8a0a0; line-height: 1.7;">{formatted}</span>'
-            '</div>'
+            "</div>"
         )
         self.chat_log.append(html)
         self.chat_log.moveCursor(QTextCursor.End)
@@ -446,7 +553,7 @@ class ChatPanel(QWidget):
         self._thinking_cursor_pos = self.chat_log.document().blockCount()
         html = (
             '<div id="thinking" style="margin: 8px 40px 8px 0; padding: 12px 16px; '
-            'color: #3a5a7a; font-style: italic; border-left: 3px solid #1a2940; '
+            "color: #3a5a7a; font-style: italic; border-left: 3px solid #1a2940; "
             'border-radius: 8px; background-color: #0a0f18;">'
             '⏳ JAMES is thinking<span id="dots">&nbsp;•</span></div>'
         )
@@ -472,7 +579,10 @@ class ChatPanel(QWidget):
             # Simple strategy: find the block with the thinking text and remove it
             for i in range(total_blocks - 1, -1, -1):
                 block = doc.findBlockByNumber(i)
-                if "thinking" in block.text().lower() or "is thinking" in block.text():
+                if (
+                    "thinking" in block.text().lower()
+                    or "is thinking" in block.text()
+                ):
                     cursor = QTextCursor(block)
                     cursor.select(QTextCursor.BlockUnderCursor)
                     cursor.removeSelectedText()
@@ -487,7 +597,9 @@ class ChatPanel(QWidget):
         self._dot_count = (self._dot_count + 1) % 4
         # We can't easily animate inside QTextEdit HTML; update the last line text
         doc = self.chat_log.document()
-        for i in range(doc.blockCount() - 1, max(doc.blockCount() - 5, -1), -1):
+        for i in range(
+            doc.blockCount() - 1, max(doc.blockCount() - 5, -1), -1
+        ):
             block = doc.findBlockByNumber(i)
             text = block.text()
             if "is thinking" in text:
@@ -496,7 +608,7 @@ class ChatPanel(QWidget):
                 cursor.select(QTextCursor.BlockUnderCursor)
                 new_html = (
                     '<div style="margin: 8px 40px 8px 0; padding: 12px 16px; '
-                    'color: #3a5a7a; font-style: italic; border-left: 3px solid #1a2940; '
+                    "color: #3a5a7a; font-style: italic; border-left: 3px solid #1a2940; "
                     f'border-radius: 8px; background-color: #0a0f18;">⏳ JAMES is thinking{dots}</div>'
                 )
                 cursor.insertHtml(new_html)
@@ -561,9 +673,11 @@ class ChatPanel(QWidget):
         self._ctx_ap_lbl.setText(f"📶 {ap}")
 
         # Colorize when values are set
-        for lbl, val in [(self._ctx_target_lbl, target),
-                         (self._ctx_iface_lbl, iface),
-                         (self._ctx_ap_lbl, ap)]:
+        for lbl, val in [
+            (self._ctx_target_lbl, target),
+            (self._ctx_iface_lbl, iface),
+            (self._ctx_ap_lbl, ap),
+        ]:
             if val and val != "—":
                 lbl.setStyleSheet(
                     "color: #00f0ff; font-size: 10px; font-family: 'JetBrains Mono'; "
@@ -645,7 +759,7 @@ class ChatPanel(QWidget):
         # Show default suggestion chips
         self.suggestion_bar.set_chips(
             ["status", "list interfaces", "show loot", "list skills", "help"],
-            {}
+            {},
         )
 
     # ── keyboard navigation ─────────────────────────────────────
@@ -670,8 +784,9 @@ class ChatPanel(QWidget):
 
 def _escape(text: str) -> str:
     """Escape HTML special characters."""
-    return (text
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;"))
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )

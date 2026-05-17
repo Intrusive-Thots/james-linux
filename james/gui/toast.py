@@ -7,7 +7,7 @@ styling and stacking for multiple simultaneous toasts.
 """
 
 from PyQt5.QtWidgets import QLabel, QWidget, QGraphicsOpacityEffect
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve
+from PyQt5.QtCore import QTimer, QPropertyAnimation, QPoint, QEasingCurve
 from PyQt5.QtGui import QFont
 
 
@@ -43,8 +43,13 @@ class Toast(QLabel):
         },
     }
 
-    def __init__(self, parent: QWidget, message: str, level: str = "info",
-                 duration: int = 3000):
+    def __init__(
+        self,
+        parent: QWidget,
+        message: str,
+        level: str = "info",
+        duration: int = 3000,
+    ):
         super().__init__(parent)
         style = self.STYLES.get(level, self.STYLES["info"])
 
@@ -130,8 +135,9 @@ class Toast(QLabel):
         self._fade_out()
 
 
-def show_toast(parent: QWidget, message: str, level: str = "info",
-               duration: int = 3000):
+def show_toast(
+    parent: QWidget, message: str, level: str = "info", duration: int = 3000
+):
     """
     Show a toast notification.
 

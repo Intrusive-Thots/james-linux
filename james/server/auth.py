@@ -38,6 +38,7 @@ def verify_api_key(api_key: str, hashed: str) -> bool:
 
 # ── Simple JWT (no external jose dependency) ────────────────────
 
+
 def _b64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
@@ -59,7 +60,9 @@ def create_jwt(payload: dict, secret: str, expire_minutes: int = 1440) -> str:
     payload_b64 = _b64url_encode(json.dumps(payload).encode())
     message = f"{header_b64}.{payload_b64}"
 
-    signature = hmac.new(secret.encode(), message.encode(), hashlib.sha256).digest()
+    signature = hmac.new(
+        secret.encode(), message.encode(), hashlib.sha256
+    ).digest()
     sig_b64 = _b64url_encode(signature)
 
     return f"{message}.{sig_b64}"
@@ -73,7 +76,9 @@ def decode_jwt(token: str, secret: str) -> Optional[dict]:
             return None
 
         message = f"{parts[0]}.{parts[1]}"
-        expected_sig = hmac.new(secret.encode(), message.encode(), hashlib.sha256).digest()
+        expected_sig = hmac.new(
+            secret.encode(), message.encode(), hashlib.sha256
+        ).digest()
         actual_sig = _b64url_decode(parts[2])
 
         if not hmac.compare_digest(expected_sig, actual_sig):
@@ -92,6 +97,7 @@ def decode_jwt(token: str, secret: str) -> Optional[dict]:
 
 # ── FastAPI dependency ──────────────────────────────────────────
 
+
 class AuthManager:
     """FastAPI-compatible auth dependency."""
 
@@ -108,10 +114,14 @@ class AuthManager:
             return {"sub": "anonymous"}
 
         if credentials is None:
-            raise HTTPException(status_code=401, detail="Missing authorization token")
+            raise HTTPException(
+                status_code=401, detail="Missing authorization token"
+            )
 
         payload = decode_jwt(credentials.credentials, self.config.jwt_secret)
         if payload is None:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired token"
+            )
 
         return payload

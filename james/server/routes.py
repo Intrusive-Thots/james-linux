@@ -21,45 +21,56 @@ router = APIRouter(prefix="/api")
 
 # ── request/response models ────────────────────────────────────
 
+
 class LoginRequest(BaseModel):
     api_key: str
+
 
 class TokenResponse(BaseModel):
     token: str
     expires_in: int
 
+
 class ChatRequest(BaseModel):
     message: str
 
+
 class ChatResponse(BaseModel):
     response: str
+
 
 class TargetRequest(BaseModel):
     target: str
     ports: Optional[str] = None
 
+
 class MonitorRequest(BaseModel):
     interface: str
     action: str = "enable"  # enable | disable
+
 
 class DeauthRequest(BaseModel):
     interface: str
     bssid: str
     count: int = 10
 
+
 class CrackWpaRequest(BaseModel):
     capture_file: str
     wordlist: str = "/home/malcolm/Desktop/rockyou.txt"
     bssid: Optional[str] = None
+
 
 class CrackHashRequest(BaseModel):
     hash_file: str
     wordlist: str = "/home/malcolm/Desktop/rockyou.txt"
     hash_mode: int = 0
 
+
 class AutoPwnRequest(BaseModel):
     interface: str
     wordlist: str = "/home/malcolm/Desktop/rockyou.txt"
+
 
 class RunSkillRequest(BaseModel):
     name: str
@@ -67,6 +78,7 @@ class RunSkillRequest(BaseModel):
 
 
 # ── route setup (called from app.py with dependencies) ──────────
+
 
 def setup_routes(
     app_router: APIRouter,
@@ -83,14 +95,22 @@ def setup_routes(
     async def login(req: LoginRequest):
         if not config.api_key:
             # no auth configured, return token anyway
-            token = create_jwt({"sub": "user"}, config.jwt_secret, config.jwt_expire_minutes)
-            return TokenResponse(token=token, expires_in=config.jwt_expire_minutes * 60)
+            token = create_jwt(
+                {"sub": "user"}, config.jwt_secret, config.jwt_expire_minutes
+            )
+            return TokenResponse(
+                token=token, expires_in=config.jwt_expire_minutes * 60
+            )
 
         if not verify_api_key(req.api_key, config.api_key):
             raise HTTPException(status_code=401, detail="Invalid API key")
 
-        token = create_jwt({"sub": "user"}, config.jwt_secret, config.jwt_expire_minutes)
-        return TokenResponse(token=token, expires_in=config.jwt_expire_minutes * 60)
+        token = create_jwt(
+            {"sub": "user"}, config.jwt_secret, config.jwt_expire_minutes
+        )
+        return TokenResponse(
+            token=token, expires_in=config.jwt_expire_minutes * 60
+        )
 
     # ── Agent Chat ──────────────────────────────────────────────
 
@@ -160,13 +180,16 @@ def setup_routes(
     @app_router.post("/wifi/autopwn")
     async def wifi_autopwn(req: AutoPwnRequest, user=Depends(auth)):
         import threading
+
         result_holder = {}
         error_holder = {}
         done_event = threading.Event()
 
         def _run():
             try:
-                result_holder["data"] = orchestrator.auto_wifi_pwn(req.interface, req.wordlist)
+                result_holder["data"] = orchestrator.auto_wifi_pwn(
+                    req.interface, req.wordlist
+                )
             except Exception as e:
                 error_holder["error"] = str(e)
             done_event.set()
@@ -174,7 +197,10 @@ def setup_routes(
         t = threading.Thread(target=_run, daemon=True)
         t.start()
         # For now return immediately; the client can poll /api/log for progress
-        return {"status": "started", "message": f"AutoPwn initiated on {req.interface}"}
+        return {
+            "status": "started",
+            "message": f"AutoPwn initiated on {req.interface}",
+        }
 
     # ── Log & Skills ────────────────────────────────────────────
 
@@ -188,7 +214,9 @@ def setup_routes(
         skills = []
         for name in names:
             data = orchestrator.load_skill(name)
-            skills.append({"name": name, "description": data.get("description", "")})
+            skills.append(
+                {"name": name, "description": data.get("description", "")}
+            )
         return skills
 
     @app_router.get("/skills/{name}")
@@ -201,13 +229,14 @@ def setup_routes(
     @app_router.post("/skills/run")
     async def run_skill(req: RunSkillRequest, user=Depends(auth)):
         import threading
+
         skill = orchestrator.load_skill(req.name)
         if "error" in skill:
             raise HTTPException(status_code=404, detail=skill["error"])
         t = threading.Thread(
             target=orchestrator.execute_skill_steps,
             args=(skill, req.context),
-            daemon=True
+            daemon=True,
         )
         t.start()
         return {"status": "started", "skill": req.name}

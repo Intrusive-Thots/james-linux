@@ -11,7 +11,7 @@ import shlex
 import os
 import signal
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CommandResult:
     """Structured result from a command execution."""
+
     command: str
     returncode: int
     stdout: str
@@ -62,7 +63,11 @@ class NativeLayer:
         current_path = os.environ.get("PATH", "")
         for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
             if sbin_path not in current_path:
-                current_path = f"{sbin_path}:{current_path}" if current_path else sbin_path
+                current_path = (
+                    f"{sbin_path}:{current_path}"
+                    if current_path
+                    else sbin_path
+                )
         os.environ["PATH"] = current_path
 
     def set_sudo_password(self, password: str):
@@ -93,14 +98,18 @@ class NativeLayer:
             on_output: Optional callback invoked with each stdout line in
                        real-time (useful for streaming nmap / airodump output).
         """
-        effective_timeout = timeout if timeout is not None else self.default_timeout
+        effective_timeout = (
+            timeout if timeout is not None else self.default_timeout
+        )
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
 
         logger.info("exec → %s  (timeout=%ss)", cmd, effective_timeout)
 
         if on_output:
-            return self._run_streaming(cmd, effective_timeout, cwd, merged_env, on_output)
+            return self._run_streaming(
+                cmd, effective_timeout, cwd, merged_env, on_output
+            )
         return self._run_blocking(cmd, effective_timeout, cwd, merged_env)
 
     def run_background(
@@ -175,7 +184,9 @@ class NativeLayer:
         """Always escalate to root via sudo with password piped in."""
         if self._is_root:
             return command
-        password = self._sudo_pass or 'malcolm'  # fallback for backwards compat
+        password = (
+            self._sudo_pass or "malcolm"
+        )  # fallback for backwards compat
         return f"echo {shlex.quote(password)} | sudo -S {command}"
 
     def _run_blocking(self, cmd, timeout, cwd, env) -> CommandResult:
@@ -198,10 +209,16 @@ class NativeLayer:
         except subprocess.TimeoutExpired:
             logger.warning("Command timed out after %ss: %s", timeout, cmd)
             return CommandResult(
-                command=cmd, returncode=-1, stdout="", stderr="", timed_out=True
+                command=cmd,
+                returncode=-1,
+                stdout="",
+                stderr="",
+                timed_out=True,
             )
 
-    def _run_streaming(self, cmd, timeout, cwd, env, on_output) -> CommandResult:
+    def _run_streaming(
+        self, cmd, timeout, cwd, env, on_output
+    ) -> CommandResult:
         stdout_lines = []
         stderr_text = ""
         proc = subprocess.Popen(

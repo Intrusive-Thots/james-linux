@@ -56,7 +56,9 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def websocket_endpoint(ws: WebSocket, agent: Agent, jwt_secret: str, api_key_set: bool):
+async def websocket_endpoint(
+    ws: WebSocket, agent: Agent, jwt_secret: str, api_key_set: bool
+):
     """
     WebSocket handler.
 
@@ -91,10 +93,13 @@ async def websocket_endpoint(ws: WebSocket, agent: Agent, jwt_secret: str, api_k
                         None, agent.process, message
                     )
 
-                    await manager.send(ws, {
-                        "type": "chat_response",
-                        "message": response,
-                    })
+                    await manager.send(
+                        ws,
+                        {
+                            "type": "chat_response",
+                            "message": response,
+                        },
+                    )
 
             elif msg_type == "ping":
                 await manager.send(ws, {"type": "pong"})
@@ -107,12 +112,15 @@ async def websocket_endpoint(ws: WebSocket, agent: Agent, jwt_secret: str, api_k
                         None,
                         lambda: agent.orch.layer.run(cmd, timeout=60),
                     )
-                    await manager.send(ws, {
-                        "type": "shell_response",
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "returncode": result.returncode,
-                    })
+                    await manager.send(
+                        ws,
+                        {
+                            "type": "shell_response",
+                            "stdout": result.stdout,
+                            "stderr": result.stderr,
+                            "returncode": result.returncode,
+                        },
+                    )
 
     except WebSocketDisconnect:
         manager.disconnect(ws)
@@ -126,15 +134,19 @@ def get_task_update_callback(loop: asyncio.AbstractEventLoop):
     Return a callback the Orchestrator can use to push task updates
     to all connected WebSocket clients.
     """
+
     def callback(entry):
         try:
             asyncio.run_coroutine_threadsafe(
-                manager.broadcast({
-                    "type": "task_update",
-                    "data": entry.as_dict(),
-                }),
+                manager.broadcast(
+                    {
+                        "type": "task_update",
+                        "data": entry.as_dict(),
+                    }
+                ),
                 loop,
             )
         except Exception:
             pass
+
     return callback

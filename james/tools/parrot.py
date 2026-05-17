@@ -39,7 +39,11 @@ class Nmap:
         cmd = f"nmap {flags} {port_arg} -oX - {shlex.quote(target)}"
         result = self.layer.run(cmd, sudo=sudo, timeout=timeout)
         if not result.success:
-            return {"error": result.stderr, "raw": result.stdout, "command": cmd}
+            return {
+                "error": result.stderr,
+                "raw": result.stdout,
+                "command": cmd,
+            }
         return self._parse_xml(result.stdout, cmd)
 
     def quick_scan(self, target: str, sudo: bool = False) -> dict:
@@ -55,15 +59,27 @@ class Nmap:
         try:
             root = ET.fromstring(xml_str)
         except ET.ParseError:
-            return {"error": "Failed to parse nmap XML", "raw": xml_str, "command": cmd}
+            return {
+                "error": "Failed to parse nmap XML",
+                "raw": xml_str,
+                "command": cmd,
+            }
 
         hosts = []
         for host_el in root.findall("host"):
             addr_el = host_el.find("address")
-            address = addr_el.get("addr", "unknown") if addr_el is not None else "unknown"
+            address = (
+                addr_el.get("addr", "unknown")
+                if addr_el is not None
+                else "unknown"
+            )
 
             status_el = host_el.find("status")
-            state = status_el.get("state", "unknown") if status_el is not None else "unknown"
+            state = (
+                status_el.get("state", "unknown")
+                if status_el is not None
+                else "unknown"
+            )
 
             ports_list = []
             ports_el = host_el.find("ports")
@@ -71,29 +87,45 @@ class Nmap:
                 for port_el in ports_el.findall("port"):
                     svc = port_el.find("service")
                     state_el = port_el.find("state")
-                    ports_list.append({
-                        "port": int(port_el.get("portid", 0)),
-                        "protocol": port_el.get("protocol", ""),
-                        "state": state_el.get("state", "") if state_el is not None else "",
-                        "service": svc.get("name", "") if svc is not None else "",
-                        "version": svc.get("product", "") if svc is not None else "",
-                    })
+                    ports_list.append(
+                        {
+                            "port": int(port_el.get("portid", 0)),
+                            "protocol": port_el.get("protocol", ""),
+                            "state": (
+                                state_el.get("state", "")
+                                if state_el is not None
+                                else ""
+                            ),
+                            "service": (
+                                svc.get("name", "") if svc is not None else ""
+                            ),
+                            "version": (
+                                svc.get("product", "")
+                                if svc is not None
+                                else ""
+                            ),
+                        }
+                    )
 
             os_matches = []
             os_el = host_el.find("os")
             if os_el is not None:
                 for match in os_el.findall("osmatch"):
-                    os_matches.append({
-                        "name": match.get("name", ""),
-                        "accuracy": match.get("accuracy", ""),
-                    })
+                    os_matches.append(
+                        {
+                            "name": match.get("name", ""),
+                            "accuracy": match.get("accuracy", ""),
+                        }
+                    )
 
-            hosts.append({
-                "address": address,
-                "state": state,
-                "ports": ports_list,
-                "os_matches": os_matches,
-            })
+            hosts.append(
+                {
+                    "address": address,
+                    "state": state,
+                    "ports": ports_list,
+                    "os_matches": os_matches,
+                }
+            )
 
         return {"command": cmd, "hosts": hosts}
 
@@ -133,11 +165,15 @@ class AircrackSuite:
 
     def enable_monitor(self, interface: str) -> CommandResult:
         """Put an interface into monitor mode via airmon-ng."""
-        return self.layer.run(f"airmon-ng start {interface}", sudo=True, timeout=30)
+        return self.layer.run(
+            f"airmon-ng start {interface}", sudo=True, timeout=30
+        )
 
     def disable_monitor(self, interface: str) -> CommandResult:
         """Restore managed mode via airmon-ng."""
-        return self.layer.run(f"airmon-ng stop {interface}", sudo=True, timeout=30)
+        return self.layer.run(
+            f"airmon-ng stop {interface}", sudo=True, timeout=30
+        )
 
     def check_kill(self) -> CommandResult:
         """Kill processes that might interfere with monitor mode."""
@@ -174,51 +210,57 @@ class AircrackSuite:
         """Parse the airodump-ng CSV format and return APs and Stations."""
         aps = []
         stations = []
-        section = 0  
-        
+        section = 0
+
         import logging
+
         logger = logging.getLogger(__name__)
-        
+
         for line in csv_content.splitlines():
             line = line.strip()
             if not line:
                 continue
-                
+
             if line.startswith("BSSID,"):
                 section = 1
                 continue
             elif line.startswith("Station MAC,"):
                 section = 3
                 continue
-                
+
             try:
-                parts = [p.strip() for p in line.split(',')]
+                parts = [p.strip() for p in line.split(",")]
                 if section == 1 and len(parts) >= 14:
                     bssid = parts[0]
                     try:
                         power = int(parts[8])
                     except ValueError:
                         power = -100
-                    
-                    aps.append({
-                        "bssid": bssid,
-                        "channel": parts[3],
-                        "privacy": parts[5],
-                        "power": power,
-                        "essid": parts[13] if len(parts) > 13 else ""
-                    })
+
+                    aps.append(
+                        {
+                            "bssid": bssid,
+                            "channel": parts[3],
+                            "privacy": parts[5],
+                            "power": power,
+                            "essid": parts[13] if len(parts) > 13 else "",
+                        }
+                    )
                 elif section == 3 and len(parts) >= 6:
                     station_mac = parts[0]
                     bssid = parts[5]
                     # Ignore unassociated clients
                     if bssid and bssid != "(not associated)":
-                        stations.append({
-                            "station_mac": station_mac,
-                            "bssid": bssid
-                        })
+                        stations.append(
+                            {"station_mac": station_mac, "bssid": bssid}
+                        )
             except Exception as e:
-                logger.debug("Failed to parse airodump CSV line: '%s'. Error: %s", line, e)
-                
+                logger.debug(
+                    "Failed to parse airodump CSV line: '%s'. Error: %s",
+                    line,
+                    e,
+                )
+
         return {"aps": aps, "stations": stations}
 
     # ── attacks ─────────────────────────────────────────────────
@@ -273,13 +315,20 @@ class AircrackSuite:
 
     def check_handshake(self, capture_file: str, bssid: str) -> bool:
         """Check if a valid handshake exists in the capture file."""
-        cmd = f"aircrack-ng -b {shlex.quote(bssid)} {shlex.quote(capture_file)}"
+        cmd = (
+            f"aircrack-ng -b {shlex.quote(bssid)} {shlex.quote(capture_file)}"
+        )
         result = self.layer.run(cmd, timeout=10)
-        return "1 handshake" in result.stdout or "WPA (1 handshake)" in result.stdout
+        return (
+            "1 handshake" in result.stdout
+            or "WPA (1 handshake)" in result.stdout
+        )
 
     # ── WEP attacks ─────────────────────────────────────────────
 
-    def fake_auth(self, interface: str, bssid: str, *, delay: int = 0) -> CommandResult:
+    def fake_auth(
+        self, interface: str, bssid: str, *, delay: int = 0
+    ) -> CommandResult:
         """Perform fake authentication against a WEP AP."""
         cmd = (
             f"aireplay-ng -1 {delay} -e '' -a {shlex.quote(bssid)} "
@@ -288,12 +337,18 @@ class AircrackSuite:
         )
         return self.layer.run(cmd, sudo=True, timeout=30)
 
-    def arp_replay(self, interface: str, bssid: str, *, timeout: int = 300) -> CommandResult:
+    def arp_replay(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> CommandResult:
         """ARP request replay attack to generate IVs for WEP cracking."""
-        cmd = f"aireplay-ng -3 -b {shlex.quote(bssid)} {shlex.quote(interface)}"
+        cmd = (
+            f"aireplay-ng -3 -b {shlex.quote(bssid)} {shlex.quote(interface)}"
+        )
         return self.layer.run(cmd, sudo=True, timeout=timeout)
 
-    def chopchop(self, interface: str, bssid: str, *, timeout: int = 300) -> dict:
+    def chopchop(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> dict:
         """KoreK chopchop attack — decrypt a WEP packet without the key."""
         cmd = (
             f"aireplay-ng -4 -b {shlex.quote(bssid)} "
@@ -302,11 +357,14 @@ class AircrackSuite:
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
         return {
             "command": cmd,
-            "success": "Use packetforge-ng" in result.stdout or result.returncode == 0,
+            "success": "Use packetforge-ng" in result.stdout
+            or result.returncode == 0,
             "output": result.stdout[-2000:],
         }
 
-    def fragment_attack(self, interface: str, bssid: str, *, timeout: int = 300) -> dict:
+    def fragment_attack(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> dict:
         """Fragmentation attack — obtain a PRGA keystream from WEP."""
         cmd = (
             f"aireplay-ng -5 -b {shlex.quote(bssid)} "
@@ -315,11 +373,14 @@ class AircrackSuite:
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
         return {
             "command": cmd,
-            "success": "Use packetforge-ng" in result.stdout or result.returncode == 0,
+            "success": "Use packetforge-ng" in result.stdout
+            or result.returncode == 0,
             "output": result.stdout[-2000:],
         }
 
-    def crack_wep(self, capture_file: str, *, bssid: Optional[str] = None) -> dict:
+    def crack_wep(
+        self, capture_file: str, *, bssid: Optional[str] = None
+    ) -> dict:
         """Crack WEP key from captured IVs."""
         bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
         cmd = f"aircrack-ng {bssid_arg} {shlex.quote(capture_file)}"
@@ -342,7 +403,9 @@ class AircrackSuite:
             "output": result.stdout[-2000:],
         }
 
-    def interactive_replay(self, interface: str, bssid: str, *, timeout: int = 120) -> CommandResult:
+    def interactive_replay(
+        self, interface: str, bssid: str, *, timeout: int = 120
+    ) -> CommandResult:
         """Interactive packet selection replay (aireplay-ng -2)."""
         cmd = (
             f"aireplay-ng -2 -b {shlex.quote(bssid)} -F "
@@ -444,14 +507,24 @@ class Masscan:
             data = json.loads("[" + result.stdout.rstrip().rstrip(",") + "]")
             for entry in data:
                 if isinstance(entry, dict):
-                    hosts.append({
-                        "ip": entry.get("ip", ""),
-                        "port": entry.get("ports", [{}])[0].get("port", 0),
-                        "proto": entry.get("ports", [{}])[0].get("proto", ""),
-                        "status": entry.get("ports", [{}])[0].get("status", ""),
-                    })
+                    hosts.append(
+                        {
+                            "ip": entry.get("ip", ""),
+                            "port": entry.get("ports", [{}])[0].get("port", 0),
+                            "proto": entry.get("ports", [{}])[0].get(
+                                "proto", ""
+                            ),
+                            "status": entry.get("ports", [{}])[0].get(
+                                "status", ""
+                            ),
+                        }
+                    )
         except (json.JSONDecodeError, IndexError):
-            return {"error": "Failed to parse masscan output", "raw": result.stdout[-2000:], "command": cmd}
+            return {
+                "error": "Failed to parse masscan output",
+                "raw": result.stdout[-2000:],
+                "command": cmd,
+            }
 
         return {"command": cmd, "hosts": hosts, "count": len(hosts)}
 
@@ -650,19 +723,26 @@ class Reaver:
 
         aps = []
         for line in result.stdout.splitlines():
-            if not line.strip() or line.startswith("Wash") or line.startswith("BSSID") or line.startswith("---"):
+            if (
+                not line.strip()
+                or line.startswith("Wash")
+                or line.startswith("BSSID")
+                or line.startswith("---")
+            ):
                 continue
             parts = line.split()
             if len(parts) >= 6:
                 try:
-                    aps.append({
-                        "bssid": parts[0],
-                        "channel": parts[1],
-                        "rssi": parts[2],
-                        "wps_version": parts[3],
-                        "wps_locked": parts[4].upper() == "YES",
-                        "essid": " ".join(parts[5:]),
-                    })
+                    aps.append(
+                        {
+                            "bssid": parts[0],
+                            "channel": parts[1],
+                            "rssi": parts[2],
+                            "wps_version": parts[3],
+                            "wps_locked": parts[4].upper() == "YES",
+                            "essid": " ".join(parts[5:]),
+                        }
+                    )
                 except (IndexError, ValueError):
                     continue
 
@@ -673,7 +753,9 @@ class Reaver:
             "output": result.stdout[-2000:],
         }
 
-    def pixie_dust(self, interface: str, bssid: str, *, channel: int, timeout: int = 120) -> dict:
+    def pixie_dust(
+        self, interface: str, bssid: str, *, channel: int, timeout: int = 120
+    ) -> dict:
         """Run a WPS Pixie Dust attack using reaver."""
         cmd = f"reaver -i {shlex.quote(interface)} -b {shlex.quote(bssid)} -c {int(channel)} -K 1 -vv"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
@@ -701,8 +783,15 @@ class Reaver:
             "output": result.stdout[-2000:],
         }
 
-    def brute_force(self, interface: str, bssid: str, *, channel: int,
-                    pin_start: str = "", timeout: int = 3600) -> dict:
+    def brute_force(
+        self,
+        interface: str,
+        bssid: str,
+        *,
+        channel: int,
+        pin_start: str = "",
+        timeout: int = 3600,
+    ) -> dict:
         """Full WPS PIN brute-force using reaver (slow, 4-11 hours)."""
         pin_arg = f"-p {shlex.quote(pin_start)}" if pin_start else ""
         cmd = (
@@ -741,8 +830,9 @@ class Reaver:
             "output": result.stdout[-3000:],
         }
 
-    def bully_pixie(self, interface: str, bssid: str, *, channel: int,
-                    timeout: int = 120) -> dict:
+    def bully_pixie(
+        self, interface: str, bssid: str, *, channel: int, timeout: int = 120
+    ) -> dict:
         """Run a WPS Pixie Dust attack using bully (alternative to reaver)."""
         cmd = (
             f"bully {shlex.quote(interface)} -b {shlex.quote(bssid)} "
@@ -773,45 +863,50 @@ class Reaver:
             "output": result.stdout[-2000:],
         }
 
+
 class Hcxtools:
     """Wrapper around hcxdumptool and hcxpcapngtool for clientless PMKID attacks."""
 
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def capture_pmkid(self, interface: str, output_pcapng: str, *, timeout: int = 600) -> dict:
+    def capture_pmkid(
+        self, interface: str, output_pcapng: str, *, timeout: int = 600
+    ) -> dict:
         """Run hcxdumptool to capture PMKID hashes from nearby APs."""
         cmd = f"timeout {int(timeout)} hcxdumptool -i {shlex.quote(interface)} -o {shlex.quote(output_pcapng)} --enable_status=15"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
-        
+
         return {
             "command": cmd,
             "output": result.stdout[-2000:],
-            "stderr": result.stderr[-2000:]
+            "stderr": result.stderr[-2000:],
         }
 
     def extract_hashes(self, pcapng_file: str, output_hash_file: str) -> dict:
         """Extract crackable hashes (hc22000 format) from a pcapng using hcxpcapngtool."""
         cmd = f"hcxpcapngtool -o {shlex.quote(output_hash_file)} {shlex.quote(pcapng_file)}"
         result = self.layer.run(cmd, timeout=30)
-        
+
         pmkid_count = 0
         eapol_count = 0
-        
+
         for line in result.stdout.splitlines():
             if "PMKID(s) written" in line:
                 match = re.search(r"(\d+)\s+PMKID", line)
-                if match: pmkid_count = int(match.group(1))
+                if match:
+                    pmkid_count = int(match.group(1))
             if "EAPOL message pairs written" in line or "EAPOL M1/M2" in line:
                 match = re.search(r"(\d+)\s+EAPOL", line)
-                if match: eapol_count = int(match.group(1))
-                
+                if match:
+                    eapol_count = int(match.group(1))
+
         return {
             "command": cmd,
             "success": pmkid_count > 0 or eapol_count > 0,
             "pmkid_count": pmkid_count,
             "eapol_count": eapol_count,
-            "output": result.stdout
+            "output": result.stdout,
         }
 
 
@@ -849,12 +944,14 @@ class Gobuster:
                 stripped,
             )
             if match:
-                findings.append({
-                    "path": match.group(1),
-                    "status": int(match.group(2)),
-                    "size": int(match.group(3)),
-                    "url": f"{url.rstrip('/')}{match.group(1)}",
-                })
+                findings.append(
+                    {
+                        "path": match.group(1),
+                        "status": int(match.group(2)),
+                        "size": int(match.group(3)),
+                        "url": f"{url.rstrip('/')}{match.group(1)}",
+                    }
+                )
 
         return {
             "command": cmd,
@@ -943,7 +1040,9 @@ class SQLMapWrapper:
             "output": result.stdout[-4000:],
         }
 
-    def dump_db(self, url: str, *, database: Optional[str] = None, timeout: int = 600) -> dict:
+    def dump_db(
+        self, url: str, *, database: Optional[str] = None, timeout: int = 600
+    ) -> dict:
         """Dump a database (if injectable)."""
         parts = [
             f"sqlmap -u {shlex.quote(url)}",
@@ -1015,10 +1114,12 @@ class Hydra:
                 line,
             )
             if match:
-                credentials.append({
-                    "login": match.group(1),
-                    "password": match.group(2),
-                })
+                credentials.append(
+                    {
+                        "login": match.group(1),
+                        "password": match.group(2),
+                    }
+                )
 
         return {
             "command": cmd,
@@ -1111,11 +1212,13 @@ class ArpScanner:
                 line.strip(),
             )
             if match:
-                hosts.append({
-                    "ip": match.group(1),
-                    "mac": match.group(2),
-                    "vendor": match.group(3).strip(),
-                })
+                hosts.append(
+                    {
+                        "ip": match.group(1),
+                        "mac": match.group(2),
+                        "vendor": match.group(3).strip(),
+                    }
+                )
 
         return {
             "command": cmd,
@@ -1142,7 +1245,9 @@ class Enum4LinuxScanner:
 
         for line in result.stdout.splitlines():
             stripped = line.strip()
-            if "Sharename" not in stripped and ("Disk" in stripped or "IPC" in stripped):
+            if "Sharename" not in stripped and (
+                "Disk" in stripped or "IPC" in stripped
+            ):
                 parts = stripped.split()
                 if len(parts) >= 2:
                     shares.append({"name": parts[0], "type": parts[1]})
@@ -1171,7 +1276,9 @@ class DNSEnumerator:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def lookup(self, domain: str, *, record_type: str = "ANY", timeout: int = 15) -> dict:
+    def lookup(
+        self, domain: str, *, record_type: str = "ANY", timeout: int = 15
+    ) -> dict:
         """DNS lookup for a domain."""
         cmd = f"dig {shlex.quote(domain)} {shlex.quote(record_type)} +short"
         result = self.layer.run(cmd, timeout=timeout)
@@ -1183,7 +1290,13 @@ class DNSEnumerator:
             "records": records,
         }
 
-    def zone_transfer(self, domain: str, *, nameserver: Optional[str] = None, timeout: int = 30) -> dict:
+    def zone_transfer(
+        self,
+        domain: str,
+        *,
+        nameserver: Optional[str] = None,
+        timeout: int = 30,
+    ) -> dict:
         """Attempt a DNS zone transfer (AXFR)."""
         if nameserver:
             cmd = f"dig @{shlex.quote(nameserver)} {shlex.quote(domain)} AXFR +short"
@@ -1202,7 +1315,9 @@ class DNSEnumerator:
         """Reverse DNS lookup."""
         cmd = f"dig -x {shlex.quote(ip)} +short"
         result = self.layer.run(cmd, timeout=timeout)
-        hostnames = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        hostnames = [
+            l.strip() for l in result.stdout.splitlines() if l.strip()
+        ]
         return {
             "command": cmd,
             "ip": ip,
@@ -1217,11 +1332,19 @@ class DNSEnumerator:
         info = {}
         for line in result.stdout.splitlines():
             stripped = line.strip()
-            for key in ("Registrar:", "Creation Date:", "Expiration Date:",
-                        "Name Server:", "Organization:", "OrgName:",
-                        "NetRange:", "CIDR:", "Country:"):
+            for key in (
+                "Registrar:",
+                "Creation Date:",
+                "Expiration Date:",
+                "Name Server:",
+                "Organization:",
+                "OrgName:",
+                "NetRange:",
+                "CIDR:",
+                "Country:",
+            ):
                 if stripped.startswith(key):
-                    info[key.rstrip(":")] = stripped[len(key):].strip()
+                    info[key.rstrip(":")] = stripped[len(key) :].strip()
 
         return {
             "command": cmd,
@@ -1237,7 +1360,9 @@ class IoTScanner:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def scan_mqtt(self, target: str, *, port: int = 1883, timeout: int = 15) -> dict:
+    def scan_mqtt(
+        self, target: str, *, port: int = 1883, timeout: int = 15
+    ) -> dict:
         """Probe an MQTT broker for open access and enumerate topics."""
         # Try connecting without auth
         cmd = f"timeout {timeout} mosquitto_sub -h {shlex.quote(target)} -p {port} -t '#' -C 10 -W {timeout}"
@@ -1258,18 +1383,18 @@ class IoTScanner:
         # Use raw SSDP M-SEARCH via Python
         cmd = (
             f'timeout {timeout} python3 -c "'
-            'import socket,struct;'
-            's=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP);'
-            's.settimeout(5);'
-            's.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);'
+            "import socket,struct;"
+            "s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP);"
+            "s.settimeout(5);"
+            "s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);"
             "msg=b'M-SEARCH * HTTP/1.1\\r\\nHOST:239.255.255.250:1900\\r\\nMAN:\\\"ssdp:discover\\\"\\r\\nMX:3\\r\\nST:ssdp:all\\r\\n\\r\\n';"
             "s.sendto(msg,('239.255.255.250',1900));"
-            'r=[]\\n'
-            'try:\\n'
-            ' while True:\\n'
-            '  d,a=s.recvfrom(4096);r.append(f\"{a[0]}: \"+d.decode(errors=\"ignore\").split(chr(10))[0])\\n'
-            'except: pass\\n'
-            "print(chr(10).join(r))\""
+            "r=[]\\n"
+            "try:\\n"
+            " while True:\\n"
+            '  d,a=s.recvfrom(4096);r.append(f"{a[0]}: "+d.decode(errors="ignore").split(chr(10))[0])\\n'
+            "except: pass\\n"
+            'print(chr(10).join(r))"'
         )
         result = self.layer.run(cmd, timeout=timeout + 5)
         devices = [l.strip() for l in result.stdout.splitlines() if l.strip()]
@@ -1286,14 +1411,16 @@ class IoTScanner:
         for line in result.stdout.splitlines():
             parts = line.strip().split(";")
             if len(parts) >= 7 and parts[0] == "=":
-                services.append({
-                    "interface": parts[1],
-                    "name": parts[3],
-                    "type": parts[4],
-                    "host": parts[6],
-                    "ip": parts[7] if len(parts) > 7 else "",
-                    "port": parts[8] if len(parts) > 8 else "",
-                })
+                services.append(
+                    {
+                        "interface": parts[1],
+                        "name": parts[3],
+                        "type": parts[4],
+                        "host": parts[6],
+                        "ip": parts[7] if len(parts) > 7 else "",
+                        "port": parts[8] if len(parts) > 8 else "",
+                    }
+                )
         return {
             "services": services,
             "total": len(services),
@@ -1312,18 +1439,25 @@ class IoTScanner:
             parts = line.strip().split(maxsplit=1)
             if len(parts) >= 1 and ":" in parts[0] and parts[0] not in seen:
                 seen.add(parts[0])
-                devices.append({
-                    "mac": parts[0],
-                    "name": parts[1] if len(parts) > 1 else "(unknown)",
-                })
+                devices.append(
+                    {
+                        "mac": parts[0],
+                        "name": parts[1] if len(parts) > 1 else "(unknown)",
+                    }
+                )
         return {
             "devices": devices,
             "total": len(devices),
             "output": result.stdout[-2000:],
         }
 
-    def banner_grab(self, target: str, ports: str = "21,22,23,80,443,554,1883,5683,8080,8443,8883,49152",
-                    *, timeout: int = 30) -> dict:
+    def banner_grab(
+        self,
+        target: str,
+        ports: str = "21,22,23,80,443,554,1883,5683,8080,8443,8883,49152",
+        *,
+        timeout: int = 30,
+    ) -> dict:
         """Grab banners from common IoT ports to fingerprint firmware."""
         cmd = f"nmap -sV -p {ports} --open -T4 {shlex.quote(target)}"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
@@ -1365,14 +1499,18 @@ class WPA3Attacker:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def check_sae_support(self, interface: str, bssid: str, *, timeout: int = 15) -> dict:
+    def check_sae_support(
+        self, interface: str, bssid: str, *, timeout: int = 15
+    ) -> dict:
         """Check if a target AP supports SAE/WPA3."""
         cmd = f"iw dev {shlex.quote(interface)} scan | grep -A 20 {shlex.quote(bssid)}"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
 
         supports_sae = "SAE" in result.stdout or "WPA3" in result.stdout
         supports_owe = "OWE" in result.stdout
-        transition_mode = "WPA2" in result.stdout and ("SAE" in result.stdout or "WPA3" in result.stdout)
+        transition_mode = "WPA2" in result.stdout and (
+            "SAE" in result.stdout or "WPA3" in result.stdout
+        )
 
         return {
             "command": cmd,
@@ -1383,8 +1521,9 @@ class WPA3Attacker:
             "output": result.stdout[-2000:],
         }
 
-    def downgrade_attack(self, interface: str, bssid: str, *, channel: int,
-                         timeout: int = 120) -> dict:
+    def downgrade_attack(
+        self, interface: str, bssid: str, *, channel: int, timeout: int = 120
+    ) -> dict:
         """
         WPA3 transition mode downgrade attack.
         Force clients to use WPA2 by selectively deauthing WPA3 associations
@@ -1401,6 +1540,7 @@ class WPA3Attacker:
 
         # Step 2: Capture in hopes of WPA2 fallback handshake
         import tempfile
+
         prefix = tempfile.mktemp(dir="/tmp", prefix="wpa3_downgrade_")
         cap_cmd = (
             f"timeout {timeout} airodump-ng -c {channel} --bssid {shlex.quote(bssid)} "
@@ -1413,7 +1553,10 @@ class WPA3Attacker:
         cap_file = f"{prefix}-01.cap"
         has_handshake = False
         try:
-            check = self.layer.run(f"aircrack-ng {cap_file} 2>/dev/null | grep handshake", timeout=10)
+            check = self.layer.run(
+                f"aircrack-ng {cap_file} 2>/dev/null | grep handshake",
+                timeout=10,
+            )
             has_handshake = "handshake" in check.stdout.lower()
         except Exception:
             pass
@@ -1431,7 +1574,7 @@ class WPA3Attacker:
         Sends multiple SAE authentication frames and measures response times.
         """
         cmd = (
-            f"timeout {timeout} python3 -c \""
+            f'timeout {timeout} python3 -c "'
             "import socket,time,struct,sys;"
             "results=[];"
             "for i in range(5):"

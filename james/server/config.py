@@ -18,12 +18,12 @@ CERTS_DIR = JAMES_HOME / "certs"
 _DEFAULTS = {
     "host": "0.0.0.0",
     "port": 8443,
-    "api_key": "",           # set on first run via --setup
+    "api_key": "",  # set on first run via --setup
     "tls_enabled": True,
     "tls_cert": str(CERTS_DIR / "cert.pem"),
     "tls_key": str(CERTS_DIR / "key.pem"),
     "cors_origins": ["*"],
-    "jwt_secret": "",        # auto-generated
+    "jwt_secret": "",  # auto-generated
     "jwt_expire_minutes": 1440,  # 24 hours
 }
 
@@ -75,7 +75,9 @@ def load_config() -> ServerConfig:
     if not data["tls_key"]:
         data["tls_key"] = str(CERTS_DIR / "key.pem")
 
-    return ServerConfig(**{k: data[k] for k in ServerConfig.__dataclass_fields__})
+    return ServerConfig(
+        **{k: data[k] for k in ServerConfig.__dataclass_fields__}
+    )
 
 
 def save_config(cfg: ServerConfig) -> None:

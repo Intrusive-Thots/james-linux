@@ -59,6 +59,7 @@ def _show_already_running_dialog():
     """Show a GUI error dialog when another instance is running."""
     try:
         from PyQt5.QtWidgets import QApplication, QMessageBox
+
         app = QApplication(sys.argv)
         try:
             with open(LOCK_FILE, "r") as f:
@@ -109,7 +110,10 @@ def run_gui():
     from james.gui.main_window import MainWindow
     from james.gui.theme import DARK_STYLESHEET
     from james.gui.setup_wizard import (
-        SetupWizard, should_show_wizard, load_settings, apply_settings_to_env
+        SetupWizard,
+        should_show_wizard,
+        load_settings,
+        apply_settings_to_env,
     )
 
     app = QApplication(sys.argv)
@@ -149,9 +153,15 @@ def run_server():
             logger.warning("TLS cert generation failed — running without TLS")
 
     logger.info("Starting JAMES server on %s:%d", config.host, config.port)
-    print(f"\n⚡ JAMES server running at {'https' if ssl_kwargs else 'http'}://{config.host}:{config.port}")
-    print(f"   API docs: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/docs")
-    print(f"   Dashboard: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/\n")
+    print(
+        f"\n⚡ JAMES server running at {'https' if ssl_kwargs else 'http'}://{config.host}:{config.port}"
+    )
+    print(
+        f"   API docs: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/docs"
+    )
+    print(
+        f"   Dashboard: {'https' if ssl_kwargs else 'http'}://localhost:{config.port}/\n"
+    )
 
     uvicorn.run(
         app,
@@ -196,7 +206,12 @@ def _server_thread():
 
 def run_setup():
     """Interactive setup wizard."""
-    from james.server.config import load_config, save_config, generate_api_key, JAMES_HOME
+    from james.server.config import (
+        load_config,
+        save_config,
+        generate_api_key,
+        JAMES_HOME,
+    )
     from james.server.auth import hash_api_key
     from james.server.tls import ensure_tls_certs
 
@@ -237,13 +252,27 @@ def run_setup():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="JAMES Linux — Autonomous AI Pentesting Agent")
+    parser = argparse.ArgumentParser(
+        description="JAMES Linux — Autonomous AI Pentesting Agent"
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--server", action="store_true", help="Run API server only (headless)")
-    group.add_argument("--both", action="store_true", help="Run GUI + API server")
-    group.add_argument("--setup", action="store_true", help="Interactive setup wizard")
-    group.add_argument("--install-service", action="store_true", help="Install as systemd service")
-    group.add_argument("--remove-service", action="store_true", help="Remove systemd service")
+    group.add_argument(
+        "--server", action="store_true", help="Run API server only (headless)"
+    )
+    group.add_argument(
+        "--both", action="store_true", help="Run GUI + API server"
+    )
+    group.add_argument(
+        "--setup", action="store_true", help="Interactive setup wizard"
+    )
+    group.add_argument(
+        "--install-service",
+        action="store_true",
+        help="Install as systemd service",
+    )
+    group.add_argument(
+        "--remove-service", action="store_true", help="Remove systemd service"
+    )
 
     args = parser.parse_args()
 
@@ -253,17 +282,22 @@ def main():
         return
     if args.install_service:
         from james.server.service import install_service
+
         install_service()
         return
     if args.remove_service:
         from james.server.service import uninstall_service
+
         uninstall_service()
         return
 
     # ── Singleton check ───────────────────────────────────────
     if not acquire_singleton_lock():
         if args.server:
-            print("❌ Another JAMES instance is already running. Exiting.", file=sys.stderr)
+            print(
+                "❌ Another JAMES instance is already running. Exiting.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         else:
             _show_already_running_dialog()
@@ -279,4 +313,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

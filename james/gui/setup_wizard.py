@@ -11,9 +11,19 @@ import os
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFileDialog, QComboBox, QCheckBox,
-    QFrame, QStackedWidget, QWidget, QMessageBox,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QFileDialog,
+    QComboBox,
+    QCheckBox,
+    QFrame,
+    QStackedWidget,
+    QWidget,
+    QMessageBox,
 )
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
@@ -58,6 +68,7 @@ def apply_settings_to_env(settings: dict):
 
 
 # ── wizard dialog ────────────────────────────────────────────────
+
 
 class SetupWizard(QDialog):
     """Multi-step onboarding wizard for first launch."""
@@ -159,12 +170,16 @@ class SetupWizard(QDialog):
         h_lay.setContentsMargins(24, 0, 24, 0)
 
         icon_lbl = QLabel("⚡")
-        icon_lbl.setStyleSheet("font-size: 32px; color: #00f0ff; background: transparent;")
+        icon_lbl.setStyleSheet(
+            "font-size: 32px; color: #00f0ff; background: transparent;"
+        )
         h_lay.addWidget(icon_lbl)
 
         title_col = QVBoxLayout()
         title = QLabel("JAMES Setup")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #00f0ff; letter-spacing: 2px;")
+        title.setStyleSheet(
+            "font-size: 18px; font-weight: bold; color: #00f0ff; letter-spacing: 2px;"
+        )
         subtitle = QLabel("Configure your pentesting environment")
         subtitle.setStyleSheet("color: #3a5a7a; font-size: 11px;")
         title_col.addWidget(title)
@@ -176,7 +191,9 @@ class SetupWizard(QDialog):
         self.step_labels: list[QLabel] = []
         for i in range(3):
             dot = QLabel(f"{'●' if i == 0 else '○'}")
-            dot.setStyleSheet("color: #2a4a5a; font-size: 16px; background: transparent;")
+            dot.setStyleSheet(
+                "color: #2a4a5a; font-size: 16px; background: transparent;"
+            )
             self.step_labels.append(dot)
             h_lay.addWidget(dot)
 
@@ -192,7 +209,9 @@ class SetupWizard(QDialog):
         # ── footer ───────────────────────────────────────────────
         footer = QWidget()
         footer.setFixedHeight(60)
-        footer.setStyleSheet("background: #0b1120; border-top: 1px solid #141e30;")
+        footer.setStyleSheet(
+            "background: #0b1120; border-top: 1px solid #141e30;"
+        )
         f_lay = QHBoxLayout(footer)
         f_lay.setContentsMargins(24, 0, 24, 0)
 
@@ -223,7 +242,9 @@ class SetupWizard(QDialog):
         lay.setSpacing(12)
 
         title = QLabel("Gemini AI Key (Optional)")
-        title.setStyleSheet("font-size: 15px; font-weight: bold; color: #00f0ff;")
+        title.setStyleSheet(
+            "font-size: 15px; font-weight: bold; color: #00f0ff;"
+        )
         lay.addWidget(title)
 
         desc = QLabel(
@@ -232,7 +253,9 @@ class SetupWizard(QDialog):
             "Get a free key at: aistudio.google.com/app/apikey"
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #6a8aaa; font-size: 12px; line-height: 1.6;")
+        desc.setStyleSheet(
+            "color: #6a8aaa; font-size: 12px; line-height: 1.6;"
+        )
         lay.addWidget(desc)
 
         lay.addSpacing(8)
@@ -267,7 +290,9 @@ class SetupWizard(QDialog):
         lay.setSpacing(12)
 
         title = QLabel("Default Wordlist")
-        title.setStyleSheet("font-size: 15px; font-weight: bold; color: #00f0ff;")
+        title.setStyleSheet(
+            "font-size: 15px; font-weight: bold; color: #00f0ff;"
+        )
         lay.addWidget(title)
 
         desc = QLabel(
@@ -276,7 +301,9 @@ class SetupWizard(QDialog):
             "Common paths: /usr/share/wordlists/rockyou.txt"
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #6a8aaa; font-size: 12px; line-height: 1.6;")
+        desc.setStyleSheet(
+            "color: #6a8aaa; font-size: 12px; line-height: 1.6;"
+        )
         lay.addWidget(desc)
 
         lay.addSpacing(8)
@@ -287,9 +314,14 @@ class SetupWizard(QDialog):
 
         row = QHBoxLayout()
         self.wordlist_input = QLineEdit()
-        default_wl = self._settings.get("wordlist", "/home/malcolm/Desktop/rockyou.txt")
+        default_wl = self._settings.get(
+            "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+        )
         # Check common paths
-        for path in ["/usr/share/wordlists/rockyou.txt", "/home/malcolm/Desktop/rockyou.txt"]:
+        for path in [
+            "/usr/share/wordlists/rockyou.txt",
+            "/home/malcolm/Desktop/rockyou.txt",
+        ]:
             if os.path.exists(path):
                 default_wl = path
                 break
@@ -313,7 +345,9 @@ class SetupWizard(QDialog):
         lay.setSpacing(12)
 
         title = QLabel("Default Wi-Fi Interface")
-        title.setStyleSheet("font-size: 15px; font-weight: bold; color: #00f0ff;")
+        title.setStyleSheet(
+            "font-size: 15px; font-weight: bold; color: #00f0ff;"
+        )
         lay.addWidget(title)
 
         desc = QLabel(
@@ -321,7 +355,9 @@ class SetupWizard(QDialog):
             "You can always change this later via: set interface <name>"
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #6a8aaa; font-size: 12px; line-height: 1.6;")
+        desc.setStyleSheet(
+            "color: #6a8aaa; font-size: 12px; line-height: 1.6;"
+        )
         lay.addWidget(desc)
 
         lay.addSpacing(8)
@@ -349,7 +385,9 @@ class SetupWizard(QDialog):
         summary_lbl = QLabel(
             "✅  You're all set! Click Finish to save and launch JAMES."
         )
-        summary_lbl.setStyleSheet("color: #00ff88; font-size: 12px; font-style: italic;")
+        summary_lbl.setStyleSheet(
+            "color: #00ff88; font-size: 12px; font-style: italic;"
+        )
         summary_lbl.setWordWrap(True)
         lay.addWidget(summary_lbl)
 
@@ -391,7 +429,9 @@ class SetupWizard(QDialog):
     # ── actions ─────────────────────────────────────────────────
 
     def _browse_wordlist(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Wordlist", "/home/malcolm", "*")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select Wordlist", "/home/malcolm", "*"
+        )
         if path:
             self.wordlist_input.setText(path)
 

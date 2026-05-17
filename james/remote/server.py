@@ -16,7 +16,7 @@ import logging
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -497,12 +497,25 @@ class _RequestHandler(BaseHTTPRequestHandler):
             self._respond_html(WEB_UI)
         elif path == "/api/context":
             agent = self.server.james_agent
-            ctx = {k: v for k, v in agent.context.items()
-                   if k in ("target", "interface", "domain", "target_url",
-                            "discovered_services", "lhost", "lport")}
+            ctx = {
+                k: v
+                for k, v in agent.context.items()
+                if k
+                in (
+                    "target",
+                    "interface",
+                    "domain",
+                    "target_url",
+                    "discovered_services",
+                    "lhost",
+                    "lport",
+                )
+            }
             self._respond_json(ctx)
         elif path == "/api/health":
-            self._respond_json({"status": "ok", "time": datetime.now().isoformat()})
+            self._respond_json(
+                {"status": "ok", "time": datetime.now().isoformat()}
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -524,14 +537,25 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 response = agent.process(cmd)
 
                 # Return response + updated context
-                ctx = {k: v for k, v in agent.context.items()
-                       if k in ("target", "interface", "domain", "target_url",
-                                "discovered_services")}
-                self._respond_json({
-                    "response": response,
-                    "intent": agent.last_intent,
-                    "context": ctx,
-                })
+                ctx = {
+                    k: v
+                    for k, v in agent.context.items()
+                    if k
+                    in (
+                        "target",
+                        "interface",
+                        "domain",
+                        "target_url",
+                        "discovered_services",
+                    )
+                }
+                self._respond_json(
+                    {
+                        "response": response,
+                        "intent": agent.last_intent,
+                        "context": ctx,
+                    }
+                )
             except Exception as e:
                 logger.error("Remote command error: %s", e)
                 self._respond_json({"error": str(e)}, 500)
@@ -585,7 +609,9 @@ class RemoteServer:
     def start(self):
         """Start the remote server in a background thread."""
         if self.running:
-            logger.warning("Remote server already running on port %d", self.port)
+            logger.warning(
+                "Remote server already running on port %d", self.port
+            )
             return
 
         self.server = HTTPServer(("0.0.0.0", self.port), _RequestHandler)
@@ -599,7 +625,6 @@ class RemoteServer:
         )
         self._thread.start()
 
-        ip = get_local_ip()
         logger.info("🌐 JAMES Remote Control active at %s", self.url)
         logger.info("   Access from any device on your network!")
 

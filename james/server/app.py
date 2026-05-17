@@ -78,12 +78,15 @@ def create_app(config: ServerConfig = None) -> FastAPI:
             return FileResponse(WEB_DIR / "index.html")
 
         # serve other static files
-        app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+        app.mount(
+            "/static", StaticFiles(directory=str(WEB_DIR)), name="static"
+        )
 
         # PWA files at root level
         for fname in ["manifest.json", "sw.js"]:
             fpath = WEB_DIR / fname
             if fpath.exists():
+
                 @app.get(f"/{fname}")
                 async def serve_pwa_file(p=fpath):
                     return FileResponse(p)
