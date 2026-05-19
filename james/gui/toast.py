@@ -7,7 +7,7 @@ styling and stacking for multiple simultaneous toasts.
 """
 
 from PyQt5.QtWidgets import QLabel, QWidget, QGraphicsOpacityEffect
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve
+from PyQt5.QtCore import QTimer, QPropertyAnimation, QPoint, QEasingCurve
 from PyQt5.QtGui import QFont
 
 
