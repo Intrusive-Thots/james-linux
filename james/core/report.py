@@ -24,30 +24,43 @@ def generate_html_report(
 
     # Stats
     total_tasks = len(task_log)
-    success_count = sum(1 for e in task_log if e.get("status") == "success")
-    error_count = sum(1 for e in task_log if e.get("status") in ("error", "failed"))
+    success_count = 0
+    error_count = 0
     tools_installed = sum(1 for v in tool_status.values() if v)
     tools_total = len(tool_status)
     cracked_count = loot_summary.get("cracked_count", 0)
 
     # Build task rows
-    task_rows = ""
+    task_rows_list = []
+    status_map = {
+        "success": "status-success",
+        "error": "status-error",
+        "failed": "status-error",
+        "running": "status-running",
+    }
+
     for e in task_log:
-        status_class = {
-            "success": "status-success",
-            "error": "status-error",
-            "failed": "status-error",
-            "running": "status-running",
-        }.get(e.get("status", ""), "status-info")
-        result_json = json.dumps(e.get("result", {}), default=str)[:200] if e.get("result") else ""
-        task_rows += f"""
+        status = e.get("status", "")
+        if status == "success":
+            success_count += 1
+        elif status in ("error", "failed"):
+            error_count += 1
+
+        status_class = status_map.get(status, "status-info")
+
+        result_val = e.get("result")
+        result_json = json.dumps(result_val, default=str)[:200] if result_val else ""
+
+        task_rows_list.append(f"""
             <tr>
                 <td class="mono">{e.get('timestamp', '')[:19]}</td>
                 <td>{e.get('action', '')}</td>
                 <td><code>{e.get('tool', '')}</code></td>
-                <td><span class="{status_class}">{e.get('status', '')}</span></td>
+                <td><span class="{status_class}">{status}</span></td>
                 <td class="detail-cell">{result_json}</td>
-            </tr>"""
+            </tr>""")
+
+    task_rows = "".join(task_rows_list)
 
     # Build loot rows
     loot_rows = ""
