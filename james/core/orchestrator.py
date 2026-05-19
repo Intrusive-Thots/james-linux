@@ -18,7 +18,7 @@ from typing import Optional
 
 from james.layers.native import NativeLayer
 from james.core.net_guard import NetworkGuard
-from james.tools.parrot import AircrackSuite, Hashcat, Hcxtools
+from james.tools.parrot import AircrackSuite, Hashcat, Hcxtools, WPA3Tools
 from james.tools.pineap import PineAP
 
 logger = logging.getLogger(__name__)
@@ -84,6 +84,7 @@ class Orchestrator:
         self.aircrack = AircrackSuite(self.layer)
         self.hashcat = Hashcat(self.layer)
         self.hcxtools = Hcxtools(self.layer)
+        self.wpa3 = WPA3Tools(self.layer)
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates
