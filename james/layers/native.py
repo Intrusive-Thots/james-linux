@@ -12,7 +12,7 @@ import os
 import signal
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Callable
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class NativeLayer:
     def __init__(self, default_timeout: int = 120):
         self.default_timeout = default_timeout
         self._is_root = os.geteuid() == 0
-        self._sudo_pass: Optional[str] = None
+        self._sudo_pass: str | None = None
         self._bg_procs: list[subprocess.Popen] = []  # process registry
 
         # Allow sudo password from environment (never hardcode it)
@@ -81,10 +81,10 @@ class NativeLayer:
         command: str,
         *,
         sudo: bool = False,
-        timeout: Optional[int] = None,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
-        on_output: Optional[Callable[[str], None]] = None,
+        timeout: int | None = None,
+        cwd: str | None = None,
+        env: dict | None = None,
+        on_output: Callable[[str], None] | None = None,
     ) -> CommandResult:
         """
         Run a shell command and return a structured result.
@@ -115,8 +115,8 @@ class NativeLayer:
         command: str,
         *,
         sudo: bool = False,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        cwd: str | None = None,
+        env: dict | None = None,
     ) -> subprocess.Popen:
         """
         Launch a long-running process (e.g. airodump-ng) without blocking.

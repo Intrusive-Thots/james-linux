@@ -9,7 +9,6 @@ import json
 import re
 import shlex
 import xml.etree.ElementTree as ET
-from typing import Optional
 from james.layers.native import NativeLayer, CommandResult
 
 class AircrackSuite:
@@ -45,17 +44,21 @@ class AircrackSuite:
 
     def enable_monitor(self, interface: str) -> CommandResult:
         """Put an interface into monitor mode via airmon-ng."""
-        return self.layer.run(f'airmon-ng start {interface}', sudo=True, timeout=30)
+        if not re.match(r"^[a-zA-Z0-9._][a-zA-Z0-9._-]*$", interface):
+            raise ValueError(f"Invalid interface name: {interface}")
+        return self.layer.run(f'airmon-ng start {shlex.quote(interface)}', sudo=True, timeout=30)
 
     def disable_monitor(self, interface: str) -> CommandResult:
         """Restore managed mode via airmon-ng."""
-        return self.layer.run(f'airmon-ng stop {interface}', sudo=True, timeout=30)
+        if not re.match(r"^[a-zA-Z0-9._][a-zA-Z0-9._-]*$", interface):
+            raise ValueError(f"Invalid interface name: {interface}")
+        return self.layer.run(f'airmon-ng stop {shlex.quote(interface)}', sudo=True, timeout=30)
 
     def check_kill(self) -> CommandResult:
         """Kill processes that might interfere with monitor mode."""
         return self.layer.run('airmon-ng check kill', sudo=True, timeout=15)
 
-    def start_airodump(self, interface: str, *, channel: Optional[int]=None, bssid: Optional[str]=None, write_prefix: Optional[str]=None):
+    def start_airodump(self, interface: str, *, channel: int | None=None, bssid: str | None=None, write_prefix: str | None=None):
         """
         Start airodump-ng in the background. Returns the Popen handle.
 
@@ -132,13 +135,13 @@ class AircrackSuite:
                 logger.debug("Failed to parse airodump CSV line: '%s'. Error: %s", line, e)
         return {'aps': aps, 'stations': stations}
 
-    def deauth(self, interface: str, bssid: str, *, count: int=10, client: Optional[str]=None) -> CommandResult:
+    def deauth(self, interface: str, bssid: str, *, count: int=10, client: str | None=None) -> CommandResult:
         """Send deauthentication frames."""
         client_arg = f'-c {shlex.quote(client)}' if client else ''
         cmd = f'aireplay-ng -0 {count} -a {shlex.quote(bssid)} {client_arg} -D {shlex.quote(interface)}'
         return self.layer.run(cmd, sudo=True, timeout=60)
 
-    def crack_wpa(self, capture_file: str, wordlist: str, *, bssid: Optional[str]=None) -> dict:
+    def crack_wpa(self, capture_file: str, wordlist: str, *, bssid: str | None=None) -> dict:
         """
         Run aircrack-ng against a capture file.
         Returns dict with 'found', 'key', and raw output.
@@ -185,7 +188,7 @@ class AircrackSuite:
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
         return {'command': cmd, 'success': 'Use packetforge-ng' in result.stdout or result.returncode == 0, 'output': result.stdout[-2000:]}
 
-    def crack_wep(self, capture_file: str, *, bssid: Optional[str]=None) -> dict:
+    def crack_wep(self, capture_file: str, *, bssid: str | None=None) -> dict:
         """Crack WEP key from captured IVs."""
         bssid_arg = f'-b {shlex.quote(bssid)}' if bssid else ''
         cmd = f'aircrack-ng {bssid_arg} {shlex.quote(capture_file)}'
@@ -212,7 +215,7 @@ class Hashcat:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def crack(self, hash_file: str, wordlist: str, *, hash_mode: int=0, rules: Optional[str]=None, timeout: int=600) -> dict:
+    def crack(self, hash_file: str, wordlist: str, *, hash_mode: int=0, rules: str | None=None, timeout: int=600) -> dict:
         rules_arg = f'-r {shlex.quote(rules)}' if rules else ''
         cmd = f'hashcat -m {int(hash_mode)} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force'
         result = self.layer.run(cmd, timeout=timeout)
