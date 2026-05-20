@@ -12,6 +12,7 @@ Phases:
 import logging
 import time
 import traceback
+import shlex
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -432,7 +433,7 @@ class AutoPilotWorker(QThread):
                         deauth_proc = None
                         if deauth_mon:
                             self._log(f"  Using {deauth_mon} for continuous deauth.")
-                            deauth_proc = self.orchestrator.layer.run_background(f"aireplay-ng -0 0 -a {bssid} -D {deauth_mon}", sudo=True)
+                            deauth_proc = self.orchestrator.layer.run_background(f"aireplay-ng -0 0 -a {shlex.quote(bssid)} -D {shlex.quote(deauth_mon)}", sudo=True)
                         else:
                             self._log(f"  ⚠ No secondary monitor interface for continuous deauth. Attack relies on natural reconnection.")
                             

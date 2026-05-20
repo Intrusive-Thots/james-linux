@@ -278,7 +278,7 @@ def test_intent_routing():
     print(f"  📊 Pronoun total:  {len(PRONOUN_CASES)}")
 
     # Exit code for CI
-    sys.exit(1 if failed or missing_handlers or p_failed else 0)
+    assert not failed and not missing_handlers and not p_failed
 
 
 if __name__ == "__main__":

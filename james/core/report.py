@@ -31,52 +31,35 @@ def generate_html_report(
     cracked_count = loot_summary.get("cracked_count", 0)
 
     # Build task rows
-    task_rows = ""
-    for e in task_log:
-        status_class = {
-            "success": "status-success",
-            "error": "status-error",
-            "failed": "status-error",
-            "running": "status-running",
-        }.get(e.get("status", ""), "status-info")
-        result_json = json.dumps(e.get("result", {}), default=str)[:200] if e.get("result") else ""
-        task_rows += f"""
+    def _status_class(status):
+        return {"success": "status-success", "error": "status-error", "failed": "status-error", "running": "status-running"}.get(status, "status-info")
+
+    task_rows = "".join(f"""
             <tr>
                 <td class="mono">{e.get('timestamp', '')[:19]}</td>
                 <td>{e.get('action', '')}</td>
                 <td><code>{e.get('tool', '')}</code></td>
-                <td><span class="{status_class}">{e.get('status', '')}</span></td>
-                <td class="detail-cell">{result_json}</td>
-            </tr>"""
+                <td><span class="{_status_class(e.get('status', ''))}">{e.get('status', '')}</span></td>
+                <td class="detail-cell">{json.dumps(e.get("result", {}), default=str)[:200] if e.get("result") else ""}</td>
+            </tr>""" for e in task_log)
 
     # Build loot rows
-    loot_rows = ""
-    for entry in loot_summary.get("keys", []):
-        loot_rows += f"""
+    loot_rows = "".join(f"""
             <tr>
                 <td>{entry.get('essid', '') or entry.get('id', '')}</td>
                 <td class="key-value">{entry.get('key', '')}</td>
                 <td>{entry.get('method', '')}</td>
                 <td class="mono">{entry.get('when', '')[:10]}</td>
-            </tr>"""
+            </tr>""" for entry in loot_summary.get("keys", []))
 
     # Build tool status grid
-    tool_grid = ""
-    for name, installed in sorted(tool_status.items()):
-        icon = "✅" if installed else "❌"
-        cls = "tool-ok" if installed else "tool-missing"
-        tool_grid += f'<span class="tool-badge {cls}">{icon} {name}</span>\n'
+    tool_grid = "".join(f'<span class="tool-badge {"tool-ok" if installed else "tool-missing"}">{"✅" if installed else "❌"} {name}</span>\n' for name, installed in sorted(tool_status.items()))
 
     # Build target list
-    target_list = ""
-    for t in sorted(known_targets):
-        target_list += f"<li><code>{t}</code></li>\n"
+    target_list = "".join(f"<li><code>{t}</code></li>\n" for t in sorted(known_targets))
 
     # Context section
-    context_rows = ""
-    for k, v in context.items():
-        if v:
-            context_rows += f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>\n"
+    context_rows = "".join(f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>\n" for k, v in context.items() if v)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
