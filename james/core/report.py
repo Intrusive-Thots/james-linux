@@ -24,8 +24,14 @@ def generate_html_report(
 
     # Stats
     total_tasks = len(task_log)
-    success_count = sum(1 for e in task_log if e.get("status") == "success")
-    error_count = sum(1 for e in task_log if e.get("status") in ("error", "failed"))
+    success_count = 0
+    error_count = 0
+    for e in task_log:
+        status = e.get("status")
+        if status == "success":
+            success_count += 1
+        elif status in ("error", "failed"):
+            error_count += 1
     tools_installed = sum(1 for v in tool_status.values() if v)
     tools_total = len(tool_status)
     cracked_count = loot_summary.get("cracked_count", 0)
