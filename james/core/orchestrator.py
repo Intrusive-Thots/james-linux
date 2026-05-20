@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -220,10 +221,14 @@ class Orchestrator:
             p = Path(path)
             if p.exists():
                 try:
-                    lines = sum(1 for _ in open(p, encoding="latin-1"))
-                except Exception as e:
-                    logger.debug("Could not count lines in %s: %s", path, e)
-                    lines = 0
+                    out = subprocess.check_output(["wc", "-l", str(p)], text=True)
+                    lines = int(out.split()[0])
+                except Exception:
+                    try:
+                        lines = sum(1 for _ in open(p, encoding="latin-1"))
+                    except Exception as e:
+                        logger.debug("Could not count lines in %s: %s", path, e)
+                        lines = 0
                 inventory.append({
                     "path": str(p), "name": label, "category": cat,
                     "lines": lines, "size_mb": round(p.stat().st_size / 1048576, 1),
@@ -235,9 +240,13 @@ class Orchestrator:
                 if f.stat().st_size < 2:
                     continue  # skip empty files
                 try:
-                    lines = sum(1 for _ in open(f, encoding="latin-1"))
+                    out = subprocess.check_output(["wc", "-l", str(f)], text=True)
+                    lines = int(out.split()[0])
                 except Exception:
-                    lines = 0
+                    try:
+                        lines = sum(1 for _ in open(f, encoding="latin-1"))
+                    except Exception:
+                        lines = 0
                 name = f.stem
                 if "wifi" in name or "wpa" in name:
                     cat = "wifi"
