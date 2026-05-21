@@ -51,7 +51,9 @@ def _setup_logging():
     root.addHandler(session)
 
     # Prune old session files (keep the 10 most recent)
-    sessions = sorted(log_dir.glob("session_*.log"), key=lambda p: p.stat().st_mtime)
+    sessions = sorted(
+        log_dir.glob("session_*.log"), key=lambda p: p.stat().st_mtime
+    )
     for old in sessions[:-10]:
         try:
             old.unlink()
@@ -97,6 +99,7 @@ def _show_already_running_dialog():
     """Show a GUI error dialog when another instance is running."""
     try:
         from PyQt5.QtWidgets import QApplication, QMessageBox
+
         app = QApplication(sys.argv)
         try:
             with open(LOCK_FILE, "r") as f:
@@ -168,4 +171,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

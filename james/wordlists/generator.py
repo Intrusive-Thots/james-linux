@@ -28,71 +28,287 @@ logger = logging.getLogger(__name__)
 # Top Wi-Fi password roots (from real-world audits)
 WIFI_ROOTS = [
     # Classic passwords
-    "password", "12345678", "123456789", "1234567890", "qwerty123",
-    "letmein", "welcome", "monkey", "dragon", "master",
-    "shadow", "sunshine", "princess", "football", "baseball",
-    "iloveyou", "trustno1", "batman", "access", "hello",
-    "charlie", "donald", "loveme", "michael", "jordan",
-    "mustang", "freedom", "whatever", "nothing", "internet",
+    "password",
+    "12345678",
+    "123456789",
+    "1234567890",
+    "qwerty123",
+    "letmein",
+    "welcome",
+    "monkey",
+    "dragon",
+    "master",
+    "shadow",
+    "sunshine",
+    "princess",
+    "football",
+    "baseball",
+    "iloveyou",
+    "trustno1",
+    "batman",
+    "access",
+    "hello",
+    "charlie",
+    "donald",
+    "loveme",
+    "michael",
+    "jordan",
+    "mustang",
+    "freedom",
+    "whatever",
+    "nothing",
+    "internet",
     # Common English words used as WiFi passwords
-    "password", "wireless", "internet", "network", "connect",
-    "wifi", "home", "house", "family", "office",
-    "guest", "admin", "default", "router", "linksys",
-    "netgear", "comcast", "spectrum", "verizon", "xfinity",
-    "att", "tmobile", "sprint", "frontier", "centurylink",
+    "password",
+    "wireless",
+    "internet",
+    "network",
+    "connect",
+    "wifi",
+    "home",
+    "house",
+    "family",
+    "office",
+    "guest",
+    "admin",
+    "default",
+    "router",
+    "linksys",
+    "netgear",
+    "comcast",
+    "spectrum",
+    "verizon",
+    "xfinity",
+    "att",
+    "tmobile",
+    "sprint",
+    "frontier",
+    "centurylink",
     # Location/object words
-    "apartment", "building", "street", "house", "river",
-    "mountain", "beach", "garden", "kitchen", "bedroom",
-    "garage", "basement", "studio", "downtown", "uptown",
+    "apartment",
+    "building",
+    "street",
+    "house",
+    "river",
+    "mountain",
+    "beach",
+    "garden",
+    "kitchen",
+    "bedroom",
+    "garage",
+    "basement",
+    "studio",
+    "downtown",
+    "uptown",
     # Animal names (very common wifi passwords)
-    "butterfly", "dolphin", "elephant", "giraffe", "penguin",
-    "goldfish", "hamster", "kitten", "puppy", "rabbit",
-    "turtle", "chicken", "phoenix", "unicorn", "dragon",
+    "butterfly",
+    "dolphin",
+    "elephant",
+    "giraffe",
+    "penguin",
+    "goldfish",
+    "hamster",
+    "kitten",
+    "puppy",
+    "rabbit",
+    "turtle",
+    "chicken",
+    "phoenix",
+    "unicorn",
+    "dragon",
     # Food/drink
-    "chocolate", "coffee", "pizza", "burger", "cookies",
-    "icecream", "pancake", "avocado", "banana", "strawberry",
+    "chocolate",
+    "coffee",
+    "pizza",
+    "burger",
+    "cookies",
+    "icecream",
+    "pancake",
+    "avocado",
+    "banana",
+    "strawberry",
     # Sports/hobbies
-    "soccer", "tennis", "basketball", "baseball", "football",
-    "swimming", "running", "fishing", "camping", "hiking",
-    "gaming", "reading", "cooking", "dancing", "singing",
+    "soccer",
+    "tennis",
+    "basketball",
+    "baseball",
+    "football",
+    "swimming",
+    "running",
+    "fishing",
+    "camping",
+    "hiking",
+    "gaming",
+    "reading",
+    "cooking",
+    "dancing",
+    "singing",
 ]
 
 # Most common first names (US census)
 COMMON_NAMES = [
-    "james", "john", "robert", "michael", "david", "william", "richard",
-    "joseph", "thomas", "charles", "christopher", "daniel", "matthew",
-    "anthony", "mark", "donald", "steven", "paul", "andrew", "joshua",
-    "kenneth", "kevin", "brian", "george", "timothy", "ronald", "edward",
-    "jason", "jeffrey", "ryan", "jacob", "gary", "nicholas", "eric",
-    "mary", "patricia", "jennifer", "linda", "barbara", "elizabeth",
-    "susan", "jessica", "sarah", "karen", "lisa", "nancy", "betty",
-    "margaret", "sandra", "ashley", "dorothy", "kimberly", "emily",
-    "donna", "michelle", "carol", "amanda", "melissa", "deborah",
-    "stephanie", "rebecca", "sharon", "laura", "cynthia", "kathleen",
-    "amy", "angela", "shirley", "anna", "brenda", "pamela", "emma",
-    "nicole", "helen", "samantha", "katherine", "christine", "debra",
+    "james",
+    "john",
+    "robert",
+    "michael",
+    "david",
+    "william",
+    "richard",
+    "joseph",
+    "thomas",
+    "charles",
+    "christopher",
+    "daniel",
+    "matthew",
+    "anthony",
+    "mark",
+    "donald",
+    "steven",
+    "paul",
+    "andrew",
+    "joshua",
+    "kenneth",
+    "kevin",
+    "brian",
+    "george",
+    "timothy",
+    "ronald",
+    "edward",
+    "jason",
+    "jeffrey",
+    "ryan",
+    "jacob",
+    "gary",
+    "nicholas",
+    "eric",
+    "mary",
+    "patricia",
+    "jennifer",
+    "linda",
+    "barbara",
+    "elizabeth",
+    "susan",
+    "jessica",
+    "sarah",
+    "karen",
+    "lisa",
+    "nancy",
+    "betty",
+    "margaret",
+    "sandra",
+    "ashley",
+    "dorothy",
+    "kimberly",
+    "emily",
+    "donna",
+    "michelle",
+    "carol",
+    "amanda",
+    "melissa",
+    "deborah",
+    "stephanie",
+    "rebecca",
+    "sharon",
+    "laura",
+    "cynthia",
+    "kathleen",
+    "amy",
+    "angela",
+    "shirley",
+    "anna",
+    "brenda",
+    "pamela",
+    "emma",
+    "nicole",
+    "helen",
+    "samantha",
+    "katherine",
+    "christine",
+    "debra",
 ]
 
 # Common keyboard patterns
 KEYBOARD_PATTERNS = [
-    "qwerty", "qwertyuiop", "asdfghjkl", "zxcvbnm",
-    "1q2w3e4r", "1q2w3e4r5t", "q1w2e3r4", "q1w2e3r4t5",
-    "qwer1234", "asdf1234", "zxcv1234",
-    "1qaz2wsx", "2wsx3edc", "qazwsxedc", "1qaz2wsx3edc",
-    "asdfjkl;", "qweasdzxc",
-    "poiuytrewq", "lkjhgfdsa", "mnbvcxz",
-    "abcdefgh", "abcd1234",
+    "qwerty",
+    "qwertyuiop",
+    "asdfghjkl",
+    "zxcvbnm",
+    "1q2w3e4r",
+    "1q2w3e4r5t",
+    "q1w2e3r4",
+    "q1w2e3r4t5",
+    "qwer1234",
+    "asdf1234",
+    "zxcv1234",
+    "1qaz2wsx",
+    "2wsx3edc",
+    "qazwsxedc",
+    "1qaz2wsx3edc",
+    "asdfjkl;",
+    "qweasdzxc",
+    "poiuytrewq",
+    "lkjhgfdsa",
+    "mnbvcxz",
+    "abcdefgh",
+    "abcd1234",
 ]
 
 # Common suffixes people add to make passwords "complex"
 COMMON_SUFFIXES = [
-    "", "1", "2", "3", "12", "13", "21", "23", "69", "77", "99",
-    "01", "07", "11", "22", "33", "44", "55", "66", "88",
-    "00", "10", "100", "111", "123", "321", "234", "345",
-    "456", "567", "678", "789", "007", "420", "666", "777", "911",
-    "1234", "2024", "2025", "2026",
-    "!", "!!", "!!!", "@", "#", "$", "!1", "@1", "#1",
-    "1!", "12!", "123!", "1234!",
+    "",
+    "1",
+    "2",
+    "3",
+    "12",
+    "13",
+    "21",
+    "23",
+    "69",
+    "77",
+    "99",
+    "01",
+    "07",
+    "11",
+    "22",
+    "33",
+    "44",
+    "55",
+    "66",
+    "88",
+    "00",
+    "10",
+    "100",
+    "111",
+    "123",
+    "321",
+    "234",
+    "345",
+    "456",
+    "567",
+    "678",
+    "789",
+    "007",
+    "420",
+    "666",
+    "777",
+    "911",
+    "1234",
+    "2024",
+    "2025",
+    "2026",
+    "!",
+    "!!",
+    "!!!",
+    "@",
+    "#",
+    "$",
+    "!1",
+    "@1",
+    "#1",
+    "1!",
+    "12!",
+    "123!",
+    "1234!",
 ]
 
 # Year range for mutations
@@ -213,15 +429,21 @@ class WifiWordlistGenerator:
         with open(output, "w") as f:
             f.write("\n".join(valid) + "\n")
 
-        logger.info("Generated Wi-Fi wordlist: %s (%d candidates)", output, len(valid))
+        logger.info(
+            "Generated Wi-Fi wordlist: %s (%d candidates)", output, len(valid)
+        )
         return output
 
-    def generate_ssid_targeted(self, ssid: str, output: Optional[str] = None) -> str:
+    def generate_ssid_targeted(
+        self, ssid: str, output: Optional[str] = None
+    ) -> str:
         """
         Generate a targeted wordlist based on the SSID name.
         People often use their network name in their password.
         """
-        output = output or str(self.OUTPUT_DIR / f"ssid_{ssid.replace(' ', '_')}.txt")
+        output = output or str(
+            self.OUTPUT_DIR / f"ssid_{ssid.replace(' ', '_')}.txt"
+        )
         passwords = set()
 
         # Clean SSID
@@ -230,9 +452,23 @@ class WifiWordlistGenerator:
         ssid_upper = ssid_clean.upper()
         ssid_cap = ssid_clean.capitalize()
         # Remove common ISP suffixes
-        ssid_base = ssid_lower.replace("-5g", "").replace("-2g", "").replace("_5ghz", "").replace("_2.4ghz", "").replace("-guest", "").replace("_guest", "")
+        ssid_base = (
+            ssid_lower.replace("-5g", "")
+            .replace("-2g", "")
+            .replace("_5ghz", "")
+            .replace("_2.4ghz", "")
+            .replace("-guest", "")
+            .replace("_guest", "")
+        )
 
-        variants = {ssid_clean, ssid_lower, ssid_upper, ssid_cap, ssid_base, ssid_base.capitalize()}
+        variants = {
+            ssid_clean,
+            ssid_lower,
+            ssid_upper,
+            ssid_cap,
+            ssid_base,
+            ssid_base.capitalize(),
+        }
 
         for v in list(variants):
             # SSID + digits
@@ -253,7 +489,13 @@ class WifiWordlistGenerator:
                 passwords.add(rev)
 
             # Leet speak
-            leet = v.replace("a", "@").replace("e", "3").replace("i", "1").replace("o", "0").replace("s", "$")
+            leet = (
+                v.replace("a", "@")
+                .replace("e", "3")
+                .replace("i", "1")
+                .replace("o", "0")
+                .replace("s", "$")
+            )
             if 8 <= len(leet) <= 63:
                 passwords.add(leet)
                 for suffix in ["123", "!", "1", "12"]:
@@ -268,7 +510,8 @@ class WifiWordlistGenerator:
 
         # Extract words from SSID (e.g., "SmithFamily" -> smith, family)
         import re
-        words = re.findall(r'[A-Z][a-z]+|[a-z]+|[A-Z]+|\d+', ssid_clean)
+
+        words = re.findall(r"[A-Z][a-z]+|[a-z]+|[A-Z]+|\d+", ssid_clean)
         for word in words:
             word_l = word.lower()
             if len(word_l) >= 3:
@@ -295,7 +538,12 @@ class WifiWordlistGenerator:
         with open(output, "w") as f:
             f.write("\n".join(valid) + "\n")
 
-        logger.info("Generated SSID-targeted wordlist for '%s': %s (%d candidates)", ssid, output, len(valid))
+        logger.info(
+            "Generated SSID-targeted wordlist for '%s': %s (%d candidates)",
+            ssid,
+            output,
+            len(valid),
+        )
         return output
 
     def generate_numeric(self, output: Optional[str] = None) -> str:
@@ -320,16 +568,38 @@ class WifiWordlistGenerator:
 
         # Common numeric passwords
         for p in [
-            "12345678", "123456789", "1234567890", "87654321",
-            "11111111", "22222222", "00000000", "99999999",
-            "12341234", "12121212", "13131313", "10101010",
-            "11223344", "55555555", "77777777", "88888888",
-            "19901990", "20002000", "20202020", "20242024",
-            "19801980", "19851985", "19951995", "20102010",
+            "12345678",
+            "123456789",
+            "1234567890",
+            "87654321",
+            "11111111",
+            "22222222",
+            "00000000",
+            "99999999",
+            "12341234",
+            "12121212",
+            "13131313",
+            "10101010",
+            "11223344",
+            "55555555",
+            "77777777",
+            "88888888",
+            "19901990",
+            "20002000",
+            "20202020",
+            "20242024",
+            "19801980",
+            "19851985",
+            "19951995",
+            "20102010",
             "31415926",  # pi
             "27182818",  # e
-            "01234567", "76543210", "98765432",
-            "13579246", "24681357", "11235813",  # fibonacci
+            "01234567",
+            "76543210",
+            "98765432",
+            "13579246",
+            "24681357",
+            "11235813",  # fibonacci
         ]:
             passwords.add(p)
 
@@ -345,8 +615,22 @@ class WifiWordlistGenerator:
                     passwords.add(f"{year}{month:02d}{day:02d}")
 
         # Phone-number style (common US area codes + 7 digits)
-        for area in ["212", "310", "415", "305", "713", "202", "312",
-                      "404", "617", "206", "503", "512", "702", "818"]:
+        for area in [
+            "212",
+            "310",
+            "415",
+            "305",
+            "713",
+            "202",
+            "312",
+            "404",
+            "617",
+            "206",
+            "503",
+            "512",
+            "702",
+            "818",
+        ]:
             for mid in ["555", "123", "000", "999"]:
                 for last in range(0, 10000, 1111):
                     p = f"{area}{mid}{last:04d}"
@@ -357,10 +641,16 @@ class WifiWordlistGenerator:
         with open(output, "w") as f:
             f.write("\n".join(valid) + "\n")
 
-        logger.info("Generated numeric wordlist: %s (%d candidates)", output, len(valid))
+        logger.info(
+            "Generated numeric wordlist: %s (%d candidates)",
+            output,
+            len(valid),
+        )
         return output
 
-    def get_combined_wordlist(self, ssid: str = "", output: Optional[str] = None) -> str:
+    def get_combined_wordlist(
+        self, ssid: str = "", output: Optional[str] = None
+    ) -> str:
         """
         Generate a combined 'ultimate' Wi-Fi wordlist merging all strategies.
         Returns path to the combined file.
@@ -408,5 +698,9 @@ class WifiWordlistGenerator:
         with open(output, "w") as f:
             f.write("\n".join(valid) + "\n")
 
-        logger.info("Generated ultimate Wi-Fi wordlist: %s (%d candidates)", output, len(valid))
+        logger.info(
+            "Generated ultimate Wi-Fi wordlist: %s (%d candidates)",
+            output,
+            len(valid),
+        )
         return output

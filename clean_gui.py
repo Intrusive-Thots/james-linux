@@ -4,9 +4,12 @@ with open("james/gui/main_window.py", "r") as f:
     content = f.read()
 
 # 1. Remove context badge strip creation
-content = content.replace("""        # context badge strip
+content = content.replace(
+    """        # context badge strip
         self.ctx_strip = self._make_context_strip()
-        root.addWidget(self.ctx_strip)\n""", "")
+        root.addWidget(self.ctx_strip)\n""",
+    "",
+)
 
 # 2. Simplify tabs
 tabs_old = """        agent_tab = self._make_agent_tab()

@@ -39,6 +39,7 @@ def get_orchestrator():
         with _orch_lock:
             if _orchestrator is None:
                 from james.core.orchestrator import Orchestrator
+
                 _orchestrator = Orchestrator()
     return _orchestrator
 
@@ -64,7 +65,9 @@ class ConnectionManager:
     def disconnect(self, ws: WebSocket):
         if ws in self.active:
             self.active.remove(ws)
-        logger.info("WebSocket client disconnected (%d remaining)", len(self.active))
+        logger.info(
+            "WebSocket client disconnected (%d remaining)", len(self.active)
+        )
 
     async def broadcast(self, message: dict):
         """Send a JSON message to all connected clients."""
@@ -78,24 +81,31 @@ class ConnectionManager:
     def broadcast_sync(self, message: dict):
         """Thread-safe broadcast from synchronous orchestrator callbacks."""
         if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
+            asyncio.run_coroutine_threadsafe(
+                self.broadcast(message), self._loop
+            )
 
 
 manager = ConnectionManager()
 
 # ── Helper: timestamped log broadcast ───────────────────────────
 
+
 async def _log(level: str, message: str):
     """Broadcast a log message to all connected clients."""
-    await manager.broadcast({
-        "type": "log",
-        "level": level,
-        "message": message,
-        "timestamp": time.strftime("%H:%M:%S"),
-    })
+    await manager.broadcast(
+        {
+            "type": "log",
+            "level": level,
+            "message": message,
+            "timestamp": time.strftime("%H:%M:%S"),
+        }
+    )
 
 
-async def _attack_status(stage: str, status: str, progress: int, result: dict | None = None):
+async def _attack_status(
+    stage: str, status: str, progress: int, result: dict | None = None
+):
     """Broadcast attack status to all connected clients."""
     msg: dict = {
         "type": "attack_status",
@@ -120,12 +130,14 @@ async def lifespan(app: FastAPI):
     def on_print(msg: str):
         if original_print:
             original_print(msg)
-        manager.broadcast_sync({
-            "type": "log",
-            "level": "info",
-            "message": msg,
-            "timestamp": time.strftime("%H:%M:%S"),
-        })
+        manager.broadcast_sync(
+            {
+                "type": "log",
+                "level": "info",
+                "message": msg,
+                "timestamp": time.strftime("%H:%M:%S"),
+            }
+        )
 
     orch.on_print = on_print
     yield
@@ -208,11 +220,15 @@ async def websocket_endpoint(ws: WebSocket):
     except Exception:
         ifaces = []
 
-    await ws.send_text(json.dumps({
-        "type": "init",
-        "interfaces": ifaces,
-        "loot": orch.get_loot_summary(),
-    }))
+    await ws.send_text(
+        json.dumps(
+            {
+                "type": "init",
+                "interfaces": ifaces,
+                "loot": orch.get_loot_summary(),
+            }
+        )
+    )
 
     try:
         while True:
@@ -220,7 +236,9 @@ async def websocket_endpoint(ws: WebSocket):
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                await ws.send_text(json.dumps({"type": "error", "message": "Invalid JSON"}))
+                await ws.send_text(
+                    json.dumps({"type": "error", "message": "Invalid JSON"})
+                )
                 continue
 
             action = msg.get("action")
@@ -249,23 +267,32 @@ async def _handle_action(
     """Handle a WebSocket action request."""
     try:
         result = await _dispatch(orch, action, params)
-        await ws.send_text(json.dumps({
-            "type": "result",
-            "action": action,
-            "id": request_id,
-            "data": result,
-        }))
+        await ws.send_text(
+            json.dumps(
+                {
+                    "type": "result",
+                    "action": action,
+                    "id": request_id,
+                    "data": result,
+                }
+            )
+        )
     except Exception as e:
         logger.exception("Action '%s' failed: %s", action, e)
-        await ws.send_text(json.dumps({
-            "type": "error",
-            "action": action,
-            "id": request_id,
-            "message": str(e),
-        }))
+        await ws.send_text(
+            json.dumps(
+                {
+                    "type": "error",
+                    "action": action,
+                    "id": request_id,
+                    "message": str(e),
+                }
+            )
+        )
 
 
 # ── Action dispatcher ───────────────────────────────────────────
+
 
 async def _dispatch(orch, action: str, params: dict) -> Any:
     """Map action strings to orchestrator methods."""
@@ -273,9 +300,13 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
     if action == "scan_aps":
         return await _action_scan(orch, params)
     elif action == "start_monitor":
-        return await asyncio.to_thread(orch.start_monitor, params.get("interface", ""))
+        return await asyncio.to_thread(
+            orch.start_monitor, params.get("interface", "")
+        )
     elif action == "stop_monitor":
-        return await asyncio.to_thread(orch.stop_monitor, params.get("interface", ""))
+        return await asyncio.to_thread(
+            orch.stop_monitor, params.get("interface", "")
+        )
     elif action == "capture_handshake":
         return await _action_capture(orch, params)
     elif action == "crack_wpa":
@@ -289,7 +320,9 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
     elif action == "abort_attack":
         return await _action_abort(orch)
     elif action == "kill_james":
-        await _log("warn", "KILL JAMES initiated — shutting down all operations…")
+        await _log(
+            "warn", "KILL JAMES initiated — shutting down all operations…"
+        )
         return await asyncio.to_thread(orch.kill_james)
     elif action == "system_check":
         return await asyncio.to_thread(orch.system_check)
@@ -301,26 +334,32 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
 
 # ── Scan ────────────────────────────────────────────────────────
 
+
 async def _action_scan(orch, params: dict):
     interface = params.get("interface", "")
     duration = params.get("duration", 10)
     await manager.broadcast({"type": "scan_status", "scanning": True})
     try:
-        result = await asyncio.to_thread(orch.scan_nearby_aps, interface, duration)
+        result = await asyncio.to_thread(
+            orch.scan_nearby_aps, interface, duration
+        )
     except Exception as e:
         await manager.broadcast({"type": "scan_status", "scanning": False})
         await _log("error", f"Scan failed: {e}")
         return {"error": str(e)}
     await manager.broadcast({"type": "scan_status", "scanning": False})
-    await manager.broadcast({
-        "type": "scan_results",
-        "aps": result.get("aps", []),
-        "count": result.get("count", 0),
-    })
+    await manager.broadcast(
+        {
+            "type": "scan_results",
+            "aps": result.get("aps", []),
+            "count": result.get("count", 0),
+        }
+    )
     return result
 
 
 # ── Capture Handshake ───────────────────────────────────────────
+
 
 async def _action_capture(orch, params: dict):
     interface = params.get("interface", "")
@@ -333,7 +372,9 @@ async def _action_capture(orch, params: dict):
 
     # 1. Ensure monitor mode
     try:
-        mon_iface = await asyncio.to_thread(orch.ensure_monitor_mode, interface)
+        mon_iface = await asyncio.to_thread(
+            orch.ensure_monitor_mode, interface
+        )
     except Exception as e:
         await _log("error", f"Failed to enter monitor mode: {e}")
         await _attack_status("idle", f"Monitor mode failed: {e}", 0)
@@ -367,7 +408,9 @@ async def _action_capture(orch, params: dict):
         pct = 20 + (burst + 1) * 20  # 40, 60, 80
         await _attack_status("capturing", f"Deauth burst {burst+1}/3…", pct)
         try:
-            await asyncio.to_thread(orch.aircrack.deauth, mon_iface, bssid, count=5)
+            await asyncio.to_thread(
+                orch.aircrack.deauth, mon_iface, bssid, count=5
+            )
         except Exception as e:
             await _log("warn", f"Deauth burst {burst+1} failed: {e}")
         await asyncio.sleep(3)
@@ -386,38 +429,60 @@ async def _action_capture(orch, params: dict):
         await _log("success", f"Handshake captured: {cap_file}")
 
         # Broadcast handshake to the vault
-        await manager.broadcast({
-            "type": "handshake_data",
-            "data": {
-                "id": f"hs-{int(time.time())}",
-                "essid": essid or bssid,
-                "bssid": bssid,
-                "captured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "file_path": cap_file,
-                "cracked": False,
-            },
-        })
+        await manager.broadcast(
+            {
+                "type": "handshake_data",
+                "data": {
+                    "id": f"hs-{int(time.time())}",
+                    "essid": essid or bssid,
+                    "bssid": bssid,
+                    "captured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "file_path": cap_file,
+                    "cracked": False,
+                },
+            }
+        )
 
         # Auto-transition to cracking
         await asyncio.sleep(1)
         wordlist = orch.find_wordlist("wifi") or orch.find_wordlist("password")
         if wordlist:
-            await _log("info", f"Auto-starting crack with wordlist: {Path(wordlist).name}")
-            crack_result = await _action_crack(orch, {
-                "capture": cap_file,
-                "wordlist": wordlist,
-                "bssid": bssid,
-                "ssid": essid,
-            })
-            return {"success": True, "capture_file": cap_file, "crack": crack_result}
+            await _log(
+                "info",
+                f"Auto-starting crack with wordlist: {Path(wordlist).name}",
+            )
+            crack_result = await _action_crack(
+                orch,
+                {
+                    "capture": cap_file,
+                    "wordlist": wordlist,
+                    "bssid": bssid,
+                    "ssid": essid,
+                },
+            )
+            return {
+                "success": True,
+                "capture_file": cap_file,
+                "crack": crack_result,
+            }
         else:
-            await _attack_status("complete", "Captured — no wordlist found for auto-crack", 100,
-                                 {"found": False})
-            await _log("warn", "No wordlist found. Upload one or install rockyou.txt to auto-crack.")
+            await _attack_status(
+                "complete",
+                "Captured — no wordlist found for auto-crack",
+                100,
+                {"found": False},
+            )
+            await _log(
+                "warn",
+                "No wordlist found. Upload one or install rockyou.txt to auto-crack.",
+            )
             return {"success": True, "capture_file": cap_file}
     else:
         await _attack_status("idle", "No handshake captured", 0)
-        await _log("error", "No handshake was captured. Try moving closer or increasing deauth count.")
+        await _log(
+            "error",
+            "No handshake was captured. Try moving closer or increasing deauth count.",
+        )
         return {"success": False, "error": "No capture file generated"}
 
 
@@ -431,6 +496,7 @@ async def _safe_kill(orch, proc):
 
 # ── Crack WPA ───────────────────────────────────────────────────
 
+
 async def _action_crack(orch, params: dict):
     capture = params.get("capture", "")
     wordlist = params.get("wordlist", "")
@@ -441,18 +507,24 @@ async def _action_crack(orch, params: dict):
 
     try:
         result = await asyncio.to_thread(
-            orch.crack_wpa_smart, capture, wordlist,
-            bssid=bssid or None, ssid=ssid or None
+            orch.crack_wpa_smart,
+            capture,
+            wordlist,
+            bssid=bssid or None,
+            ssid=ssid or None,
         )
     except Exception as e:
         await _log("error", f"Crack failed: {e}")
-        await _attack_status("complete", f"Crack error: {e}", 100, {"found": False})
+        await _attack_status(
+            "complete", f"Crack error: {e}", 100, {"found": False}
+        )
         return {"found": False, "error": str(e)}
 
     if result.get("found"):
         key = result["key"]
-        await _attack_status("complete", f"Key found: {key}", 100,
-                             {"found": True, "key": key})
+        await _attack_status(
+            "complete", f"Key found: {key}", 100, {"found": True, "key": key}
+        )
         await _log("success", f"KEY CRACKED: {key}")
         # Cache the key
         try:
@@ -460,14 +532,18 @@ async def _action_crack(orch, params: dict):
         except Exception:
             pass
     else:
-        await _attack_status("complete", "Key not found in wordlist", 100,
-                             {"found": False})
-        await _log("warn", "Key not found. Try a larger wordlist or Evil Twin attack.")
+        await _attack_status(
+            "complete", "Key not found in wordlist", 100, {"found": False}
+        )
+        await _log(
+            "warn", "Key not found. Try a larger wordlist or Evil Twin attack."
+        )
 
     return result
 
 
 # ── Evil Twin ───────────────────────────────────────────────────
+
 
 async def _action_evil_twin(orch, params: dict):
     interface = params.get("interface", "")
@@ -493,8 +569,13 @@ async def _action_evil_twin(orch, params: dict):
         return {"success": False, "error": str(e)}
 
     if result.get("status") == "active":
-        await _log("success", f"Evil Twin active — SSID: {result.get('ssid')}, Gateway: {result.get('gateway')}")
-        await _attack_status("capturing", "Evil Twin running — waiting for credentials…", 50)
+        await _log(
+            "success",
+            f"Evil Twin active — SSID: {result.get('ssid')}, Gateway: {result.get('gateway')}",
+        )
+        await _attack_status(
+            "capturing", "Evil Twin running — waiting for credentials…", 50
+        )
         return {"success": True, **result}
     else:
         await _log("error", f"Evil Twin returned unexpected status: {result}")
@@ -503,6 +584,7 @@ async def _action_evil_twin(orch, params: dict):
 
 
 # ── Auto-Pilot ──────────────────────────────────────────────────
+
 
 async def _action_auto_pilot(orch, params: dict):
     """Full autonomous attack pipeline: scan → select best target → capture → crack."""
@@ -515,7 +597,9 @@ async def _action_auto_pilot(orch, params: dict):
     await _log("info", "🤖 Auto-Pilot: Phase 1 — Scanning for targets…")
     await manager.broadcast({"type": "scan_status", "scanning": True})
     try:
-        scan_result = await asyncio.to_thread(orch.scan_nearby_aps, interface, duration)
+        scan_result = await asyncio.to_thread(
+            orch.scan_nearby_aps, interface, duration
+        )
     except Exception as e:
         await manager.broadcast({"type": "scan_status", "scanning": False})
         await _log("error", f"Auto-Pilot scan failed: {e}")
@@ -523,11 +607,13 @@ async def _action_auto_pilot(orch, params: dict):
 
     await manager.broadcast({"type": "scan_status", "scanning": False})
     aps = scan_result.get("aps", [])
-    await manager.broadcast({
-        "type": "scan_results",
-        "aps": aps,
-        "count": len(aps),
-    })
+    await manager.broadcast(
+        {
+            "type": "scan_results",
+            "aps": aps,
+            "count": len(aps),
+        }
+    )
 
     if not aps:
         await _log("warn", "🤖 Auto-Pilot: No targets found. Aborting.")
@@ -538,31 +624,43 @@ async def _action_auto_pilot(orch, params: dict):
         return {"success": False, "error": "Aborted"}
 
     # Phase 2: Select best target (strongest WPA/WPA2 with clients)
-    wpa_targets = [ap for ap in aps if any(
-        sec in (ap.get("privacy", "") or ap.get("encryption", ""))
-        for sec in ["WPA", "WPA2"]
-    )]
+    wpa_targets = [
+        ap
+        for ap in aps
+        if any(
+            sec in (ap.get("privacy", "") or ap.get("encryption", ""))
+            for sec in ["WPA", "WPA2"]
+        )
+    ]
     if not wpa_targets:
         wpa_targets = aps  # fallback to all
 
     # Sort: prefer APs with clients, then strongest signal
-    wpa_targets.sort(key=lambda ap: (
-        ap.get("clients", ap.get("num_clients", 0)),
-        ap.get("power", ap.get("signal", -99))
-    ), reverse=True)
+    wpa_targets.sort(
+        key=lambda ap: (
+            ap.get("clients", ap.get("num_clients", 0)),
+            ap.get("power", ap.get("signal", -99)),
+        ),
+        reverse=True,
+    )
 
     target = wpa_targets[0]
     target_essid = target.get("essid", target.get("ssid", ""))
     target_bssid = target.get("bssid", "")
     target_channel = target.get("channel", 0)
 
-    await _log("info", f"🤖 Auto-Pilot: Phase 2 — Target: {target_essid or '[Hidden]'} ({target_bssid}) CH:{target_channel}")
+    await _log(
+        "info",
+        f"🤖 Auto-Pilot: Phase 2 — Target: {target_essid or '[Hidden]'} ({target_bssid}) CH:{target_channel}",
+    )
 
     # Broadcast target selection
-    await manager.broadcast({
-        "type": "auto_pilot_target",
-        "target": target,
-    })
+    await manager.broadcast(
+        {
+            "type": "auto_pilot_target",
+            "target": target,
+        }
+    )
 
     if _abort_flag.is_set():
         await _log("warn", "🤖 Auto-Pilot aborted.")
@@ -570,18 +668,29 @@ async def _action_auto_pilot(orch, params: dict):
 
     # Phase 3: Capture + Crack (reuses existing flow)
     await _log("info", "🤖 Auto-Pilot: Phase 3 — Capture & Crack")
-    capture_result = await _action_capture(orch, {
-        "interface": interface,
-        "bssid": target_bssid,
-        "channel": target_channel,
-        "essid": target_essid,
-    })
+    capture_result = await _action_capture(
+        orch,
+        {
+            "interface": interface,
+            "bssid": target_bssid,
+            "channel": target_channel,
+            "essid": target_essid,
+        },
+    )
 
-    await _log("info", f"🤖 Auto-Pilot complete. Result: {'Success' if capture_result.get('success') else 'No key found'}")
-    return {"success": capture_result.get("success", False), "target": target, "result": capture_result}
+    await _log(
+        "info",
+        f"🤖 Auto-Pilot complete. Result: {'Success' if capture_result.get('success') else 'No key found'}",
+    )
+    return {
+        "success": capture_result.get("success", False),
+        "target": target,
+        "result": capture_result,
+    }
 
 
 # ── Agent Command (chat) ────────────────────────────────────────
+
 
 async def _action_agent_command(orch, params: dict):
     """Handle free-text commands from the agent chat interface."""
@@ -596,7 +705,9 @@ async def _action_agent_command(orch, params: dict):
         ifaces = await asyncio.to_thread(orch.wifi_interfaces)
         if ifaces:
             iface = ifaces[0].get("interface", ifaces[0].get("name", ""))
-            result = await _action_scan(orch, {"interface": iface, "duration": 15})
+            result = await _action_scan(
+                orch, {"interface": iface, "duration": 15}
+            )
             count = result.get("count", len(result.get("aps", [])))
             return {"response": f"Scan complete. Found {count} networks."}
         return {"response": "No wireless interface found."}
@@ -606,7 +717,7 @@ async def _action_agent_command(orch, params: dict):
         loot = orch.get_loot_summary()
         return {
             "response": f"System online. {len(ifaces)} interface(s) detected. "
-                       f"{loot.get('cracked_count', 0)} key(s) in loot cache."
+            f"{loot.get('cracked_count', 0)} key(s) in loot cache."
         }
 
     elif command in ("loot", "keys", "results", "cracked"):
@@ -621,18 +732,27 @@ async def _action_agent_command(orch, params: dict):
         await _action_abort(orch)
         return {"response": "Abort signal sent."}
 
-    elif command.startswith("autopilot") or command.startswith("auto-pilot") or command.startswith("auto pilot"):
+    elif (
+        command.startswith("autopilot")
+        or command.startswith("auto-pilot")
+        or command.startswith("auto pilot")
+    ):
         ifaces = await asyncio.to_thread(orch.wifi_interfaces)
         if ifaces:
             iface = ifaces[0].get("interface", ifaces[0].get("name", ""))
             asyncio.create_task(_action_auto_pilot(orch, {"interface": iface}))
-            return {"response": "🤖 Auto-Pilot launched. Monitor the Attacks tab for progress."}
+            return {
+                "response": "🤖 Auto-Pilot launched. Monitor the Attacks tab for progress."
+            }
         return {"response": "No wireless interface found."}
 
     elif command in ("interfaces", "adapters", "wifi"):
         ifaces = await asyncio.to_thread(orch.wifi_interfaces)
         if ifaces:
-            lines = [f"  • {i.get('interface', i.get('name', '?'))} [{i.get('mode', '?')}]" for i in ifaces]
+            lines = [
+                f"  • {i.get('interface', i.get('name', '?'))} [{i.get('mode', '?')}]"
+                for i in ifaces
+            ]
             return {"response": "Interfaces:\n" + "\n".join(lines)}
         return {"response": "No wireless interfaces detected."}
 
@@ -657,6 +777,7 @@ async def _action_agent_command(orch, params: dict):
 
 
 # ── Abort ───────────────────────────────────────────────────────
+
 
 async def _action_abort(orch):
     """Set abort flag and kill any running PineAP services."""

