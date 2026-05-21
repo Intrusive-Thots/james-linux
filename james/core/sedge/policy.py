@@ -1,9 +1,12 @@
 import random
-
 from james.core.sedge.models import DecisionGraph
 
 
 class DecisionEngine:
+    """Policy layer replacing static AI decisions
+    using stochastic selection.
+    """
+
     def __init__(self, graph: DecisionGraph):
         self.graph = graph
 
@@ -12,13 +15,13 @@ class DecisionEngine:
         if not candidates:
             return None
 
-        # weighted stochastic selection (exploration + exploitation)
+        # Weighted stochastic selection (exploration + exploitation)
         weights = [c.score() for c in candidates]
         total = sum(weights)
 
-        # Avoid division by zero if all weights are zero
+        # If total is 0, fallback to uniform
         if total == 0:
-            probs = [1.0 / len(candidates) for _ in candidates]
+            probs = [1.0 / len(weights) for _ in weights]
         else:
             probs = [w / total for w in weights]
 
