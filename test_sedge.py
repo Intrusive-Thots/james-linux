@@ -1,5 +1,4 @@
 import unittest
-
 from james.core.sedge.models import Node, Edge, DecisionGraph
 from james.core.sedge.agent import SelfEvolvingAgent
 
@@ -49,8 +48,7 @@ class TestSEDGE(unittest.TestCase):
         next_node = self.agent.step()
         self.assertIn(next_node, ["PASSIVE_SCAN", "HANDSHAKE_CAPTURE"])
 
-        # Next step should halt
-        # because there are no outgoing edges
+        # Next step should halt because there are no outgoing edges
         next_node = self.agent.step()
         self.assertEqual(next_node, "halt")
 

@@ -2,7 +2,11 @@ from james.core.sedge.models import DecisionGraph
 
 
 class LearningEngine:
-    def update(self, graph: DecisionGraph, path: list[str], success: bool):
+    """Updates the decision graph based on execution feedback."""
+
+    def update(
+        self, graph: DecisionGraph, path: list[str], success: bool
+    ) -> None:
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
             edges = graph.edges.get(frm, [])
