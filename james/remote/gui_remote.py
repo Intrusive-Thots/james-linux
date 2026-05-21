@@ -67,7 +67,8 @@ class GUIRemote:
             try:
                 subprocess.run(
                     ["sudo", "-n", "apt-get", "install", "-y", "x11vnc"],
-                    capture_output=True, timeout=60
+                    capture_output=True,
+                    timeout=60,
                 )
                 actions.append("Installed x11vnc")
             except Exception as e:
@@ -79,8 +80,17 @@ class GUIRemote:
         if not novnc_path:
             try:
                 subprocess.run(
-                    ["sudo", "-n", "apt-get", "install", "-y", "novnc", "websockify"],
-                    capture_output=True, timeout=60
+                    [
+                        "sudo",
+                        "-n",
+                        "apt-get",
+                        "install",
+                        "-y",
+                        "novnc",
+                        "websockify",
+                    ],
+                    capture_output=True,
+                    timeout=60,
                 )
                 actions.append("Installed noVNC + websockify")
             except Exception as e:
@@ -88,8 +98,14 @@ class GUIRemote:
                 # Fallback: pip install websockify
                 try:
                     subprocess.run(
-                        ["pip3", "install", "websockify", "--break-system-packages"],
-                        capture_output=True, timeout=30
+                        [
+                            "pip3",
+                            "install",
+                            "websockify",
+                            "--break-system-packages",
+                        ],
+                        capture_output=True,
+                        timeout=30,
                     )
                     actions.append("Installed websockify via pip")
                 except Exception as e2:
@@ -133,7 +149,8 @@ class GUIRemote:
         try:
             proc = subprocess.run(
                 ["x11vnc", "-storepasswd", self._vnc_password, pw_file],
-                capture_output=True, timeout=5
+                capture_output=True,
+                timeout=5,
             )
             if proc.returncode == 0:
                 os.chmod(pw_file, 0o600)  # owner-only
@@ -178,7 +195,8 @@ class GUIRemote:
             try:
                 subprocess.run(
                     ["sudo", "-n", "pkill", "-f", proc_name],
-                    capture_output=True, timeout=5
+                    capture_output=True,
+                    timeout=5,
                 )
             except Exception:
                 pass
@@ -187,38 +205,59 @@ class GUIRemote:
         # 3. Create VNC password
         pw_file = self._create_vnc_password()
         if pw_file:
-            actions.append(f"VNC password configured (password: {self._vnc_password})")
+            actions.append(
+                f"VNC password configured (password: {self._vnc_password})"
+            )
         else:
-            actions.append("VNC running without password (password file creation failed)")
+            actions.append(
+                "VNC running without password (password file creation failed)"
+            )
 
         # 4. Open firewall ports
         for port in [self.VNC_PORT, self.WEB_PORT]:
             try:
                 subprocess.run(
                     ["sudo", "-n", "ufw", "allow", str(port)],
-                    capture_output=True, timeout=5
+                    capture_output=True,
+                    timeout=5,
                 )
             except Exception:
                 pass
             try:
                 subprocess.run(
-                    ["sudo", "-n", "iptables", "-I", "INPUT", "-p", "tcp",
-                     "--dport", str(port), "-j", "ACCEPT"],
-                    capture_output=True, timeout=5
+                    [
+                        "sudo",
+                        "-n",
+                        "iptables",
+                        "-I",
+                        "INPUT",
+                        "-p",
+                        "tcp",
+                        "--dport",
+                        str(port),
+                        "-j",
+                        "ACCEPT",
+                    ],
+                    capture_output=True,
+                    timeout=5,
                 )
             except Exception:
                 pass
-        actions.append(f"Firewall ports {self.VNC_PORT},{self.WEB_PORT} opened")
+        actions.append(
+            f"Firewall ports {self.VNC_PORT},{self.WEB_PORT} opened"
+        )
 
         # 5. Start x11vnc
         vnc_cmd = [
             "x11vnc",
-            "-display", self._display,
-            "-forever",         # Don't exit after first disconnect
-            "-shared",          # Allow multiple connections
-            "-noxdamage",       # Compatibility
-            "-rfbport", str(self.VNC_PORT),
-            "-bg",              # Background after starting
+            "-display",
+            self._display,
+            "-forever",  # Don't exit after first disconnect
+            "-shared",  # Allow multiple connections
+            "-noxdamage",  # Compatibility
+            "-rfbport",
+            str(self.VNC_PORT),
+            "-bg",  # Background after starting
         ]
         if pw_file:
             vnc_cmd.extend(["-rfbauth", pw_file])
@@ -238,9 +277,13 @@ class GUIRemote:
                 stderr = self._vnc_proc.stderr.read().decode(errors="replace")
                 errors.append(f"x11vnc failed to start: {stderr[:200]}")
             else:
-                actions.append(f"x11vnc sharing {self._display} on :{self.VNC_PORT}")
+                actions.append(
+                    f"x11vnc sharing {self._display} on :{self.VNC_PORT}"
+                )
         except FileNotFoundError:
-            errors.append("x11vnc not found — install with: sudo apt install x11vnc")
+            errors.append(
+                "x11vnc not found — install with: sudo apt install x11vnc"
+            )
         except Exception as e:
             errors.append(f"x11vnc error: {e}")
 
@@ -256,9 +299,13 @@ class GUIRemote:
             if os.path.exists(launch_script):
                 try:
                     self._novnc_proc = subprocess.Popen(
-                        [launch_script,
-                         "--listen", str(self.WEB_PORT),
-                         "--vnc", f"localhost:{self.VNC_PORT}"],
+                        [
+                            launch_script,
+                            "--listen",
+                            str(self.WEB_PORT),
+                            "--vnc",
+                            f"localhost:{self.VNC_PORT}",
+                        ],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                     )
@@ -276,7 +323,11 @@ class GUIRemote:
         # Verify
         if not errors or (self._vnc_proc and self._vnc_proc.poll() is None):
             self.running = True
-            logger.info("GUI Remote active: %s (password: %s)", self.url, self._vnc_password)
+            logger.info(
+                "GUI Remote active: %s (password: %s)",
+                self.url,
+                self._vnc_password,
+            )
             return {
                 "success": True,
                 "url": self.url,
@@ -301,10 +352,12 @@ class GUIRemote:
         ws_cmd = ["websockify"]
         if web_dir:
             ws_cmd.extend(["--web", web_dir])
-        ws_cmd.extend([
-            str(self.WEB_PORT),
-            f"localhost:{self.VNC_PORT}",
-        ])
+        ws_cmd.extend(
+            [
+                str(self.WEB_PORT),
+                f"localhost:{self.VNC_PORT}",
+            ]
+        )
 
         try:
             self._novnc_proc = subprocess.Popen(
@@ -314,12 +367,16 @@ class GUIRemote:
             )
             time.sleep(1)
             if self._novnc_proc.poll() is not None:
-                stderr = self._novnc_proc.stderr.read().decode(errors="replace")
+                stderr = self._novnc_proc.stderr.read().decode(
+                    errors="replace"
+                )
                 errors.append(f"websockify failed: {stderr[:200]}")
             else:
                 actions.append(f"websockify proxy on :{self.WEB_PORT}")
         except FileNotFoundError:
-            errors.append("websockify not found — install: sudo apt install novnc websockify")
+            errors.append(
+                "websockify not found — install: sudo apt install novnc websockify"
+            )
         except Exception as e:
             errors.append(f"websockify error: {e}")
 
@@ -345,7 +402,8 @@ class GUIRemote:
             try:
                 subprocess.run(
                     ["sudo", "-n", "pkill", "-f", pname],
-                    capture_output=True, timeout=3
+                    capture_output=True,
+                    timeout=3,
                 )
             except Exception:
                 pass

@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ActiveConnection:
     """Snapshot of the host's current network connection."""
+
     interface: str = ""
     ssid: str = ""
     bssid: str = ""
@@ -50,14 +51,19 @@ class NetworkGuard:
         self._cache_age: float = 0
         self._CACHE_TTL = 15  # seconds — re-check every 15s
 
-    def get_active_connection(self, force_refresh: bool = False) -> ActiveConnection:
+    def get_active_connection(
+        self, force_refresh: bool = False
+    ) -> ActiveConnection:
         """Detect the current active network connection."""
         import time
+
         now = time.time()
 
-        if (not force_refresh
-                and self._cached_connection
-                and (now - self._cache_age) < self._CACHE_TTL):
+        if (
+            not force_refresh
+            and self._cached_connection
+            and (now - self._cache_age) < self._CACHE_TTL
+        ):
             return self._cached_connection
 
         conn = ActiveConnection()
@@ -81,8 +87,16 @@ class NetworkGuard:
         conn = ActiveConnection()
         try:
             result = subprocess.run(
-                ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"],
-                capture_output=True, text=True, timeout=5
+                [
+                    "nmcli",
+                    "-t",
+                    "-f",
+                    "DEVICE,TYPE,STATE,CONNECTION",
+                    "device",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             for line in result.stdout.splitlines():
                 parts = line.split(":")
@@ -94,9 +108,20 @@ class NetworkGuard:
             if conn.interface and conn.is_wifi:
                 # Get BSSID and SSID
                 wifi_info = subprocess.run(
-                    ["nmcli", "-t", "-f", "IN-USE,BSSID,SSID,CHAN",
-                     "device", "wifi", "list", "ifname", conn.interface],
-                    capture_output=True, text=True, timeout=5
+                    [
+                        "nmcli",
+                        "-t",
+                        "-f",
+                        "IN-USE,BSSID,SSID,CHAN",
+                        "device",
+                        "wifi",
+                        "list",
+                        "ifname",
+                        conn.interface,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 for line in wifi_info.stdout.splitlines():
                     if line.startswith("*:"):
@@ -104,12 +129,16 @@ class NetworkGuard:
                         # BSSID is parts[1] through parts[6] (MAC has colons)
                         if len(parts) >= 9:
                             conn.bssid = ":".join(parts[1:7]).strip().upper()
-                            conn.ssid = parts[7].strip() if len(parts) > 7 else ""
+                            conn.ssid = (
+                                parts[7].strip() if len(parts) > 7 else ""
+                            )
 
                 # Get gateway
                 gw_result = subprocess.run(
                     ["ip", "route", "show", "default", "dev", conn.interface],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 gw_match = re.search(r"default via (\S+)", gw_result.stdout)
                 if gw_match:
@@ -118,7 +147,9 @@ class NetworkGuard:
                 # Get our IP
                 ip_result = subprocess.run(
                     ["ip", "-4", "addr", "show", conn.interface],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 ip_match = re.search(r"inet (\S+)/", ip_result.stdout)
                 if ip_match:
@@ -128,7 +159,9 @@ class NetworkGuard:
                 # Wired connection — get gateway
                 gw_result = subprocess.run(
                     ["ip", "route", "show", "default", "dev", conn.interface],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 gw_match = re.search(r"default via (\S+)", gw_result.stdout)
                 if gw_match:
@@ -144,7 +177,9 @@ class NetworkGuard:
         try:
             result = subprocess.run(
                 ["ip", "route", "show", "default"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             match = re.search(r"default via (\S+) dev (\S+)", result.stdout)
             if match:
@@ -154,14 +189,15 @@ class NetworkGuard:
                 # Check if it's wireless
                 iw_result = subprocess.run(
                     ["iwconfig", conn.interface],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 if "no wireless extensions" not in iw_result.stderr:
                     conn.is_wifi = True
                     # Extract BSSID
                     bssid_match = re.search(
-                        r"Access Point:\s*([0-9A-Fa-f:]{17})",
-                        iw_result.stdout
+                        r"Access Point:\s*([0-9A-Fa-f:]{17})", iw_result.stdout
                     )
                     if bssid_match:
                         conn.bssid = bssid_match.group(1).upper()
@@ -252,7 +288,9 @@ class NetworkGuard:
 
         return True, ""
 
-    def check_mitm_safe(self, target_ip: str, gateway_ip: str = "") -> tuple[bool, str]:
+    def check_mitm_safe(
+        self, target_ip: str, gateway_ip: str = ""
+    ) -> tuple[bool, str]:
         """Check if MITM/ARP spoofing is safe (not poisoning our own gateway)."""
         if not self.enabled:
             return True, ""

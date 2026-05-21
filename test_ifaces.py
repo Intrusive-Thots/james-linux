@@ -1,4 +1,3 @@
-import sys
 from james.core.orchestrator import Orchestrator
 
 orch = Orchestrator()

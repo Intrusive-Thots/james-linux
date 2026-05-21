@@ -2,6 +2,7 @@
 """
 Test suite for JAMES primers functionality.
 """
+
 import sys
 
 from james.core.primers import (
@@ -10,6 +11,7 @@ from james.core.primers import (
     RECON_PRIMER,
     WIFI_PRIMER,
 )
+
 
 def test_get_combined_primer():
     """Test get_combined_primer output concatenation."""
@@ -43,6 +45,7 @@ def test_get_combined_primer():
     assert result == expected, f"Expected {expected!r}, got {result!r}"
 
     print("✅ All get_combined_primer tests passed.")
+
 
 if __name__ == "__main__":
     try:

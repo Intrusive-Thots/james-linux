@@ -10,14 +10,10 @@ class TestSEDGE(unittest.TestCase):
 
         # Add Nodes
         self.graph.add_node(Node(id="START", state_type="start"))
-        self.graph.add_node(
-            Node(id="NETWORK_DISCOVERY", state_type="scan")
-        )
+        self.graph.add_node(Node(id="NETWORK_DISCOVERY", state_type="scan"))
         self.graph.add_node(Node(id="TARGET_ANALYSIS", state_type="analysis"))
         self.graph.add_node(Node(id="PASSIVE_SCAN", state_type="action"))
-        self.graph.add_node(
-            Node(id="HANDSHAKE_CAPTURE", state_type="action")
-        )
+        self.graph.add_node(Node(id="HANDSHAKE_CAPTURE", state_type="action"))
 
         # Add Edges
         self.graph.add_edge(

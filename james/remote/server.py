@@ -496,7 +496,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
     def _check_auth(self) -> bool:
         """Verify the Bearer token. Returns True if valid."""
-        expected = getattr(self.server, 'auth_token', None)
+        expected = getattr(self.server, "auth_token", None)
         if not expected:
             return True  # no token configured
 
@@ -516,31 +516,57 @@ class _RequestHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/" or path == "/index.html":
             # Inject the auth token into the HTML template
-            token = getattr(self.server, 'auth_token', '')
-            html = WEB_UI_TEMPLATE.replace('{{AUTH_TOKEN}}', token)
+            token = getattr(self.server, "auth_token", "")
+            html = WEB_UI_TEMPLATE.replace("{{AUTH_TOKEN}}", token)
             self._respond_html(html)
         elif path == "/api/context":
             if not self._check_auth():
                 return
             agent = self.server.james_agent
-            ctx = {k: v for k, v in agent.context.items()
-                   if k in ("target", "interface", "domain", "target_url",
-                            "discovered_services", "lhost", "lport")}
+            ctx = {
+                k: v
+                for k, v in agent.context.items()
+                if k
+                in (
+                    "target",
+                    "interface",
+                    "domain",
+                    "target_url",
+                    "discovered_services",
+                    "lhost",
+                    "lport",
+                )
+            }
             self._respond_json(ctx)
         elif path == "/api/status":
             if not self._check_auth():
                 return
             agent = self.server.james_agent
-            ctx = {k: v for k, v in agent.context.items()
-                   if k in ("target", "interface", "domain", "target_url",
-                            "discovered_services", "lhost", "lport")}
-            self._respond_json({
-                "status": "ok",
-                "time": datetime.now().isoformat(),
-                "context": ctx,
-            })
+            ctx = {
+                k: v
+                for k, v in agent.context.items()
+                if k
+                in (
+                    "target",
+                    "interface",
+                    "domain",
+                    "target_url",
+                    "discovered_services",
+                    "lhost",
+                    "lport",
+                )
+            }
+            self._respond_json(
+                {
+                    "status": "ok",
+                    "time": datetime.now().isoformat(),
+                    "context": ctx,
+                }
+            )
         elif path == "/api/health":
-            self._respond_json({"status": "ok", "time": datetime.now().isoformat()})
+            self._respond_json(
+                {"status": "ok", "time": datetime.now().isoformat()}
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -565,14 +591,25 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 response = agent.process(cmd)
 
                 # Return response + updated context
-                ctx = {k: v for k, v in agent.context.items()
-                       if k in ("target", "interface", "domain", "target_url",
-                                "discovered_services")}
-                self._respond_json({
-                    "response": response,
-                    "intent": agent.last_intent,
-                    "context": ctx,
-                })
+                ctx = {
+                    k: v
+                    for k, v in agent.context.items()
+                    if k
+                    in (
+                        "target",
+                        "interface",
+                        "domain",
+                        "target_url",
+                        "discovered_services",
+                    )
+                }
+                self._respond_json(
+                    {
+                        "response": response,
+                        "intent": agent.last_intent,
+                        "context": ctx,
+                    }
+                )
             except Exception as e:
                 logger.error("Remote command error: %s", e)
                 self._respond_json({"error": str(e)}, 500)
@@ -597,7 +634,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header(
+            "Access-Control-Allow-Headers", "Content-Type, Authorization"
+        )
         self.end_headers()
 
 
@@ -628,7 +667,9 @@ class RemoteServer:
     def start(self):
         """Start the remote server in a background thread."""
         if self.running:
-            logger.warning("Remote server already running on port %d", self.port)
+            logger.warning(
+                "Remote server already running on port %d", self.port
+            )
             return
 
         self.server = HTTPServer(("0.0.0.0", self.port), _RequestHandler)

@@ -38,7 +38,12 @@ def generate_html_report(
 
     # Build task rows
     def _status_class(status):
-        return {"success": "status-success", "error": "status-error", "failed": "status-error", "running": "status-running"}.get(status, "status-info")
+        return {
+            "success": "status-success",
+            "error": "status-error",
+            "failed": "status-error",
+            "running": "status-running",
+        }.get(status, "status-info")
 
     task_rows = "".join(f"""
             <tr>
@@ -59,13 +64,22 @@ def generate_html_report(
             </tr>""" for entry in loot_summary.get("keys", []))
 
     # Build tool status grid
-    tool_grid = "".join(f'<span class="tool-badge {"tool-ok" if installed else "tool-missing"}">{"✅" if installed else "❌"} {name}</span>\n' for name, installed in sorted(tool_status.items()))
+    tool_grid = "".join(
+        f'<span class="tool-badge {"tool-ok" if installed else "tool-missing"}">{"✅" if installed else "❌"} {name}</span>\n'
+        for name, installed in sorted(tool_status.items())
+    )
 
     # Build target list
-    target_list = "".join(f"<li><code>{t}</code></li>\n" for t in sorted(known_targets))
+    target_list = "".join(
+        f"<li><code>{t}</code></li>\n" for t in sorted(known_targets)
+    )
 
     # Context section
-    context_rows = "".join(f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>\n" for k, v in context.items() if v)
+    context_rows = "".join(
+        f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>\n"
+        for k, v in context.items()
+        if v
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="en">

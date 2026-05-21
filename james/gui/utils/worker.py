@@ -1,5 +1,6 @@
 from PyQt5.QtCore import pyqtSignal, QThread
 
+
 class WorkerThread(QThread):
     finished = pyqtSignal(object)
 

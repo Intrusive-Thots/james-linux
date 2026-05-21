@@ -1,9 +1,9 @@
 import unittest
 import json
-import os
 import tempfile
 from pathlib import Path
 import james.server.config as config_mod
+
 
 class TestServerConfig(unittest.TestCase):
     def setUp(self):
@@ -29,7 +29,7 @@ class TestServerConfig(unittest.TestCase):
             "port": 9999,
             "api_key": "dummy_api_key",
             "tls_enabled": False,
-            "jwt_secret": "dummy_jwt_secret"
+            "jwt_secret": "dummy_jwt_secret",
         }
 
         with open(self.dummy_file, "w") as f:
@@ -52,7 +52,10 @@ class TestServerConfig(unittest.TestCase):
         self.assertEqual(cfg.host, "0.0.0.0")
         self.assertEqual(cfg.port, 8443)
         self.assertTrue(cfg.tls_enabled)
-        self.assertTrue(len(cfg.jwt_secret) > 0) # auto-generated secrets.token_hex(32)
+        self.assertTrue(
+            len(cfg.jwt_secret) > 0
+        )  # auto-generated secrets.token_hex(32)
+
 
 if __name__ == "__main__":
     unittest.main()
