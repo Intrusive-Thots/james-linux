@@ -1,6 +1,6 @@
 import unittest
-from james.core.sedge.models import Node, Edge, DecisionGraph
-from james.core.sedge.agent import SelfEvolvingAgent
+from james.core.sedge import Node, Edge, DecisionGraph, SelfEvolvingAgent
+
 
 
 class TestSEDGE(unittest.TestCase):

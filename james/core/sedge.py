@@ -4,13 +4,17 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Node:
+    """Represents a system situation or decision point."""
+
     id: str
-    state_type: str  # "scan", "analysis", "action"
+    state_type: str  # e.g., "scan", "analysis", "action"
     metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class Edge:
+    """Stores experience weight between decisions."""
+
     from_node: str
     to_node: str
     success_weight: float = 1.0
@@ -18,10 +22,13 @@ class Edge:
     visits: int = 0
 
     def score(self) -> float:
+        """Calculate the utility score of this edge."""
         return self.success_weight / (self.failure_weight + 1e-6)
 
 
 class DecisionGraph:
+    """Directed weighted decision graph."""
+
     def __init__(self) -> None:
         self.nodes: dict[str, Node] = {}
         self.edges: dict[str, list[Edge]] = {}
@@ -40,6 +47,8 @@ class DecisionGraph:
 
 
 class LearningEngine:
+    """Updates the decision graph based on execution feedback."""
+
     def update(
         self, graph: DecisionGraph, path: list[str], success: bool
     ) -> None:
@@ -56,6 +65,10 @@ class LearningEngine:
 
 
 class DecisionEngine:
+    """Policy layer replacing static AI decisions
+    using stochastic selection.
+    """
+
     def __init__(self, graph: DecisionGraph) -> None:
         self.graph = graph
 
@@ -64,15 +77,22 @@ class DecisionEngine:
         if not candidates:
             return None
 
-        # weighted stochastic selection (exploration + exploitation)
+        # Weighted stochastic selection (exploration + exploitation)
         weights = [c.score() for c in candidates]
         total = sum(weights)
-        probs = [w / total for w in weights]
+
+        # If total is 0, fallback to uniform
+        if total == 0:
+            probs = [1.0 / len(weights) for _ in weights]
+        else:
+            probs = [w / total for w in weights]
 
         return random.choices(candidates, weights=probs)[0].to_node
 
 
 class SelfEvolvingAgent:
+    """Main self-evolution loop."""
+
     def __init__(self, graph: DecisionGraph) -> None:
         self.graph = graph
         self.decision_engine = DecisionEngine(graph)
@@ -92,6 +112,6 @@ class SelfEvolvingAgent:
 
     def feedback(self, success: bool) -> None:
         self.learner.update(self.graph, self.current_path, success)
-        # reset episode
+        # Reset episode
         self.current_node = "START"
         self.current_path = ["START"]
