@@ -88,6 +88,25 @@ export function TopNav({ state, connected }: TopNavProps) {
         <div
           className={cn(
             "flex items-center gap-sm px-md py-[6px] rounded-tag border transition-colors",
+            connected
+              ? "bg-success/5 border-success/20"
+              : "bg-danger/5 border-danger/20"
+          )}
+        >
+          <span
+            className={cn(
+              "w-2 h-2 rounded-full",
+              connected ? "bg-success animate-pulse-slow" : "bg-danger"
+            )}
+          />
+          <span className="text-small text-text-secondary font-medium">
+            {connected ? "API Connected" : "API Offline"}
+          </span>
+        </div>
+
+        <div
+          className={cn(
+            "flex items-center gap-sm px-md py-[6px] rounded-tag border transition-colors",
             state.adapter
               ? "bg-bg-elevated border-border"
               : "bg-danger/5 border-danger/20"

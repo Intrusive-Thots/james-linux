@@ -7,7 +7,6 @@ import {
   Shield,
   Activity,
   AlertTriangle,
-  CheckCircle2,
   ArrowRight,
 } from "lucide-react";
 import type { AppState, PageId } from "../hooks/useAppState";

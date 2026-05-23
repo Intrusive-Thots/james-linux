@@ -81,9 +81,9 @@ function getStages(attack: AttackState, hasTarget: boolean): Stage[] {
             ? attack.result?.found
               ? "success"
               : "failed"
-            : s !== "cracking" && s !== "complete"
-              ? "locked"
-              : "idle",
+            : s === "capturing"
+              ? "idle"
+              : "locked",
     },
     {
       id: "result",

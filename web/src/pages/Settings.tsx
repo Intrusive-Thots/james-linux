@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Settings as SettingsIcon, Wifi, Shield, Palette, Bell } from "lucide-react";
+import { Wifi, Shield, Palette, Bell } from "lucide-react";
 
 export function SettingsPage() {
   return (

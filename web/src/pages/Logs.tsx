@@ -4,7 +4,6 @@ import {
   ScrollText,
   Search,
   Download,
-  Trash2,
   AlertCircle,
   Info,
   AlertTriangle,
@@ -15,7 +14,6 @@ import { cn, downloadFile } from "../lib/utils";
 
 interface LogsProps {
   state: AppState;
-  addLog: (level: LogEntry["level"], msg: string) => void;
 }
 
 const LEVEL_ICONS: Record<LogEntry["level"], React.ElementType> = {
@@ -32,7 +30,7 @@ const LEVEL_COLORS: Record<LogEntry["level"], string> = {
   success: "text-success",
 };
 
-export function Logs({ state, addLog }: LogsProps) {
+export function Logs({ state }: LogsProps) {
   const [filter, setFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState<LogEntry["level"] | "all">("all");
   const scrollRef = useRef<HTMLDivElement>(null);

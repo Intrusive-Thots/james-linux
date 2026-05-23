@@ -8,7 +8,7 @@ import {
   Clock,
   HardDrive,
 } from "lucide-react";
-import type { AppState, HandshakeFile } from "../hooks/useAppState";
+import type { AppState } from "../hooks/useAppState";
 import { downloadFile, toCSV } from "../lib/utils";
 
 interface HandshakesProps {

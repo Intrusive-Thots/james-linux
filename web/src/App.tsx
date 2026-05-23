@@ -205,7 +205,7 @@ export default function App() {
           />
         );
       case "logs":
-        return <Logs state={state} addLog={addLog} />;
+        return <Logs state={state} />;
       case "settings":
         return <SettingsPage />;
       default:
