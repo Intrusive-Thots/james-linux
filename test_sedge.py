@@ -90,6 +90,15 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(edges[0].success_weight, 1.0)
         self.assertEqual(edges[0].failure_weight, 2.0)
 
+    def test_get_best_next_no_edges(self):
+        self.assertIsNone(self.graph.get_best_next("PASSIVE_SCAN"))
+
+    def test_get_best_next_with_edges(self):
+        # We know START has one edge
+        best_edge = self.graph.get_best_next("START")
+        self.assertIsNotNone(best_edge)
+        self.assertEqual(best_edge.to_node, "NETWORK_DISCOVERY")
+
 
 if __name__ == "__main__":
     unittest.main()
