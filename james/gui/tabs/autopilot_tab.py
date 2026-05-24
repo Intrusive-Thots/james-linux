@@ -29,8 +29,9 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QMessageBox,
     QSpinBox,
+    QSplitter,
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 
 from james.gui.toast import show_toast
@@ -651,131 +652,187 @@ class AutoPilotWorker(QThread):
 class AutoPilotTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
-        self.main_window = main_window
+        self.main_window  = main_window
         self.orchestrator = main_window.orchestrator
-        self.worker = None
+        self.worker       = None
+        self._elapsed     = 0
+        self._elapsed_timer = QTimer(self)
+        self._elapsed_timer.timeout.connect(self._tick_elapsed)
         self._build_ui()
         self._connect_signals()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # ── Controls ──
-        ctrl_group = QGroupBox("Controls")
-        ctrl_inner = QVBoxLayout(ctrl_group)
-
-        btn_row = QHBoxLayout()
-        self.btn_start = QPushButton("🚀  START FULL AUTO-PILOT")
+        # ── Primary action row ──
+        action_row = QHBoxLayout()
+        action_row.setSpacing(8)
+        self.btn_start = QPushButton("  START FULL AUTO-PILOT  ")
         self.btn_start.setObjectName("primaryBtn")
-
-        self.btn_stop = QPushButton("🛑  ABORT")
+        self.btn_stop = QPushButton("Abort")
         self.btn_stop.setObjectName("dangerBtn")
+        self.btn_stop.setFixedWidth(80)
         self.btn_stop.setEnabled(False)
+        action_row.addWidget(self.btn_start)
+        action_row.addWidget(self.btn_stop)
+        action_row.addStretch()
+        layout.addLayout(action_row)
 
-        btn_row.addWidget(self.btn_start, stretch=3)
-        btn_row.addWidget(self.btn_stop, stretch=1)
-        ctrl_inner.addLayout(btn_row)
-
-        # Settings row
+        # ── Settings row (flat, no group box) ──
         settings_row = QHBoxLayout()
+        settings_row.setSpacing(12)
 
-        settings_row.addWidget(QLabel("Recon (sec):"))
+        recon_lbl = QLabel("Recon")
+        recon_lbl.setObjectName("metaLabel")
         self.spin_recon = QSpinBox()
         self.spin_recon.setRange(5, 120)
         self.spin_recon.setValue(20)
-        self.spin_recon.setToolTip(
-            "How long to scan the area before attacking"
-        )
-        settings_row.addWidget(self.spin_recon)
+        self.spin_recon.setFixedWidth(60)
+        self.spin_recon.setToolTip("Seconds to scan before attacking")
+        recon_sec = QLabel("sec")
+        recon_sec.setObjectName("dimLabel")
 
-        settings_row.addWidget(QLabel("Deauth tries:"))
+        deauth_lbl = QLabel("Deauth")
+        deauth_lbl.setObjectName("metaLabel")
         self.spin_deauth = QSpinBox()
         self.spin_deauth.setRange(1, 10)
         self.spin_deauth.setValue(3)
-        self.spin_deauth.setToolTip("Number of deauth attempts per target")
-        settings_row.addWidget(self.spin_deauth)
+        self.spin_deauth.setFixedWidth(56)
+        self.spin_deauth.setToolTip("Deauth attempts per target")
+        deauth_x = QLabel("×")
+        deauth_x.setObjectName("dimLabel")
 
-        self.chk_crack = QPushButton("🔓 Auto-Crack: ON")
+        self.chk_crack = QPushButton("Auto-Crack")
         self.chk_crack.setCheckable(True)
         self.chk_crack.setChecked(True)
-        self.chk_crack.setToolTip(
-            "Automatically attempt to crack captured handshakes"
-        )
+        self.chk_crack.setFixedHeight(28)
+        self.chk_crack.setFixedWidth(96)
+        self.chk_crack.setToolTip("Automatically crack captured handshakes")
         self.chk_crack.toggled.connect(self._toggle_crack)
-        settings_row.addWidget(self.chk_crack)
 
-        self.chk_airgeddon = QPushButton("👿 Auto-Airgeddon: OFF")
+        self.chk_airgeddon = QPushButton("Auto-Airgeddon")
         self.chk_airgeddon.setCheckable(True)
         self.chk_airgeddon.setChecked(False)
-        self.chk_airgeddon.setToolTip(
-            "Automatically deploy Evil Twin if cracking fails"
-        )
+        self.chk_airgeddon.setFixedHeight(28)
+        self.chk_airgeddon.setFixedWidth(120)
+        self.chk_airgeddon.setToolTip("Deploy Evil Twin if cracking fails")
         self.chk_airgeddon.toggled.connect(self._toggle_airgeddon)
-        settings_row.addWidget(self.chk_airgeddon)
 
-        settings_row.addWidget(QLabel("Airgeddon Timeout (m):"))
+        et_lbl = QLabel("ET Timeout")
+        et_lbl.setObjectName("metaLabel")
         self.spin_airgeddon_timeout = QSpinBox()
         self.spin_airgeddon_timeout.setRange(1, 60)
         self.spin_airgeddon_timeout.setValue(10)
-        self.spin_airgeddon_timeout.setToolTip(
-            "Minutes to wait for credentials before aborting Evil Twin"
-        )
-        settings_row.addWidget(self.spin_airgeddon_timeout)
+        self.spin_airgeddon_timeout.setFixedWidth(60)
+        et_min = QLabel("min")
+        et_min.setObjectName("dimLabel")
 
+        for w in (recon_lbl, self.spin_recon, recon_sec,
+                  deauth_lbl, self.spin_deauth, deauth_x,
+                  self.chk_crack, self.chk_airgeddon,
+                  et_lbl, self.spin_airgeddon_timeout, et_min):
+            settings_row.addWidget(w)
         settings_row.addStretch()
-        ctrl_inner.addLayout(settings_row)
+        layout.addLayout(settings_row)
 
-        layout.addWidget(ctrl_group)
+        # ── Phase + metrics strip ──
+        phase_strip = QWidget()
+        phase_strip.setFixedHeight(48)
+        phase_strip.setStyleSheet(
+            "background: #0D1726; border: 1px solid #1A2A3D;"
+            " border-radius: 6px;"
+        )
+        ps = QHBoxLayout(phase_strip)
+        ps.setContentsMargins(16, 0, 16, 0)
+        ps.setSpacing(24)
 
-        # ── Progress ──
-        prog_group = QGroupBox("Progress")
-        prog_layout = QVBoxLayout(prog_group)
-        self.lbl_phase = QLabel(
-            "Ready — plug in a dedicated Wi-Fi adapter and press START."
-        )
-        self.lbl_phase.setStyleSheet(
-            "color: #ffaa00; font-weight: 700; font-size: 13px; padding: 4px 0;"
-        )
+        self.lbl_phase = QLabel("Ready")
+        self.lbl_phase.setObjectName("goldAccent")
+        self.lbl_phase.setMinimumWidth(200)
+
+        self._m_elapsed  = self._make_strip_metric("Elapsed",  "00:00")
+        self._m_targets  = self._make_strip_metric("Targets",  "0")
+        self._m_captured = self._make_strip_metric("Captured", "0")
+        self._m_cracked  = self._make_strip_metric("Cracked",  "0")
+
+        ps.addWidget(self.lbl_phase, stretch=1)
+        for m in (self._m_elapsed, self._m_targets, self._m_captured, self._m_cracked):
+            ps.addWidget(m)
+        layout.addWidget(phase_strip)
+
+        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, AutoPilotWorker.TOTAL_PHASES)
         self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-        prog_layout.addWidget(self.lbl_phase)
-        prog_layout.addWidget(self.progress_bar)
-        layout.addWidget(prog_group)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(4)
+        layout.addWidget(self.progress_bar)
 
-        # ── Log + Loot side-by-side ──
-        split = QHBoxLayout()
+        # ── Log + Loot splitter ──
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setHandleWidth(1)
 
         log_group = QGroupBox("Action Log")
         log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(8, 8, 8, 8)
         self.txt_log = QPlainTextEdit()
         self.txt_log.setReadOnly(True)
         self.txt_log.setMaximumBlockCount(2000)
         self.txt_log.setStyleSheet(LOG_STYLE)
-        self.txt_log.setFont(QFont("JetBrains Mono", 11))
+        self.txt_log.setFont(QFont("JetBrains Mono", 10))
         log_layout.addWidget(self.txt_log)
-        split.addWidget(log_group, stretch=1)
+        splitter.addWidget(log_group)
 
         loot_group = QGroupBox("Targets & Loot")
         loot_layout = QVBoxLayout(loot_group)
+        loot_layout.setContentsMargins(8, 8, 8, 8)
         self.loot_table = QTableWidget()
         self.loot_table.setColumnCount(5)
         self.loot_table.setHorizontalHeaderLabels(
-            ["ESSID", "BSSID", "CH", "Handshake", "Key"]
+            ["ESSID", "BSSID", "CH", "HS", "Key"]
         )
-        self.loot_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.Stretch
-        )
-        self.loot_table.horizontalHeader().setSectionResizeMode(
-            4, QHeaderView.Stretch
-        )
+        self.loot_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.loot_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.loot_table.verticalHeader().setVisible(False)
+        self.loot_table.setAlternatingRowColors(True)
         loot_layout.addWidget(self.loot_table)
-        split.addWidget(loot_group, stretch=1)
+        splitter.addWidget(loot_group)
 
-        layout.addLayout(split)
+        splitter.setSizes([480, 480])
+        layout.addWidget(splitter)
+
+    def _make_strip_metric(self, label: str, value: str) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(1)
+        val = QLabel(value)
+        val.setAlignment(Qt.AlignCenter)
+        val.setStyleSheet(
+            "color: #C8D6E5; font-size: 13px; font-weight: 700;"
+            " font-family: 'JetBrains Mono', monospace;"
+        )
+        cap = QLabel(label)
+        cap.setAlignment(Qt.AlignCenter)
+        cap.setObjectName("metaLabel")
+        v.addWidget(val)
+        v.addWidget(cap)
+        return w
+
+    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#C8D6E5"):
+        lbl = widget.findChildren(QLabel)[0]
+        lbl.setText(value)
+        lbl.setStyleSheet(
+            f"color: {color}; font-size: 13px; font-weight: 700;"
+            f" font-family: 'JetBrains Mono', monospace;"
+        )
+
+    def _tick_elapsed(self):
+        self._elapsed += 1
+        m, s = divmod(self._elapsed, 60)
+        self._set_strip_metric(self._m_elapsed, f"{m:02d}:{s:02d}")
 
     def _connect_signals(self):
         self.btn_start.clicked.connect(self._on_start)
@@ -812,7 +869,17 @@ class AutoPilotTab(QWidget):
         self.loot_table.setRowCount(0)
         self.progress_bar.setValue(0)
         self.main_window._set_idle(False)
-        self.main_window.lbl_status.setText("●  AUTO-PILOT")
+        self.main_window.lbl_status.setText("● AUTO-PILOT")
+
+        # Reset elapsed timer
+        self._elapsed = 0
+        self._set_strip_metric(self._m_elapsed, "00:00")
+        self._set_strip_metric(self._m_targets,  "0")
+        self._set_strip_metric(self._m_captured, "0")
+        self._set_strip_metric(self._m_cracked,  "0")
+        self.lbl_phase.setText("Starting…")
+        self.lbl_phase.setObjectName("goldAccent")
+        self._elapsed_timer.start(1000)
 
         self.worker = AutoPilotWorker(
             self.orchestrator,
@@ -839,14 +906,19 @@ class AutoPilotTab(QWidget):
     # ── slots ──────────────────────────────────────────────
 
     def _log(self, text):
-        self.txt_log.appendPlainText(text)
+        from datetime import datetime
+        ts = datetime.now().strftime("%H:%M")
+        self.txt_log.appendPlainText(f"[{ts}]  {text}")
         sb = self.txt_log.verticalScrollBar()
         sb.setValue(sb.maximum())
-        self.main_window.log_signal.emit(f"[AutoPilot] {text}")
+        self.main_window.log_signal.emit(f"[AutoPilot] {text}", "INFO")
 
     def _update_phase(self, idx, title):
         self.lbl_phase.setText(title)
         self.progress_bar.setValue(idx)
+        self._set_strip_metric(
+            self._m_targets, str(self.loot_table.rowCount())
+        )
 
     def _add_or_update_loot(self, ap):
         """Insert or update a row in the loot table based on BSSID."""
@@ -877,47 +949,57 @@ class AutoPilotTab(QWidget):
         # Handshake status
         hs_item = QTableWidgetItem()
         if ap.get("skip_reason"):
-            hs_item.setText("⏭ SKIP")
-            hs_item.setForeground(QColor("#888"))
+            hs_item.setText("SKIP")
+            hs_item.setForeground(QColor("#3D5060"))
         elif ap.get("captured"):
-            hs_item.setText("✅ YES")
-            hs_item.setForeground(QColor("#00ff88"))
+            hs_item.setText("YES")
+            hs_item.setForeground(QColor("#00C875"))
         else:
-            hs_item.setText("❌ NO")
-            hs_item.setForeground(QColor("#ff4757"))
+            hs_item.setText("NO")
+            hs_item.setForeground(QColor("#E63946"))
         self.loot_table.setItem(row, 3, hs_item)
 
         # Key status
         key_item = QTableWidgetItem()
         if ap.get("cracked"):
             key_item.setText(ap.get("key", ""))
-            key_item.setForeground(QColor("#ffd700"))
+            key_item.setForeground(QColor("#C8961A"))
         elif ap.get("captured"):
-            key_item.setText("🔒 pending")
-            key_item.setForeground(QColor("#888"))
+            key_item.setText("pending")
+            key_item.setForeground(QColor("#6E7B8B"))
         else:
             key_item.setText("—")
-            key_item.setForeground(QColor("#444"))
+            key_item.setForeground(QColor("#3D5060"))
         self.loot_table.setItem(row, 4, key_item)
+
+        # Update strip metrics
+        captured = sum(
+            1 for r in range(self.loot_table.rowCount())
+            if self.loot_table.item(r, 3) and self.loot_table.item(r, 3).text() == "YES"
+        )
+        cracked = sum(
+            1 for r in range(self.loot_table.rowCount())
+            if self.loot_table.item(r, 4) and self.loot_table.item(r, 4).text() not in ("", "—", "pending")
+        )
+        self._set_strip_metric(self._m_targets,  str(self.loot_table.rowCount()))
+        self._set_strip_metric(self._m_captured, str(captured), "#00C875" if captured else "#C8D6E5")
+        self._set_strip_metric(self._m_cracked,  str(cracked),  "#C8961A" if cracked  else "#C8D6E5")
 
     def _on_finished(self, success):
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
         self.main_window._set_idle(True)
+        self._elapsed_timer.stop()
 
         if success:
-            show_toast(
-                self.main_window,
-                "Auto-Pilot completed successfully!",
-                level="success",
+            show_toast(self.main_window, "Auto-Pilot complete", level="success")
+            self.lbl_phase.setText("Complete")
+            self.lbl_phase.setStyleSheet(
+                "color: #00C875; font-size: 13px; font-weight: 700;"
             )
-            self.lbl_phase.setText("✅ Complete — check the Loot table.")
         else:
-            show_toast(
-                self.main_window,
-                "Auto-Pilot stopped or failed. Check the log.",
-                level="error",
-            )
-            self.lbl_phase.setText(
-                "⚠ Stopped — check the Action Log for details."
+            show_toast(self.main_window, "Auto-Pilot stopped", level="error")
+            self.lbl_phase.setText("Stopped")
+            self.lbl_phase.setStyleSheet(
+                "color: #E63946; font-size: 13px; font-weight: 700;"
             )
