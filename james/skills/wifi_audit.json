@@ -1,0 +1,40 @@
+{
+  "name": "wifi_audit",
+  "category": "wifi",
+  "description": "Full wireless audit: monitor mode → AP scan → handshake capture → crack",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "ensure_wireless_interface",
+      "description": "Verify wireless interface is available",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "start_monitor",
+      "description": "Enable monitor mode on {{interface}}",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "scan_nearby_aps",
+      "description": "Scan for nearby access points (15s)",
+      "params": {
+        "interface": "{{interface}}",
+        "duration": 15
+      }
+    },
+    {
+      "action": "crack_wpa_smart",
+      "description": "Smart WPA crack against captured handshake",
+      "params": {
+        "capture": "{{capture_file}}",
+        "wordlist": "{{wordlist}}",
+        "bssid": "{{target_bssid}}"
+      }
+    }
+  ]
+}

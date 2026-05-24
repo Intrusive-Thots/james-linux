@@ -3,12 +3,17 @@
 JAMES Linux — Application Entry Point.
 
 Usage:
-    python3 main.py                  Launch desktop GUI
+    python3 main.py                  Launch desktop GUI (default)
+    python3 main.py --server         Run headless FastAPI web server
+    python3 main.py --both           Run GUI + background FastAPI server
+    python3 main.py --setup          Run first-time setup wizard
+    python3 main.py --headless       Alias for --server
 """
 
 import sys
 import logging
 import logging.handlers
+import argparse
 import fcntl
 import os
 from datetime import datetime
@@ -161,12 +166,108 @@ def run_gui():
     sys.exit(app.exec_())
 
 
+def run_server():
+    """Run the headless FastAPI web server."""
+    try:
+        import uvicorn
+        from james.server.app import create_app
+
+        logger.info("Starting JAMES headless server on :1337 ...")
+        app = create_app()
+        uvicorn.run(app, host="0.0.0.0", port=1337, log_level="info")
+    except ImportError as e:
+        logger.error(
+            "Server dependencies missing (%s). Install with: pip install uvicorn fastapi",
+            e,
+        )
+        sys.exit(1)
+
+
+def run_both():
+    """Run PyQt5 GUI and start the FastAPI server in a background thread."""
+    import threading
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    logger.info("Background API server started on :1337")
+    run_gui()
+
+
+def run_setup():
+    """Launch the first-time setup wizard."""
+    try:
+        from PyQt5.QtWidgets import QApplication
+        from james.gui.setup_wizard import SetupWizard
+
+        app = QApplication(sys.argv)
+        wizard = SetupWizard()
+        wizard.show()
+        sys.exit(app.exec_())
+    except ImportError:
+        logger.error(
+            "GUI dependencies not available. Run: pip install PyQt5"
+        )
+        sys.exit(1)
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="james",
+        description="JAMES — Just Another Multipurpose Exploitation System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 main.py                 # Launch GUI (default)
+  python3 main.py --server        # Headless API server on :1337
+  python3 main.py --both          # GUI + background API server
+  python3 main.py --setup         # First-time setup wizard
+""",
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--server",
+        action="store_true",
+        help="Run headless FastAPI web server on port 1337 (no GUI)",
+    )
+    mode.add_argument(
+        "--headless",
+        action="store_true",
+        help="Alias for --server",
+    )
+    mode.add_argument(
+        "--both",
+        action="store_true",
+        help="Run GUI and start background FastAPI server simultaneously",
+    )
+    mode.add_argument(
+        "--setup",
+        action="store_true",
+        help="Launch first-time setup / configuration wizard",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = _parse_args()
+
+    if args.server or args.headless:
+        # Headless mode — no singleton lock needed for API server
+        run_server()
+        return
+
+    if args.setup:
+        run_setup()
+        return
+
+    # GUI modes require singleton lock
     if not acquire_singleton_lock():
         _show_already_running_dialog()
         sys.exit(1)
 
-    run_gui()
+    if args.both:
+        run_both()
+    else:
+        run_gui()
 
 
 if __name__ == "__main__":

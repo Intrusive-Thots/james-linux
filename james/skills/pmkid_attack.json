@@ -1,0 +1,40 @@
+{
+  "name": "pmkid_attack",
+  "category": "wifi",
+  "description": "Clientless PMKID capture via hcxdumptool and crack with hashcat",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "ensure_wireless_interface",
+      "description": "Verify wireless interface {{interface}} is available",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "start_monitor",
+      "description": "Enable monitor mode",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "generate_wifi_wordlists",
+      "description": "Generate Wi-Fi optimised wordlists",
+      "params": {
+        "ssid": "{{target_ssid}}"
+      }
+    },
+    {
+      "action": "crack_wpa_smart",
+      "description": "Smart WPA crack (PMKID-focused pipeline)",
+      "params": {
+        "capture": "{{capture_file}}",
+        "wordlist": "{{wordlist}}",
+        "bssid": "{{target_bssid}}",
+        "ssid": "{{target_ssid}}"
+      }
+    }
+  ]
+}

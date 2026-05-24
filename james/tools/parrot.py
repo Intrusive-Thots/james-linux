@@ -527,3 +527,612 @@ class WPA3Tools:
                 result_dict["log"].append("Error: No capture file generated.")
 
         return result_dict
+
+
+class Nmap:
+    """Wrappers around nmap port and service scanning."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def quick_scan(self, target: str, *, timeout: int = 120) -> dict:
+        """Fast SYN scan of the top 1000 ports."""
+        cmd = f"nmap -T4 -F --open -oX - {shlex.quote(target)}"
+        result = self.layer.run(cmd, timeout=timeout)
+        return self._parse_xml(cmd, result)
+
+    def scan(
+        self,
+        target: str,
+        ports: str = "1-65535",
+        flags: str = "-sV -sC",
+        *,
+        sudo: bool = False,
+        timeout: int = 600,
+    ) -> dict:
+        """Full port + service/script scan."""
+        cmd = f"nmap {flags} -p {ports} --open -oX - {shlex.quote(target)}"
+        result = self.layer.run(cmd, sudo=sudo, timeout=timeout)
+        return self._parse_xml(cmd, result)
+
+    def os_detect(self, target: str, *, timeout: int = 120) -> dict:
+        """OS fingerprinting (requires root for raw-socket probes)."""
+        cmd = f"nmap -O --osscan-guess -oX - {shlex.quote(target)}"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        parsed = self._parse_xml(cmd, result)
+        # Augment with OS match details from XML
+        try:
+            root = ET.fromstring(result.stdout)
+            for host_el in root.findall("host"):
+                addr = ""
+                addr_el = host_el.find("address")
+                if addr_el is not None:
+                    addr = addr_el.get("addr", "")
+                os_el = host_el.find("os")
+                os_matches = []
+                if os_el is not None:
+                    for match in os_el.findall("osmatch"):
+                        os_matches.append(
+                            {
+                                "name": match.get("name", ""),
+                                "accuracy": match.get("accuracy", "0"),
+                            }
+                        )
+                for h in parsed.get("hosts", []):
+                    if h.get("address") == addr:
+                        h["os_matches"] = os_matches
+        except ET.ParseError:
+            pass
+        return parsed
+
+    @staticmethod
+    def _parse_xml(cmd: str, result) -> dict:
+        """Parse nmap XML output into a structured dict."""
+        hosts = []
+        try:
+            root = ET.fromstring(result.stdout)
+            for host_el in root.findall("host"):
+                addr_el = host_el.find("address")
+                addr = addr_el.get("addr", "") if addr_el is not None else ""
+                ports = []
+                for port_el in host_el.findall(".//port"):
+                    state_el = port_el.find("state")
+                    if state_el is not None and state_el.get("state") == "open":
+                        svc_el = port_el.find("service")
+                        svc = ""
+                        version = ""
+                        if svc_el is not None:
+                            svc = svc_el.get("name", "")
+                            product = svc_el.get("product", "")
+                            ver = svc_el.get("version", "")
+                            version = f"{product} {ver}".strip()
+                        ports.append(
+                            {
+                                "port": port_el.get("portid", ""),
+                                "proto": port_el.get("protocol", "tcp"),
+                                "service": svc,
+                                "version": version,
+                            }
+                        )
+                hosts.append({"address": addr, "ports": ports})
+        except ET.ParseError:
+            pass
+
+        return {
+            "command": cmd,
+            "hosts": hosts,
+            "host_count": len(hosts),
+            "returncode": result.returncode,
+            "raw": result.stdout[-3000:],
+        }
+
+
+class John:
+    """Wrapper around John the Ripper password cracker."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def crack(
+        self,
+        hash_file: str,
+        wordlist: Optional[str] = None,
+        fmt: Optional[str] = None,
+        *,
+        timeout: int = 300,
+    ) -> dict:
+        """Run john against a hash file."""
+        wl_arg = f"--wordlist={shlex.quote(wordlist)}" if wordlist else ""
+        fmt_arg = f"--format={shlex.quote(fmt)}" if fmt else ""
+        cmd = f"john {fmt_arg} {wl_arg} {shlex.quote(hash_file)}"
+        result = self.layer.run(cmd, timeout=timeout)
+        return {
+            "command": cmd,
+            "success": result.returncode == 0,
+            "output": result.stdout[-2000:],
+            "stderr": result.stderr[-500:],
+        }
+
+    def show(self, hash_file: str) -> dict:
+        """Show already-cracked hashes from john's pot file."""
+        cmd = f"john --show {shlex.quote(hash_file)}"
+        result = self.layer.run(cmd, timeout=15)
+        return {
+            "command": cmd,
+            "output": result.stdout,
+        }
+
+
+class TheHarvester:
+    """Wrapper around theHarvester OSINT framework."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def harvest(
+        self,
+        domain: str,
+        sources: str = "bing,google,duckduckgo,crtsh",
+        *,
+        limit: int = 500,
+        timeout: int = 120,
+    ) -> dict:
+        """Run theHarvester against a domain and parse results."""
+        cmd = (
+            f"theHarvester -d {shlex.quote(domain)} "
+            f"-b {shlex.quote(sources)} -l {int(limit)}"
+        )
+        result = self.layer.run(cmd, timeout=timeout)
+        emails: list[str] = []
+        subdomains: list[str] = []
+        ips: list[str] = []
+
+        in_emails = False
+        in_hosts = False
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "[*] Emails found:" in line or "Emails found:" in line:
+                in_emails = True
+                in_hosts = False
+                continue
+            if (
+                "[*] Hosts found:" in line
+                or "Hosts found:" in line
+                or "[*] IPs found:" in line
+            ):
+                in_hosts = True
+                in_emails = False
+                continue
+            if line.startswith("[*]") or line.startswith("---"):
+                in_emails = False
+                in_hosts = False
+            if in_emails and stripped and "@" in stripped:
+                emails.append(stripped)
+            if in_hosts and stripped:
+                # Lines may be "subdomain: ip" or just "subdomain"
+                if ":" in stripped:
+                    sub, _, ip = stripped.partition(":")
+                    subdomains.append(sub.strip())
+                    ip = ip.strip()
+                    if re.match(r"\d+\.\d+\.\d+\.\d+", ip):
+                        ips.append(ip)
+                elif "." in stripped:
+                    subdomains.append(stripped)
+
+        return {
+            "command": cmd,
+            "emails": list(set(emails)),
+            "email_count": len(set(emails)),
+            "subdomains": list(set(subdomains)),
+            "subdomain_count": len(set(subdomains)),
+            "ips": list(set(ips)),
+            "returncode": result.returncode,
+            "raw": result.stdout[-3000:],
+        }
+
+
+class Wafw00f:
+    """Wrapper around wafw00f WAF detection tool."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def detect(self, url: str, *, timeout: int = 30) -> dict:
+        """Detect a Web Application Firewall on the target URL."""
+        cmd = f"wafw00f {shlex.quote(url)} -o -"
+        result = self.layer.run(cmd, timeout=timeout)
+        waf_detected = False
+        waf_name = ""
+        output = result.stdout + result.stderr
+
+        for line in output.splitlines():
+            low = line.lower()
+            if "is behind" in low or "protected by" in low or "detected" in low:
+                waf_detected = True
+                # Try to extract the WAF name
+                m = re.search(
+                    r"(?:behind|protected by|detected)\s+([A-Za-z0-9 _\-]+)",
+                    line,
+                    re.IGNORECASE,
+                )
+                if m:
+                    waf_name = m.group(1).strip()
+                break
+            if "no waf detected" in low or "not protected" in low:
+                waf_detected = False
+                break
+
+        return {
+            "command": cmd,
+            "waf_detected": waf_detected,
+            "waf_name": waf_name,
+            "output": output[-1500:],
+        }
+
+
+class Ettercap:
+    """Wrapper around ettercap ARP-poisoning MITM tool."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def arp_poison(
+        self,
+        interface: str,
+        victim: str,
+        gateway: str,
+        *,
+        timeout: int = 60,
+    ) -> dict:
+        """Run an ARP-poisoning MITM attack for a given duration."""
+        cmd = (
+            f"ettercap -T -q -i {shlex.quote(interface)} "
+            f"-M arp:remote /{shlex.quote(victim)}// /{shlex.quote(gateway)}//"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        return {
+            "command": cmd,
+            "success": result.returncode == 0,
+            "output": result.stdout[-2000:],
+            "stderr": result.stderr[-500:],
+        }
+
+
+class Masscan:
+    """Wrapper around masscan ultra-fast port scanner."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(
+        self,
+        target: str,
+        ports: str = "0-65535",
+        *,
+        rate: int = 1000,
+        timeout: int = 120,
+    ) -> dict:
+        """Run masscan and return structured open-port results."""
+        cmd = (
+            f"masscan {shlex.quote(target)} -p{ports} "
+            f"--rate={int(rate)} --wait 2 -oJ -"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout)
+        hosts: list[dict] = []
+        try:
+            # masscan JSON output can be a list of objects
+            data = json.loads(result.stdout or "[]")
+            if not isinstance(data, list):
+                data = []
+            for entry in data:
+                ip = entry.get("ip", "")
+                for p in entry.get("ports", []):
+                    hosts.append(
+                        {
+                            "ip": ip,
+                            "port": str(p.get("port", "")),
+                            "proto": p.get("proto", "tcp"),
+                            "status": p.get("status", "open"),
+                        }
+                    )
+        except (json.JSONDecodeError, Exception):
+            # Fall back to line-based parsing
+            for line in result.stdout.splitlines():
+                m = re.search(
+                    r"Discovered open port (\d+)/(\w+) on ([\d.]+)", line
+                )
+                if m:
+                    hosts.append(
+                        {
+                            "ip": m.group(3),
+                            "port": m.group(1),
+                            "proto": m.group(2),
+                            "status": "open",
+                        }
+                    )
+
+        return {
+            "command": cmd,
+            "hosts": hosts,
+            "count": len(hosts),
+            "returncode": result.returncode,
+            "raw": result.stdout[-2000:],
+        }
+
+
+class Reaver:
+    """Wrappers around wash (WPS scanner) and reaver (WPS PIN cracker)."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def wash_scan(self, interface: str, *, timeout: int = 15) -> dict:
+        """Scan for WPS-enabled access points using wash."""
+        cmd = f"wash -i {shlex.quote(interface)} -s -C 2>/dev/null"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 5)
+        aps: list[dict] = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("BSSID") or stripped.startswith("-"):
+                continue
+            parts = stripped.split()
+            if len(parts) >= 5 and re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", parts[0]):
+                aps.append(
+                    {
+                        "bssid": parts[0],
+                        "channel": parts[1] if len(parts) > 1 else "",
+                        "rssi": parts[2] if len(parts) > 2 else "",
+                        "wps_version": parts[3] if len(parts) > 3 else "",
+                        "wps_locked": parts[4].upper() == "YES" if len(parts) > 4 else False,
+                        "essid": " ".join(parts[5:]) if len(parts) > 5 else "",
+                    }
+                )
+        return {
+            "command": cmd,
+            "aps": aps,
+            "count": len(aps),
+            "output": result.stdout[-2000:],
+        }
+
+    def pixie_dust(
+        self,
+        interface: str,
+        bssid: str,
+        *,
+        channel: int = 0,
+        timeout: int = 60,
+    ) -> dict:
+        """Attempt a WPS Pixie Dust offline attack using reaver."""
+        ch_arg = f"-c {int(channel)}" if channel else ""
+        cmd = (
+            f"reaver -i {shlex.quote(interface)} "
+            f"-b {shlex.quote(bssid)} {ch_arg} "
+            f"-K 1 -vv -N 2>/dev/null"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        pin = ""
+        wpa_psk = ""
+        success = False
+        for line in result.stdout.splitlines():
+            if "WPS PIN:" in line:
+                m = re.search(r"WPS PIN:\s*'?([0-9]+)'?", line)
+                if m:
+                    pin = m.group(1)
+                    success = True
+            if "WPA PSK:" in line:
+                m = re.search(r"WPA PSK:\s*'?(.+?)'?$", line)
+                if m:
+                    wpa_psk = m.group(1).strip().strip("'\"")
+        return {
+            "command": cmd,
+            "success": success,
+            "pin": pin,
+            "wpa_psk": wpa_psk,
+            "output": result.stdout[-2000:],
+        }
+
+    def brute_force(
+        self,
+        interface: str,
+        bssid: str,
+        *,
+        channel: int = 0,
+        timeout: int = 600,
+    ) -> dict:
+        """Full WPS PIN brute-force via reaver."""
+        ch_arg = f"-c {int(channel)}" if channel else ""
+        cmd = (
+            f"reaver -i {shlex.quote(interface)} "
+            f"-b {shlex.quote(bssid)} {ch_arg} "
+            f"-vv -N 2>/dev/null"
+        )
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        pin = ""
+        wpa_psk = ""
+        success = False
+        progress = ""
+        for line in result.stdout.splitlines():
+            if "WPS PIN:" in line:
+                m = re.search(r"WPS PIN:\s*'?([0-9]+)'?", line)
+                if m:
+                    pin = m.group(1)
+                    success = True
+            if "WPA PSK:" in line:
+                m = re.search(r"WPA PSK:\s*'?(.+?)'?$", line)
+                if m:
+                    wpa_psk = m.group(1).strip().strip("'\"")
+            if "%" in line:
+                progress = line.strip()
+        return {
+            "command": cmd,
+            "success": success,
+            "pin": pin,
+            "wpa_psk": wpa_psk,
+            "progress": progress,
+            "output": result.stdout[-2000:],
+        }
+
+
+class Responder:
+    """Wrapper around Responder LLMNR/NBT-NS/MDNS poisoner."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def start(self, interface: str, *, timeout: int = 60) -> dict:
+        """Run Responder on the given interface to capture NTLM hashes."""
+        cmd = f"responder -I {shlex.quote(interface)} -rdwv"
+        result = self.layer.run(cmd, sudo=True, timeout=timeout + 10)
+        hashes: list[str] = []
+        for line in result.stdout.splitlines():
+            # Responder prints hash lines like: [SMB] NTLMv2 ...
+            if "NTLMv" in line or "Hash" in line:
+                hashes.append(line.strip())
+        return {
+            "command": cmd,
+            "success": result.returncode == 0,
+            "hashes": hashes,
+            "hash_count": len(hashes),
+            "output": result.stdout[-3000:],
+        }
+
+
+class Sslscan:
+    """Wrapper around sslscan TLS auditing tool."""
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def scan(self, target: str, *, timeout: int = 60) -> dict:
+        """Audit SSL/TLS configuration on a host."""
+        cmd = f"sslscan --no-colour {shlex.quote(target)}"
+        result = self.layer.run(cmd, timeout=timeout)
+        ciphers_found = 0
+        vulnerabilities: list[str] = []
+        for line in result.stdout.splitlines():
+            low = line.lower()
+            if "accepted" in low or "cipher" in low:
+                ciphers_found += 1
+            if any(
+                v in low
+                for v in [
+                    "vulnerable",
+                    "heartbleed",
+                    "poodle",
+                    "beast",
+                    "freak",
+                    "logjam",
+                    "drown",
+                    "ssl2",
+                    "ssl3",
+                    "rc4",
+                ]
+            ):
+                stripped = line.strip()
+                if stripped and stripped not in vulnerabilities:
+                    vulnerabilities.append(stripped)
+        return {
+            "command": cmd,
+            "ciphers_found": ciphers_found,
+            "vulnerabilities": vulnerabilities,
+            "returncode": result.returncode,
+            "output": result.stdout[-3000:],
+        }
+
+
+class IoTTools:
+    """Banner grabbing, Bluetooth BLE scanning, and MQTT probing."""
+
+    # Common IoT ports to banner-grab
+    _IOT_PORTS = [21, 22, 23, 80, 443, 554, 1883, 5683, 7547, 8080, 8443, 8883]
+
+    def __init__(self, layer: NativeLayer):
+        self.layer = layer
+
+    def banner_grab(self, target: str, *, timeout: int = 30) -> dict:
+        """Grab banners from common IoT service ports."""
+        open_services: list[str] = []
+        # Use nmap with a fast service scan instead of individual connects
+        ports = ",".join(str(p) for p in self._IOT_PORTS)
+        cmd = (
+            f"nmap -T4 -sV --open -p {ports} --version-intensity 2 "
+            f"-oX - {shlex.quote(target)}"
+        )
+        result = self.layer.run(cmd, timeout=timeout)
+        output = result.stdout
+        try:
+            root = ET.fromstring(output)
+            for host_el in root.findall("host"):
+                for port_el in host_el.findall(".//port"):
+                    state_el = port_el.find("state")
+                    if state_el is not None and state_el.get("state") == "open":
+                        portid = port_el.get("portid", "")
+                        svc_el = port_el.find("service")
+                        svc = ""
+                        if svc_el is not None:
+                            svc = svc_el.get("name", "")
+                            product = svc_el.get("product", "")
+                            if product:
+                                svc = f"{svc} ({product})"
+                        open_services.append(f"{portid}/tcp {svc}")
+        except ET.ParseError:
+            pass
+
+        return {
+            "command": cmd,
+            "services": open_services,
+            "count": len(open_services),
+            "output": output[-2000:],
+        }
+
+    def scan_ble(self, *, duration: int = 10) -> dict:
+        """Scan for Bluetooth Low Energy devices using hcitool lescan."""
+        cmd = f"timeout {int(duration)} hcitool lescan 2>/dev/null"
+        result = self.layer.run(cmd, sudo=True, timeout=duration + 5)
+        devices: list[dict] = []
+        seen: set = set()
+        for line in result.stdout.splitlines():
+            m = re.match(
+                r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})\s+(.*)", line
+            )
+            if m:
+                mac = m.group(1).strip()
+                name = m.group(2).strip()
+                if mac not in seen:
+                    seen.add(mac)
+                    devices.append({"mac": mac, "name": name or "(unknown)"})
+        return {
+            "command": cmd,
+            "devices": devices,
+            "count": len(devices),
+        }
+
+    def scan_mqtt(self, host: str, port: int = 1883, *, timeout: int = 10) -> dict:
+        """Probe an MQTT broker for unauthenticated access."""
+        # Use mosquitto_sub to subscribe and capture a few messages
+        cmd = (
+            f"timeout {int(timeout)} mosquitto_sub -h {shlex.quote(host)} "
+            f"-p {int(port)} -t '#' -v -C 5 2>/dev/null"
+        )
+        result = self.layer.run(cmd, timeout=timeout + 5)
+        open_broker = result.returncode == 0 and bool(result.stdout.strip())
+        messages: list[str] = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped:
+                messages.append(stripped)
+
+        # Fallback: check if the port is reachable at all
+        if not open_broker:
+            nc_check = self.layer.run(
+                f"nc -z -w3 {shlex.quote(host)} {int(port)}", timeout=5
+            )
+            open_broker = nc_check.returncode == 0
+
+        return {
+            "command": cmd,
+            "open": open_broker,
+            "messages": messages,
+            "host": host,
+            "port": port,
+        }

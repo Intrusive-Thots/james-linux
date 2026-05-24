@@ -1,0 +1,25 @@
+{
+  "name": "brute_ssh",
+  "category": "brute-force",
+  "description": "Hydra multi-stage SSH credential brute-force",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "quick_recon",
+      "description": "Quick scan to verify SSH is open on port 22",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "brute_service",
+      "description": "Hydra brute-force SSH with username {{username}}",
+      "params": {
+        "target": "{{target}}",
+        "proto": "ssh",
+        "username": "{{username}}"
+      }
+    }
+  ]
+}

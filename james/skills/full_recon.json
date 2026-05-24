@@ -1,0 +1,43 @@
+{
+  "name": "full_recon",
+  "category": "recon",
+  "description": "Full network reconnaissance: ARP sweep → port scan → service fingerprint → OSINT",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "arp_discover",
+      "description": "ARP sweep to discover live hosts",
+      "params": {}
+    },
+    {
+      "action": "quick_recon",
+      "description": "Quick nmap scan of {{target}}",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "full_scan",
+      "description": "Full service + script scan of {{target}}",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "smb_enum",
+      "description": "SMB/NetBIOS enumeration of {{target}}",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "dns_lookup",
+      "description": "DNS record lookup for {{target}}",
+      "params": {
+        "domain": "{{target}}",
+        "record_type": "ANY"
+      }
+    }
+  ]
+}

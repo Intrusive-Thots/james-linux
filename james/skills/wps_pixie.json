@@ -1,0 +1,23 @@
+{
+  "name": "wps_pixie",
+  "category": "wifi",
+  "description": "WPS Pixie Dust offline attack followed by full PIN brute-force fallback",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "ensure_wireless_interface",
+      "description": "Verify wireless interface {{interface}} is available",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "start_monitor",
+      "description": "Enable monitor mode on {{interface}}",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    }
+  ]
+}

