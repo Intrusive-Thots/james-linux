@@ -99,7 +99,7 @@ class LearningEngine:
     """
 
     def update(
-        self, graph: DecisionGraph, path: list[str], success: bool
+        self, graph: DecisionGraph, path: list[str], outcome: str
     ) -> None:
         """
         Updates the success and failure weights of edges in a given path.
@@ -115,10 +115,13 @@ class LearningEngine:
             for e in edges:
                 if e.to_node == to:
                     e.visits += 1
-                    if success:
+                    if outcome == "SUCCESS":
                         e.success_weight += 1.0
-                    else:
+                    elif outcome == "FAILURE":
                         e.failure_weight += 1.0
+                    elif outcome == "PARTIAL_SIGNAL":
+                        e.success_weight += 0.5
+                        e.failure_weight += 0.5
 
 
 class DecisionEngine:
@@ -181,16 +184,8 @@ class SelfEvolvingAgent:
         self.current_node = "START"
         self.current_path = ["START"]
 
-    def step(self, success_signal: bool | None = None) -> str:
-        """
-        Executes a single step in the decision graph towards the next state.
-
-        Args:
-            success_signal (bool | None): Deprecated optional signal.
-
-        Returns:
-            str: The node transitioned to, or 'halt' if no valid moves exist.
-        """
+    def step(self, outcome_signal: str | None = None) -> str:
+        """Executes a single step in the decision graph."""
         next_node = self.decision_engine.decide(self.current_node)
         if not next_node:
             return "halt"
@@ -200,14 +195,9 @@ class SelfEvolvingAgent:
 
         return next_node
 
-    def feedback(self, success: bool) -> None:
-        """
-        Applies feedback to the learning engine and resets the episode.
-
-        Args:
-            success (bool): Indicates if the episode was ultimately successful.
-        """
-        self.learner.update(self.graph, self.current_path, success)
+    def feedback(self, outcome: str) -> None:
+        """Applies feedback to the learning engine and resets the episode."""
+        self.learner.update(self.graph, self.current_path, outcome)
         # reset episode
         self.current_node = "START"
         self.current_path = ["START"]
