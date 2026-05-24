@@ -314,17 +314,164 @@ class Hashcat:
         *,
         hash_mode: int = 0,
         rules: Optional[str] = None,
+        auto_rules: bool = False,
         timeout: int = 600,
     ) -> dict:
+        """Crack hashes with an optional rule set.
+
+        auto_rules=True applies the best64 rule automatically when no
+        explicit *rules* file is supplied.
+        """
+        if auto_rules and not rules:
+            rules = "best64"
         rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
-        cmd = f"hashcat -m {int(hash_mode)} {rules_arg} {shlex.quote(hash_file)} {shlex.quote(wordlist)} --force"
+        cmd = (
+            f"hashcat -m {int(hash_mode)} {rules_arg} "
+            f"{shlex.quote(hash_file)} {shlex.quote(wordlist)} --force --potfile-disable"
+        )
         result = self.layer.run(cmd, timeout=timeout)
+        cracked = self._parse_cracked(result.stdout)
         return {
             "command": cmd,
-            "success": result.success,
+            "success": result.returncode in (0, 1),  # 1 = exhausted but no error
+            "found": bool(cracked),
+            "total_cracked": len(cracked),
+            "cracked_keys": cracked,
             "output": result.stdout[-3000:],
             "stderr": result.stderr[-1000:],
         }
+
+    def crack_cascading(
+        self,
+        hash_file: str,
+        wordlist: str,
+        *,
+        hash_mode: int = 0,
+        timeout_per_stage: int = 300,
+    ) -> dict:
+        """Try progressively aggressive hashcat stages until keys are found.
+
+        Stages:
+          1. Straight wordlist (no rules)
+          2. best64 rules
+          3. rockyou-30000 rules (if available)
+        """
+        stages = [
+            ("straight", None),
+            ("best64", "best64"),
+            ("rockyou-30000", "rockyou-30000"),
+        ]
+        stages_tried: list[str] = []
+        all_cracked: list[dict] = []
+
+        for stage_name, rules in stages:
+            stages_tried.append(stage_name)
+            rules_arg = f"-r {shlex.quote(rules)}" if rules else ""
+            cmd = (
+                f"hashcat -m {int(hash_mode)} {rules_arg} "
+                f"{shlex.quote(hash_file)} {shlex.quote(wordlist)} "
+                f"--force --potfile-disable"
+            )
+            result = self.layer.run(cmd, timeout=timeout_per_stage)
+            cracked = self._parse_cracked(result.stdout)
+            if cracked:
+                all_cracked.extend(cracked)
+                return {
+                    "found": True,
+                    "total_cracked": len(all_cracked),
+                    "cracked_keys": all_cracked,
+                    "winning_stage": stage_name,
+                    "stages_tried": stages_tried,
+                }
+
+        return {
+            "found": False,
+            "total_cracked": 0,
+            "cracked_keys": [],
+            "stages_tried": stages_tried,
+        }
+
+    def crack_wifi_enhanced(
+        self,
+        hash_file: str,
+        wordlist: str,
+        *,
+        hash_mode: int = 22000,
+        ssid: str = "",
+        timeout_per_stage: int = 300,
+    ) -> dict:
+        """Wi-Fi optimised hashcat pipeline:
+          1. best64 rules on provided wordlist
+          2. Mask attack (8-digit PIN patterns common on routers)
+          3. Cascading rule stages fallback
+        """
+        stages_tried: list[str] = []
+
+        # Stage 1: best64 rules on provided wordlist
+        stages_tried.append("james-best64")
+        cmd = (
+            f"hashcat -m {int(hash_mode)} -r best64 "
+            f"{shlex.quote(hash_file)} {shlex.quote(wordlist)} "
+            f"--force --potfile-disable"
+        )
+        result = self.layer.run(cmd, timeout=timeout_per_stage)
+        cracked = self._parse_cracked(result.stdout)
+        if cracked:
+            return {
+                "found": True,
+                "cracked_keys": cracked,
+                "winning_stage": "james-best64",
+                "stages_tried": stages_tried,
+            }
+
+        # Stage 2: 8-digit numeric mask (common default router PINs)
+        stages_tried.append("mask-8digit")
+        cmd = (
+            f"hashcat -m {int(hash_mode)} -a 3 "
+            f"{shlex.quote(hash_file)} ?d?d?d?d?d?d?d?d "
+            f"--force --potfile-disable"
+        )
+        result = self.layer.run(cmd, timeout=timeout_per_stage)
+        cracked = self._parse_cracked(result.stdout)
+        if cracked:
+            return {
+                "found": True,
+                "cracked_keys": cracked,
+                "winning_stage": "mask-8digit",
+                "stages_tried": stages_tried,
+            }
+
+        # Stage 3: cascading rules fallback
+        cascade = self.crack_cascading(
+            hash_file, wordlist, hash_mode=hash_mode,
+            timeout_per_stage=timeout_per_stage,
+        )
+        stages_tried.extend(cascade.get("stages_tried", []))
+        if cascade.get("found"):
+            cascade["stages_tried"] = stages_tried
+            return cascade
+
+        return {
+            "found": False,
+            "cracked_keys": [],
+            "stages_tried": stages_tried,
+        }
+
+    @staticmethod
+    def _parse_cracked(output: str) -> list[dict]:
+        """Extract cracked hash:plain pairs from hashcat stdout."""
+        cracked: list[dict] = []
+        for line in output.splitlines():
+            line = line.strip()
+            # hashcat prints "hash:plain" on crack lines
+            if ":" in line and not line.startswith("[") and not line.startswith("#"):
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    plain = parts[-1].strip()
+                    hash_val = ":".join(parts[:-1])
+                    if plain and len(plain) >= 8:  # WPA keys are >= 8 chars
+                        cracked.append({"hash": hash_val, "plain": plain})
+        return cracked
 
     def identify_hash(self, hash_value: str) -> dict:
         """Use hashcat's built-in hash identification (--identify)."""
