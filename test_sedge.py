@@ -10,11 +10,15 @@ class TestSEDGE(unittest.TestCase):
         self.graph.add_node(Node(id="START", state_type="start"))
         self.graph.add_node(Node(id="NETWORK_DISCOVERY", state_type="scan"))
         self.graph.add_node(Node(id="TARGET_ANALYSIS", state_type="analysis"))
-        self.graph.add_node(Node(id="SECURITY_PROFILING", state_type="analysis"))
+        self.graph.add_node(
+            Node(id="SECURITY_PROFILING", state_type="analysis")
+        )
         self.graph.add_node(Node(id="PASSIVE_SCAN", state_type="action"))
         self.graph.add_node(Node(id="HANDSHAKE_CAPTURE", state_type="action"))
         self.graph.add_node(Node(id="DEAUTH_TEST", state_type="action"))
-        self.graph.add_node(Node(id="EVIL_TWIN_SIMULATION", state_type="action"))
+        self.graph.add_node(
+            Node(id="EVIL_TWIN_SIMULATION", state_type="action")
+        )
 
         # Add Edges
         self.graph.add_edge(
@@ -36,7 +40,9 @@ class TestSEDGE(unittest.TestCase):
             Edge(from_node="SECURITY_PROFILING", to_node="DEAUTH_TEST")
         )
         self.graph.add_edge(
-            Edge(from_node="SECURITY_PROFILING", to_node="EVIL_TWIN_SIMULATION")
+            Edge(
+                from_node="SECURITY_PROFILING", to_node="EVIL_TWIN_SIMULATION"
+            )
         )
 
         self.agent = SelfEvolvingAgent(self.graph)
@@ -60,7 +66,15 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(next_node, "SECURITY_PROFILING")
 
         next_node = self.agent.step()
-        self.assertIn(next_node, ["PASSIVE_SCAN", "HANDSHAKE_CAPTURE", "DEAUTH_TEST", "EVIL_TWIN_SIMULATION"])
+        self.assertIn(
+            next_node,
+            [
+                "PASSIVE_SCAN",
+                "HANDSHAKE_CAPTURE",
+                "DEAUTH_TEST",
+                "EVIL_TWIN_SIMULATION",
+            ],
+        )
 
         # Next step should halt because there are no outgoing edges
         next_node = self.agent.step()
@@ -70,7 +84,9 @@ class TestSEDGE(unittest.TestCase):
         self.agent.step()  # START -> NETWORK_DISCOVERY
         self.agent.step()  # NETWORK_DISCOVERY -> TARGET_ANALYSIS
         self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
-        last_node = self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
+        last_node = (
+            self.agent.step()
+        )  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
         self.agent.feedback(outcome="SUCCESS")
 
