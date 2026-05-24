@@ -34,6 +34,7 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QColor
 
 from james.gui.toast import show_toast
+from james.gui.theme import TERMINAL_STYLE, LOG_STYLE
 
 logger = logging.getLogger(__name__)
 
@@ -666,17 +667,14 @@ class AutoPilotTab(QWidget):
         ctrl_inner = QVBoxLayout(ctrl_group)
 
         btn_row = QHBoxLayout()
-        self.btn_start = QPushButton("🚀 START FULL AUTO-PILOT")
+        self.btn_start = QPushButton("🚀  START FULL AUTO-PILOT")
         self.btn_start.setObjectName("primaryBtn")
-        self.btn_start.setStyleSheet(
-            "font-size: 16px; font-weight: bold; padding: 10px;"
-        )
 
-        self.btn_stop = QPushButton("🛑 ABORT")
+        self.btn_stop = QPushButton("🛑  ABORT")
         self.btn_stop.setObjectName("dangerBtn")
         self.btn_stop.setEnabled(False)
 
-        btn_row.addWidget(self.btn_start, stretch=2)
+        btn_row.addWidget(self.btn_start, stretch=3)
         btn_row.addWidget(self.btn_stop, stretch=1)
         ctrl_inner.addLayout(btn_row)
 
@@ -735,14 +733,15 @@ class AutoPilotTab(QWidget):
         prog_group = QGroupBox("Progress")
         prog_layout = QVBoxLayout(prog_group)
         self.lbl_phase = QLabel(
-            "Ready. Plug in a dedicated Wi-Fi adapter and press START."
+            "Ready — plug in a dedicated Wi-Fi adapter and press START."
         )
         self.lbl_phase.setStyleSheet(
-            "color: #ffaa00; font-weight: bold; font-size: 14px;"
+            "color: #ffaa00; font-weight: 700; font-size: 13px; padding: 4px 0;"
         )
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, AutoPilotWorker.TOTAL_PHASES)
         self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
         prog_layout.addWidget(self.lbl_phase)
         prog_layout.addWidget(self.progress_bar)
         layout.addWidget(prog_group)
@@ -754,10 +753,9 @@ class AutoPilotTab(QWidget):
         log_layout = QVBoxLayout(log_group)
         self.txt_log = QPlainTextEdit()
         self.txt_log.setReadOnly(True)
-        self.txt_log.setMaximumBlockCount(2000)  # prevent runaway memory
-        self.txt_log.setStyleSheet(
-            "background: #000; color: #0f0; font-family: monospace; font-size: 12px;"
-        )
+        self.txt_log.setMaximumBlockCount(2000)
+        self.txt_log.setStyleSheet(LOG_STYLE)
+        self.txt_log.setFont(QFont("JetBrains Mono", 11))
         log_layout.addWidget(self.txt_log)
         split.addWidget(log_group, stretch=1)
 
