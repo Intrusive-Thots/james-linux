@@ -10,8 +10,11 @@ class TestSEDGE(unittest.TestCase):
         self.graph.add_node(Node(id="START", state_type="start"))
         self.graph.add_node(Node(id="NETWORK_DISCOVERY", state_type="scan"))
         self.graph.add_node(Node(id="TARGET_ANALYSIS", state_type="analysis"))
+        self.graph.add_node(Node(id="SECURITY_PROFILING", state_type="analysis"))
         self.graph.add_node(Node(id="PASSIVE_SCAN", state_type="action"))
         self.graph.add_node(Node(id="HANDSHAKE_CAPTURE", state_type="action"))
+        self.graph.add_node(Node(id="DEAUTH_TEST", state_type="action"))
+        self.graph.add_node(Node(id="EVIL_TWIN_SIMULATION", state_type="action"))
 
         # Add Edges
         self.graph.add_edge(
@@ -21,10 +24,19 @@ class TestSEDGE(unittest.TestCase):
             Edge(from_node="NETWORK_DISCOVERY", to_node="TARGET_ANALYSIS")
         )
         self.graph.add_edge(
-            Edge(from_node="TARGET_ANALYSIS", to_node="PASSIVE_SCAN")
+            Edge(from_node="TARGET_ANALYSIS", to_node="SECURITY_PROFILING")
         )
         self.graph.add_edge(
-            Edge(from_node="TARGET_ANALYSIS", to_node="HANDSHAKE_CAPTURE")
+            Edge(from_node="SECURITY_PROFILING", to_node="PASSIVE_SCAN")
+        )
+        self.graph.add_edge(
+            Edge(from_node="SECURITY_PROFILING", to_node="HANDSHAKE_CAPTURE")
+        )
+        self.graph.add_edge(
+            Edge(from_node="SECURITY_PROFILING", to_node="DEAUTH_TEST")
+        )
+        self.graph.add_edge(
+            Edge(from_node="SECURITY_PROFILING", to_node="EVIL_TWIN_SIMULATION")
         )
 
         self.agent = SelfEvolvingAgent(self.graph)
@@ -45,7 +57,10 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(next_node, "TARGET_ANALYSIS")
 
         next_node = self.agent.step()
-        self.assertIn(next_node, ["PASSIVE_SCAN", "HANDSHAKE_CAPTURE"])
+        self.assertEqual(next_node, "SECURITY_PROFILING")
+
+        next_node = self.agent.step()
+        self.assertIn(next_node, ["PASSIVE_SCAN", "HANDSHAKE_CAPTURE", "DEAUTH_TEST", "EVIL_TWIN_SIMULATION"])
 
         # Next step should halt because there are no outgoing edges
         next_node = self.agent.step()
@@ -54,9 +69,10 @@ class TestSEDGE(unittest.TestCase):
     def test_feedback_learning_and_reset(self):
         self.agent.step()  # START -> NETWORK_DISCOVERY
         self.agent.step()  # NETWORK_DISCOVERY -> TARGET_ANALYSIS
-        last_node = self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE
+        self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
+        last_node = self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
-        self.agent.feedback(success=True)
+        self.agent.feedback(outcome="SUCCESS")
 
         self.assertEqual(self.agent.current_node, "START")
         self.assertEqual(self.agent.current_path, ["START"])
@@ -67,7 +83,7 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(edges[0].success_weight, 2.0)
         self.assertEqual(edges[0].failure_weight, 1.0)
 
-        edges = self.graph.edges["TARGET_ANALYSIS"]
+        edges = self.graph.edges["SECURITY_PROFILING"]
         for edge in edges:
             if edge.to_node == last_node:
                 self.assertEqual(edge.visits, 1)
@@ -81,14 +97,28 @@ class TestSEDGE(unittest.TestCase):
     def test_learning_failure(self):
         self.agent.step()  # START -> NETWORK_DISCOVERY
         self.agent.step()  # NETWORK_DISCOVERY -> TARGET_ANALYSIS
-        self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE
+        self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
+        self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
-        self.agent.feedback(success=False)
+        self.agent.feedback(outcome="FAILURE")
 
         edges = self.graph.edges["START"]
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 1.0)
         self.assertEqual(edges[0].failure_weight, 2.0)
+
+    def test_learning_partial_signal(self):
+        self.agent.step()  # START -> NETWORK_DISCOVERY
+        self.agent.step()  # NETWORK_DISCOVERY -> TARGET_ANALYSIS
+        self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
+        self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
+
+        self.agent.feedback(outcome="PARTIAL_SIGNAL")
+
+        edges = self.graph.edges["START"]
+        self.assertEqual(edges[0].visits, 1)
+        self.assertEqual(edges[0].success_weight, 1.5)
+        self.assertEqual(edges[0].failure_weight, 1.5)
 
     def test_get_best_next_no_edges(self):
         self.assertIsNone(self.graph.get_best_next("PASSIVE_SCAN"))
