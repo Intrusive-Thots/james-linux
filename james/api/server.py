@@ -198,7 +198,7 @@ async def loot_summary():
 async def list_wordlists():
     """List available wordlists."""
     orch = get_orchestrator()
-    return orch.list_wordlists()
+    return await asyncio.to_thread(orch.list_wordlists)
 
 
 @app.get("/api/log")
