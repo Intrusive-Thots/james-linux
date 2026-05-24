@@ -185,6 +185,7 @@ class WiFiArsenalTab(QWidget):
         super().__init__()
         self.main_window = main_window
         self.orchestrator = main_window.orchestrator
+        self.pineap = self.orchestrator.pineap   # shared with AutoPilotTab
         self.worker = None
         self.karma_worker = None
         self.recon_proc = None

@@ -31,7 +31,7 @@ from PyQt5.QtWidgets import (
     QSpinBox,
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QFont
 
 from james.gui.toast import show_toast
 from james.gui.theme import TERMINAL_STYLE, LOG_STYLE
@@ -812,7 +812,7 @@ class AutoPilotTab(QWidget):
         self.loot_table.setRowCount(0)
         self.progress_bar.setValue(0)
         self.main_window._set_idle(False)
-        self.main_window.lbl_status.setText("Status: 🚀 AUTO-PILOT")
+        self.main_window.lbl_status.setText("●  AUTO-PILOT")
 
         self.worker = AutoPilotWorker(
             self.orchestrator,
