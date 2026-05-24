@@ -8,10 +8,10 @@ from PyQt5.QtWidgets import (
     QPushButton, QLabel, QPlainTextEdit, QProgressBar,
     QMessageBox, QSplitter, QStatusBar, QTabWidget,
     QDialog, QTextEdit, QDialogButtonBox, QComboBox,
-    QFrame, QSizePolicy,
+    QFrame, QSizePolicy, QShortcut,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QKeySequence
 import logging
 
 from james.core.orchestrator import Orchestrator
@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._connect_signals()
+        self._build_shortcuts()
 
         self.orchestrator.on_print    = lambda t: self._append_log(t, "INFO")
         self.orchestrator.on_progress = self._on_orchestrator_progress
@@ -95,6 +96,30 @@ class MainWindow(QMainWindow):
         self._stats_timer = QTimer(self)
         self._stats_timer.timeout.connect(self._refresh_stats)
         self._stats_timer.start(10_000)
+
+    # ── Shortcuts ─────────────────────────────────────────────────────
+
+    def _build_shortcuts(self):
+        """Build global application shortcuts."""
+        # Quit
+        QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self.close)
+
+        # Logs
+        QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(self._show_log_viewer)
+        QShortcut(QKeySequence("Ctrl+Shift+C"), self).activated.connect(self._clear_log)
+
+        # Kill JAMES
+        QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self.kill_james)
+
+        # Tabs
+        for i in range(1, 6):
+            # Tab indices are 0-based
+            shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            shortcut.activated.connect(lambda idx=i-1: self._switch_tab(idx))
+
+    def _switch_tab(self, index: int):
+        if index < self.tabs.count():
+            self.tabs.setCurrentIndex(index)
 
     # ── UI Construction ───────────────────────────────────────────────
 
