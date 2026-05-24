@@ -1,3 +1,16 @@
+"""
+SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
+
+Core Idea:
+The system builds a directed weighted decision graph where:
+  - Nodes = system states or actions
+  - Edges = transitions between decisions
+  - Weights = learned success utility scores
+
+Over time, successful paths become stronger and failed paths decay,
+allowing optimal strategies to emerge automatically.
+"""
+
 import random
 from dataclasses import dataclass, field
 
@@ -9,6 +22,11 @@ class Node:
 
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
+
+    Example States:
+        - NETWORK_DISCOVERY
+        - TARGET_ANALYSIS
+        - SECURITY_PROFILING
     """
 
     id: str
@@ -23,6 +41,17 @@ class Edge:
 
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
+
+    Example Actions:
+        - PASSIVE_SCAN
+        - HANDSHAKE_CAPTURE
+        - DEAUTH_TEST
+        - EVIL_TWIN_SIMULATION
+
+    Example Outcomes:
+        - SUCCESS
+        - FAILURE
+        - PARTIAL_SIGNAL
     """
 
     from_node: str
@@ -95,7 +124,9 @@ class LearningEngine:
     Updates edge weights across the graph based on execution feedback.
 
     This implements the learning mechanism that allows optimal
-    strategies to emerge over time automatically.
+    strategies to emerge over time automatically. Over time:
+        - Successful paths become stronger (higher success_weight)
+        - Failed paths decay (higher failure_weight)
     """
 
     def update(
@@ -130,6 +161,9 @@ class DecisionEngine:
 
     Instead of static rules, it uses a probabilistic model balancing
     exploration of new paths and exploitation of known strong paths.
+    The system naturally balances exploration (trying weak paths occasionally)
+    with exploitation (using strong known paths) via stochastic
+    weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -168,7 +202,11 @@ class SelfEvolvingAgent:
     Agent that learns optimal paths through a self-evolution loop.
 
     The agent walks the graph and continuously improves its logic
-    via the underlying DecisionEngine and LearningEngine.
+    via the underlying DecisionEngine and LearningEngine. After enough runs,
+    the graph converges toward optimal attack/analysis pipelines,
+    unstable techniques decay automatically, and high-yield workflows
+    become dominant paths. This creates a living decision ecosystem
+    instead of static scripts.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
