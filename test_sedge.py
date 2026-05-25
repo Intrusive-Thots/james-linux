@@ -47,6 +47,20 @@ class TestSEDGE(unittest.TestCase):
 
         self.agent = SelfEvolvingAgent(self.graph)
 
+    def test_node_creation(self):
+        node = Node(
+            id="TEST_NODE", state_type="scan", metadata={"key": "value"}
+        )
+        self.assertEqual(node.id, "TEST_NODE")
+        self.assertEqual(node.state_type, "scan")
+        self.assertEqual(node.metadata, {"key": "value"})
+
+    def test_edge_score_calculation(self):
+        edge = Edge(
+            from_node="A", to_node="B", success_weight=2.0, failure_weight=1.0
+        )
+        self.assertAlmostEqual(edge.score(), 1.999998000002)
+
     def test_initial_state(self):
         self.assertEqual(self.agent.current_node, "START")
         self.assertEqual(self.agent.current_path, ["START"])

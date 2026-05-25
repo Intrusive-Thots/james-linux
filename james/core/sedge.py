@@ -13,6 +13,7 @@ allowing optimal strategies to emerge automatically.
 
 import random
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -31,7 +32,7 @@ class Node:
 
     id: str
     state_type: str  # "scan", "analysis", "action"
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -138,7 +139,7 @@ class LearningEngine:
         Args:
             graph (DecisionGraph): The current decision graph.
             path (list[str]): The sequence of node IDs traversed.
-            success (bool): Whether the overall operation was successful.
+            outcome (str): The execution outcome (e.g., 'SUCCESS', 'FAILURE').
         """
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
@@ -223,7 +224,15 @@ class SelfEvolvingAgent:
         self.current_path = ["START"]
 
     def step(self, outcome_signal: str | None = None) -> str:
-        """Executes a single step in the decision graph."""
+        """
+        Executes a single step in the decision graph.
+
+        Args:
+            outcome_signal (str | None): An optional signal modifying the step.
+
+        Returns:
+            str: Next node ID transitioned to, or 'halt' if no valid node.
+        """
         next_node = self.decision_engine.decide(self.current_node)
         if not next_node:
             return "halt"
@@ -234,10 +243,16 @@ class SelfEvolvingAgent:
         return next_node
 
     def feedback(self, outcome: str) -> None:
-        """Applies feedback to the learning engine and resets the episode."""
+        """
+        Applies feedback to the learning engine and resets the episode.
+
+        Args:
+            outcome (str): The sequence outcome (e.g., 'SUCCESS', 'FAILURE').
+        """
         self.learner.update(self.graph, self.current_path, outcome)
         # reset episode
         self.current_node = "START"
         self.current_path = ["START"]
+
 
 # Verified compliance with SEDGE logic based on the core idea prompt.
