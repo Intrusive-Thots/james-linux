@@ -145,6 +145,17 @@ class TestSEDGE(unittest.TestCase):
         self.assertIsNotNone(best_edge)
         self.assertEqual(best_edge.to_node, "NETWORK_DISCOVERY")
 
+    def test_decide_zero_weights(self):
+        # Reset graph edges to have zero success_weight (total score = 0)
+        self.graph.edges["SECURITY_PROFILING"] = [
+            Edge(from_node="SECURITY_PROFILING", to_node="PASSIVE_SCAN", success_weight=0.0),
+            Edge(from_node="SECURITY_PROFILING", to_node="HANDSHAKE_CAPTURE", success_weight=0.0)
+        ]
+
+        # Test that decision engine can handle this gracefully
+        next_node = self.agent.decision_engine.decide("SECURITY_PROFILING")
+        self.assertIn(next_node, ["PASSIVE_SCAN", "HANDSHAKE_CAPTURE"])
+
 
 if __name__ == "__main__":
     unittest.main()
