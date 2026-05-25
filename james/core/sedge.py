@@ -23,6 +23,11 @@ class Node:
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
 
+    Attributes:
+        id (str): The unique identifier for the node.
+        state_type (str): Type of state (e.g., "scan", "analysis").
+        metadata (dict[str, str | int | float | bool]): Node metadata.
+
     Example States:
         - NETWORK_DISCOVERY
         - TARGET_ANALYSIS
@@ -31,7 +36,7 @@ class Node:
 
     id: str
     state_type: str  # "scan", "analysis", "action"
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, str | int | float | bool] = field(default_factory=dict)
 
 
 @dataclass
@@ -41,6 +46,13 @@ class Edge:
 
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
+
+    Attributes:
+        from_node (str): The starting node of the transition.
+        to_node (str): The target node of the transition.
+        success_weight (float): Weight from successful outcomes. Defaults 1.0.
+        failure_weight (float): Weight from failed outcomes. Defaults 1.0.
+        visits (int): Number of times edge has been traversed. Defaults 0.
 
     Example Actions:
         - PASSIVE_SCAN
@@ -65,7 +77,8 @@ class Edge:
         Calculates the overall utility score of this edge.
 
         The utility score is computed as the ratio of the success weight
-        to the failure weight, heavily favoring successful paths.
+        to the failure weight, heavily favoring successful paths. A small
+        epsilon (1e-6) is added to the denominator to prevent zero division.
 
         Returns:
             float: The computed utility score.
@@ -138,7 +151,7 @@ class LearningEngine:
         Args:
             graph (DecisionGraph): The current decision graph.
             path (list[str]): The sequence of node IDs traversed.
-            success (bool): Whether the overall operation was successful.
+            outcome (str): Final outcome (e.g., "SUCCESS", "FAILURE").
         """
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
@@ -223,7 +236,15 @@ class SelfEvolvingAgent:
         self.current_path = ["START"]
 
     def step(self, outcome_signal: str | None = None) -> str:
-        """Executes a single step in the decision graph."""
+        """
+        Executes a single step in the decision graph.
+
+        Args:
+            outcome_signal (str | None): Optional signal affecting the step.
+
+        Returns:
+            str: The next node ID or "halt" if no transition is possible.
+        """
         next_node = self.decision_engine.decide(self.current_node)
         if not next_node:
             return "halt"
@@ -234,10 +255,13 @@ class SelfEvolvingAgent:
         return next_node
 
     def feedback(self, outcome: str) -> None:
-        """Applies feedback to the learning engine and resets the episode."""
+        """
+        Applies feedback to the learning engine and resets the episode.
+
+        Args:
+            outcome (str): The outcome of the episode (e.g., "SUCCESS").
+        """
         self.learner.update(self.graph, self.current_path, outcome)
         # reset episode
         self.current_node = "START"
         self.current_path = ["START"]
-
-# Verified compliance with SEDGE logic based on the core idea prompt.
