@@ -13,7 +13,7 @@ allowing optimal strategies to emerge automatically.
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from james.tools.constants import (
     SEDGE_EPSILON,
@@ -21,6 +21,13 @@ from james.tools.constants import (
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
     STATE_START,
+    STATE_NETWORK_DISCOVERY,
+    STATE_TARGET_ANALYSIS,
+    STATE_SECURITY_PROFILING,
+    ACTION_PASSIVE_SCAN,
+    ACTION_HANDSHAKE_CAPTURE,
+    ACTION_DEAUTH_TEST,
+    ACTION_EVIL_TWIN_SIMULATION,
 )
 
 
@@ -109,7 +116,7 @@ class DecisionGraph:
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
 
-    def get_best_next(self, node_id: str) -> Optional[Edge]:
+    def get_best_next(self, node_id: str) -> Edge | None:
         """
         Returns the best next edge based on the highest utility score.
 
@@ -117,7 +124,7 @@ class DecisionGraph:
             node_id (str): The identifier of the current node.
 
         Returns:
-            Optional[Edge]: The best edge to traverse, or None.
+            Edge | None: The best edge to traverse, or None.
         """
         edges = self.edges.get(node_id, [])
         if not edges:
@@ -173,7 +180,7 @@ class DecisionEngine:
         """
         self.graph = graph
 
-    def decide(self, current_node: str) -> Optional[str]:
+    def decide(self, current_node: str) -> str | None:
         """
         Selects the next node using weighted stochastic selection.
 
@@ -181,7 +188,7 @@ class DecisionEngine:
             current_node (str): The ID of the node currently occupied.
 
         Returns:
-            Optional[str]: The ID of the next node to transition to.
+            str | None: The ID of the next node to transition to.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
@@ -218,12 +225,12 @@ class SelfEvolvingAgent:
         self.current_node = STATE_START
         self.current_path = [STATE_START]
 
-    def step(self, outcome_signal: Optional[str] = None) -> str:
+    def step(self, outcome_signal: str | None = None) -> str:
         """
         Executes a single step in the decision graph.
 
         Args:
-            outcome_signal (Optional[str]): Optional signal affecting the step.
+            outcome_signal (str | None): Optional signal affecting the step.
 
         Returns:
             str: The next node ID or "halt" if no transition is possible.
@@ -248,3 +255,34 @@ class SelfEvolvingAgent:
         # reset episode
         self.current_node = STATE_START
         self.current_path = [STATE_START]
+
+
+def build_parrot_wifi_graph() -> DecisionGraph:
+    """
+    Constructs a DecisionGraph mapped to the Parrot WiFi system domain.
+
+    Returns:
+        DecisionGraph: The initialized graph with predefined nodes and edges.
+    """
+    graph = DecisionGraph()
+
+    # Add Nodes
+    graph.add_node(Node(id=STATE_START, state_type="start"))
+    graph.add_node(Node(id=STATE_NETWORK_DISCOVERY, state_type="scan"))
+    graph.add_node(Node(id=STATE_TARGET_ANALYSIS, state_type="analysis"))
+    graph.add_node(Node(id=STATE_SECURITY_PROFILING, state_type="analysis"))
+    graph.add_node(Node(id=ACTION_PASSIVE_SCAN, state_type="action"))
+    graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
+    graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
+    graph.add_node(Node(id=ACTION_EVIL_TWIN_SIMULATION, state_type="action"))
+
+    # Add Edges
+    graph.add_edge(Edge(from_node=STATE_START, to_node=STATE_NETWORK_DISCOVERY))
+    graph.add_edge(Edge(from_node=STATE_NETWORK_DISCOVERY, to_node=STATE_TARGET_ANALYSIS))
+    graph.add_edge(Edge(from_node=STATE_TARGET_ANALYSIS, to_node=STATE_SECURITY_PROFILING))
+    graph.add_edge(Edge(from_node=STATE_SECURITY_PROFILING, to_node=ACTION_PASSIVE_SCAN))
+    graph.add_edge(Edge(from_node=STATE_SECURITY_PROFILING, to_node=ACTION_HANDSHAKE_CAPTURE))
+    graph.add_edge(Edge(from_node=STATE_SECURITY_PROFILING, to_node=ACTION_DEAUTH_TEST))
+    graph.add_edge(Edge(from_node=STATE_SECURITY_PROFILING, to_node=ACTION_EVIL_TWIN_SIMULATION))
+
+    return graph
