@@ -1,0 +1,48 @@
+import sys
+import unittest
+from PyQt5.QtWidgets import QApplication
+
+# Create a global application instance
+app = QApplication(sys.argv)
+
+from james.gui.main_window import MainWindow
+from james.gui.tabs.wifi_tab import WiFiArsenalTab
+from james.core.orchestrator import Orchestrator
+
+class TestGUITooltips(unittest.TestCase):
+    def setUp(self):
+        self.orchestrator = Orchestrator()
+        self.main_window = MainWindow(self.orchestrator)
+        self.wifi_tab = WiFiArsenalTab(self.main_window)
+
+    def tearDown(self):
+        self.main_window.close()
+        self.wifi_tab.close()
+
+    def test_main_window_tooltips(self):
+        self.assertEqual(self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)")
+        self.assertEqual(self.main_window._btn_kill.toolTip(), "Kill JAMES and restore networking (Ctrl+K)")
+
+        # To get the dynamically created buttons we need to search for them or find them by text/properties
+        # But for copy/clear they are not stored as instance attributes. Let's find them from layout.
+        from PyQt5.QtWidgets import QPushButton
+        buttons = self.main_window.findChildren(QPushButton)
+        copy_btn = next((b for b in buttons if b.text() == "Copy"), None)
+        clear_btn = next((b for b in buttons if b.text() == "Clear"), None)
+
+        self.assertIsNotNone(copy_btn, "Copy button not found")
+        self.assertEqual(copy_btn.toolTip(), "Copy terminal output to clipboard")
+
+        self.assertIsNotNone(clear_btn, "Clear button not found")
+        self.assertEqual(clear_btn.toolTip(), "Clear terminal output (Ctrl+Shift+C)")
+
+    def test_wifi_tab_tooltips(self):
+        self.assertEqual(self.wifi_tab.btn_monitor_on.toolTip(), "Enable monitor mode on the selected interface")
+        self.assertEqual(self.wifi_tab.btn_monitor_off.toolTip(), "Disable monitor mode on the selected interface")
+        self.assertEqual(self.wifi_tab.btn_start_scan.toolTip(), "Scan for nearby Wi-Fi networks")
+        self.assertEqual(self.wifi_tab.btn_stop_scan.toolTip(), "Stop ongoing Wi-Fi scan")
+        self.assertEqual(self.wifi_tab.btn_airgeddon.toolTip(), "Launch Evil Twin attack pipeline")
+        self.assertEqual(self.wifi_tab.btn_airgeddon_stop.toolTip(), "Stop Evil Twin pipeline")
+
+if __name__ == "__main__":
+    unittest.main()

@@ -226,9 +226,11 @@ class MainWindow(QMainWindow):
         # Action buttons
         self._btn_logs = QPushButton("Logs")
         self._btn_logs.setMinimumWidth(72)
+        self._btn_logs.setToolTip("View log files (Ctrl+L)")
         self._btn_kill = QPushButton("Kill")
         self._btn_kill.setObjectName("dangerBtn")
         self._btn_kill.setMinimumWidth(72)
+        self._btn_kill.setToolTip("Kill JAMES and restore networking (Ctrl+K)")
 
         layout.addWidget(self._btn_logs)
         layout.addWidget(self._btn_kill)
@@ -287,12 +289,14 @@ class MainWindow(QMainWindow):
         btn_copy.setMinimumWidth(64)
         btn_copy.setFixedHeight(26)
         btn_copy.setStyleSheet("font-size: 10px; padding: 0 10px; min-height: 26px;")
+        btn_copy.setToolTip("Copy terminal output to clipboard")
         btn_copy.clicked.connect(self._copy_log)
 
         btn_clear = QPushButton("Clear")
         btn_clear.setMinimumWidth(64)
         btn_clear.setFixedHeight(26)
         btn_clear.setStyleSheet("font-size: 10px; padding: 0 10px; min-height: 26px;")
+        btn_clear.setToolTip("Clear terminal output (Ctrl+Shift+C)")
         btn_clear.clicked.connect(self._clear_log)
 
         toolbar.addWidget(log_label)

@@ -210,9 +210,11 @@ class WiFiArsenalTab(QWidget):
         self.btn_monitor_on  = QPushButton("▶ Mon ON")
         self.btn_monitor_on.setObjectName("successBtn")
         self.btn_monitor_on.setMinimumWidth(88)
+        self.btn_monitor_on.setToolTip("Enable monitor mode on the selected interface")
         self.btn_monitor_off = QPushButton("■ Mon OFF")
         self.btn_monitor_off.setObjectName("warnBtn")
         self.btn_monitor_off.setMinimumWidth(88)
+        self.btn_monitor_off.setToolTip("Disable monitor mode on the selected interface")
 
         for btn in (self.btn_refresh, self.btn_hw_info,
                     self.btn_monitor_on, self.btn_monitor_off):
@@ -237,11 +239,13 @@ class WiFiArsenalTab(QWidget):
         self.btn_start_scan = QPushButton("  START SCAN  ")
         self.btn_start_scan.setObjectName("primaryBtn")
         self.btn_start_scan.setMinimumWidth(220)
+        self.btn_start_scan.setToolTip("Scan for nearby Wi-Fi networks")
 
         self.btn_stop_scan = QPushButton("Stop")
         self.btn_stop_scan.setObjectName("secondaryBtn")
         self.btn_stop_scan.setMinimumWidth(80)
         self.btn_stop_scan.setEnabled(False)
+        self.btn_stop_scan.setToolTip("Stop ongoing Wi-Fi scan")
 
         action_row.addWidget(self.btn_start_scan)
         action_row.addWidget(self.btn_stop_scan)
@@ -379,10 +383,12 @@ class WiFiArsenalTab(QWidget):
         self.btn_airgeddon.setObjectName("dangerBtn")
         self.btn_airgeddon.setFixedHeight(36)
         self.btn_airgeddon.setEnabled(False)
+        self.btn_airgeddon.setToolTip("Launch Evil Twin attack pipeline")
         self.btn_airgeddon_stop = QPushButton("Stop")
         self.btn_airgeddon_stop.setObjectName("warnBtn")
         self.btn_airgeddon_stop.setMinimumWidth(80)
         self.btn_airgeddon_stop.setEnabled(False)
+        self.btn_airgeddon_stop.setToolTip("Stop Evil Twin pipeline")
         et_layout.addWidget(self.btn_airgeddon, stretch=2)
         et_layout.addWidget(self.btn_airgeddon_stop)
         layout.addWidget(et_group)
