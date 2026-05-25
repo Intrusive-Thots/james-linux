@@ -13,6 +13,7 @@ allowing optimal strategies to emerge automatically.
 
 import random
 from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from james.tools.constants import (
     SEDGE_EPSILON,
@@ -33,18 +34,13 @@ class Node:
 
     Attributes:
         id (str): The unique identifier for the node.
-        state_type (str): Type of state (e.g., "scan", "analysis").
-        metadata (dict[str, str | int | float | bool]): Node metadata.
-
-    Example States:
-        - NETWORK_DISCOVERY
-        - TARGET_ANALYSIS
-        - SECURITY_PROFILING
+        state_type (str): Type of state (e.g., "scan", "analysis", "action").
+        metadata (dict[str, Any]): Optional metadata describing the state.
     """
 
     id: str
     state_type: str  # "scan", "analysis", "action"
-    metadata: dict[str, str | int | float | bool] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -61,17 +57,6 @@ class Edge:
         success_weight (float): Weight from successful outcomes. Defaults 1.0.
         failure_weight (float): Weight from failed outcomes. Defaults 1.0.
         visits (int): Number of times edge has been traversed. Defaults 0.
-
-    Example Actions:
-        - PASSIVE_SCAN
-        - HANDSHAKE_CAPTURE
-        - DEAUTH_TEST
-        - EVIL_TWIN_SIMULATION
-
-    Example Outcomes:
-        - SUCCESS
-        - FAILURE
-        - PARTIAL_SIGNAL
     """
 
     from_node: str
@@ -124,7 +109,7 @@ class DecisionGraph:
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
 
-    def get_best_next(self, node_id: str) -> Edge | None:
+    def get_best_next(self, node_id: str) -> Optional[Edge]:
         """
         Returns the best next edge based on the highest utility score.
 
@@ -132,7 +117,7 @@ class DecisionGraph:
             node_id (str): The identifier of the current node.
 
         Returns:
-            Edge | None: The best edge to traverse, or None if no edges exist.
+            Optional[Edge]: The best edge to traverse, or None.
         """
         edges = self.edges.get(node_id, [])
         if not edges:
@@ -145,9 +130,7 @@ class LearningEngine:
     Updates edge weights across the graph based on execution feedback.
 
     This implements the learning mechanism that allows optimal
-    strategies to emerge over time automatically. Over time:
-        - Successful paths become stronger (higher success_weight)
-        - Failed paths decay (higher failure_weight)
+    strategies to emerge over time automatically.
     """
 
     def update(
@@ -179,12 +162,6 @@ class LearningEngine:
 class DecisionEngine:
     """
     Policy layer for making stochastic weighted selections.
-
-    Instead of static rules, it uses a probabilistic model balancing
-    exploration of new paths and exploitation of known strong paths.
-    The system naturally balances exploration (trying weak paths occasionally)
-    with exploitation (using strong known paths) via stochastic
-    weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -196,7 +173,7 @@ class DecisionEngine:
         """
         self.graph = graph
 
-    def decide(self, current_node: str) -> str | None:
+    def decide(self, current_node: str) -> Optional[str]:
         """
         Selects the next node using weighted stochastic selection.
 
@@ -204,7 +181,7 @@ class DecisionEngine:
             current_node (str): The ID of the node currently occupied.
 
         Returns:
-            str | None: The ID of the next node to transition to, or None.
+            Optional[str]: The ID of the next node to transition to.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
@@ -226,13 +203,6 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     """
     Agent that learns optimal paths through a self-evolution loop.
-
-    The agent walks the graph and continuously improves its logic
-    via the underlying DecisionEngine and LearningEngine. After enough runs,
-    the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows
-    become dominant paths. This creates a living decision ecosystem
-    instead of static scripts.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -248,12 +218,12 @@ class SelfEvolvingAgent:
         self.current_node = STATE_START
         self.current_path = [STATE_START]
 
-    def step(self, outcome_signal: str | None = None) -> str:
+    def step(self, outcome_signal: Optional[str] = None) -> str:
         """
         Executes a single step in the decision graph.
 
         Args:
-            outcome_signal (str | None): Optional signal affecting the step.
+            outcome_signal (Optional[str]): Optional signal affecting the step.
 
         Returns:
             str: The next node ID or "halt" if no transition is possible.
