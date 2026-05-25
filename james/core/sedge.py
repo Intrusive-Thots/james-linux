@@ -14,6 +14,14 @@ allowing optimal strategies to emerge automatically.
 import random
 from dataclasses import dataclass, field
 
+from james.tools.constants import (
+    SEDGE_EPSILON,
+    OUTCOME_SUCCESS,
+    OUTCOME_FAILURE,
+    OUTCOME_PARTIAL,
+    STATE_START,
+)
+
 
 @dataclass
 class Node:
@@ -78,12 +86,12 @@ class Edge:
 
         The utility score is computed as the ratio of the success weight
         to the failure weight, heavily favoring successful paths. A small
-        epsilon (1e-6) is added to the denominator to prevent zero division.
+        epsilon is added to the denominator to prevent zero division.
 
         Returns:
             float: The computed utility score.
         """
-        return self.success_weight / (self.failure_weight + 1e-6)
+        return self.success_weight / (self.failure_weight + SEDGE_EPSILON)
 
 
 class DecisionGraph:
@@ -159,11 +167,11 @@ class LearningEngine:
             for e in edges:
                 if e.to_node == to:
                     e.visits += 1
-                    if outcome == "SUCCESS":
+                    if outcome == OUTCOME_SUCCESS:
                         e.success_weight += 1.0
-                    elif outcome == "FAILURE":
+                    elif outcome == OUTCOME_FAILURE:
                         e.failure_weight += 1.0
-                    elif outcome == "PARTIAL_SIGNAL":
+                    elif outcome == OUTCOME_PARTIAL:
                         e.success_weight += 0.5
                         e.failure_weight += 0.5
 
@@ -237,8 +245,8 @@ class SelfEvolvingAgent:
         self.graph = graph
         self.decision_engine = DecisionEngine(graph)
         self.learner = LearningEngine()
-        self.current_node = "START"
-        self.current_path = ["START"]
+        self.current_node = STATE_START
+        self.current_path = [STATE_START]
 
     def step(self, outcome_signal: str | None = None) -> str:
         """
@@ -268,5 +276,5 @@ class SelfEvolvingAgent:
         """
         self.learner.update(self.graph, self.current_path, outcome)
         # reset episode
-        self.current_node = "START"
-        self.current_path = ["START"]
+        self.current_node = STATE_START
+        self.current_path = [STATE_START]
