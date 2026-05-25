@@ -21,6 +21,13 @@ from james.tools.constants import (
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
     STATE_START,
+    STATE_NETWORK_DISCOVERY,
+    STATE_TARGET_ANALYSIS,
+    STATE_SECURITY_PROFILING,
+    ACTION_PASSIVE_SCAN,
+    ACTION_HANDSHAKE_CAPTURE,
+    ACTION_DEAUTH_TEST,
+    ACTION_EVIL_TWIN_SIMULATION,
 )
 
 
@@ -248,3 +255,67 @@ class SelfEvolvingAgent:
         # reset episode
         self.current_node = STATE_START
         self.current_path = [STATE_START]
+
+
+def build_parrot_wifi_graph() -> DecisionGraph:
+    """
+    Factory function to build and configure the Parrot WiFi SEDGE graph.
+
+    Returns:
+        DecisionGraph: The configured decision graph.
+    """
+    graph = DecisionGraph()
+
+    # Add Nodes
+    graph.add_node(Node(id=STATE_START, state_type="state"))
+    graph.add_node(Node(id=STATE_NETWORK_DISCOVERY, state_type="state"))
+    graph.add_node(Node(id=STATE_TARGET_ANALYSIS, state_type="state"))
+    graph.add_node(Node(id=STATE_SECURITY_PROFILING, state_type="state"))
+
+    graph.add_node(Node(id=ACTION_PASSIVE_SCAN, state_type="action"))
+    graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
+    graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
+    graph.add_node(Node(id=ACTION_EVIL_TWIN_SIMULATION, state_type="action"))
+
+    # Add Edges
+    # Start -> Network Discovery
+    graph.add_edge(
+        Edge(from_node=STATE_START, to_node=STATE_NETWORK_DISCOVERY)
+    )
+
+    # Network Discovery -> Passive Scan -> Target Analysis
+    graph.add_edge(
+        Edge(from_node=STATE_NETWORK_DISCOVERY, to_node=ACTION_PASSIVE_SCAN)
+    )
+    graph.add_edge(
+        Edge(from_node=ACTION_PASSIVE_SCAN, to_node=STATE_TARGET_ANALYSIS)
+    )
+
+    # Target Analysis -> Actions
+    graph.add_edge(
+        Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_HANDSHAKE_CAPTURE)
+    )
+    graph.add_edge(
+        Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_DEAUTH_TEST)
+    )
+
+    # Actions -> Security Profiling
+    graph.add_edge(
+        Edge(
+            from_node=ACTION_HANDSHAKE_CAPTURE,
+            to_node=STATE_SECURITY_PROFILING,
+        )
+    )
+    graph.add_edge(
+        Edge(from_node=ACTION_DEAUTH_TEST, to_node=STATE_SECURITY_PROFILING)
+    )
+
+    # Security Profiling -> Evil Twin Simulation
+    graph.add_edge(
+        Edge(
+            from_node=STATE_SECURITY_PROFILING,
+            to_node=ACTION_EVIL_TWIN_SIMULATION,
+        )
+    )
+
+    return graph
