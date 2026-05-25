@@ -192,6 +192,11 @@ class DecisionEngine:
         # weighted stochastic selection (exploration + exploitation)
         weights = [c.score() for c in candidates]
         total = sum(weights)
+
+        # Fallback to uniform selection if all paths have zero utility
+        if total == 0:
+            return random.choice(candidates).to_node
+
         probs = [w / total for w in weights]
 
         return random.choices(candidates, weights=probs)[0].to_node
