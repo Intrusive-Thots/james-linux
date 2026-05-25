@@ -1,5 +1,6 @@
 import unittest
 from james.core.sedge import Node, Edge
+from james.tools.constants import SEDGE_EPSILON
 
 
 class TestSedgeEdgeCases(unittest.TestCase):
@@ -17,14 +18,14 @@ class TestSedgeEdgeCases(unittest.TestCase):
     def test_edge_default_score(self):
         edge = Edge(from_node="A", to_node="B")
         # default success_weight is 1.0, failure_weight is 1.0
-        # formula: 1.0 / (1.0 + 1e-6)
-        expected_score = 1.0 / (1.0 + 1e-6)
+        # formula: 1.0 / (1.0 + SEDGE_EPSILON)
+        expected_score = 1.0 / (1.0 + SEDGE_EPSILON)
         self.assertAlmostEqual(edge.score(), expected_score)
 
     def test_edge_zero_failure_weight(self):
         edge = Edge(from_node="A", to_node="B", failure_weight=0.0)
-        # formula: 1.0 / (0.0 + 1e-6) = 1,000,000.0
-        expected_score = 1.0 / 1e-6
+        # formula: 1.0 / (0.0 + SEDGE_EPSILON) = 1,000,000.0
+        expected_score = 1.0 / SEDGE_EPSILON
         self.assertAlmostEqual(edge.score(), expected_score)
 
     def test_edge_zero_success_weight(self):

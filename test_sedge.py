@@ -1,5 +1,11 @@
 import unittest
 from james.core.sedge import Node, Edge, DecisionGraph, SelfEvolvingAgent
+from james.tools.constants import (
+    OUTCOME_SUCCESS,
+    OUTCOME_FAILURE,
+    OUTCOME_PARTIAL,
+    STATE_START,
+)
 
 
 class TestSEDGE(unittest.TestCase):
@@ -7,7 +13,7 @@ class TestSEDGE(unittest.TestCase):
         self.graph = DecisionGraph()
 
         # Add Nodes
-        self.graph.add_node(Node(id="START", state_type="start"))
+        self.graph.add_node(Node(id=STATE_START, state_type="start"))
         self.graph.add_node(Node(id="NETWORK_DISCOVERY", state_type="scan"))
         self.graph.add_node(Node(id="TARGET_ANALYSIS", state_type="analysis"))
         self.graph.add_node(
@@ -22,7 +28,7 @@ class TestSEDGE(unittest.TestCase):
 
         # Add Edges
         self.graph.add_edge(
-            Edge(from_node="START", to_node="NETWORK_DISCOVERY")
+            Edge(from_node=STATE_START, to_node="NETWORK_DISCOVERY")
         )
         self.graph.add_edge(
             Edge(from_node="NETWORK_DISCOVERY", to_node="TARGET_ANALYSIS")
@@ -48,15 +54,15 @@ class TestSEDGE(unittest.TestCase):
         self.agent = SelfEvolvingAgent(self.graph)
 
     def test_initial_state(self):
-        self.assertEqual(self.agent.current_node, "START")
-        self.assertEqual(self.agent.current_path, ["START"])
+        self.assertEqual(self.agent.current_node, STATE_START)
+        self.assertEqual(self.agent.current_path, [STATE_START])
 
     def test_step_execution(self):
         next_node = self.agent.step()
         self.assertEqual(next_node, "NETWORK_DISCOVERY")
         self.assertEqual(self.agent.current_node, "NETWORK_DISCOVERY")
         self.assertEqual(
-            self.agent.current_path, ["START", "NETWORK_DISCOVERY"]
+            self.agent.current_path, [STATE_START, "NETWORK_DISCOVERY"]
         )
 
         next_node = self.agent.step()
@@ -88,13 +94,13 @@ class TestSEDGE(unittest.TestCase):
             self.agent.step()
         )  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
-        self.agent.feedback(outcome="SUCCESS")
+        self.agent.feedback(outcome=OUTCOME_SUCCESS)
 
-        self.assertEqual(self.agent.current_node, "START")
-        self.assertEqual(self.agent.current_path, ["START"])
+        self.assertEqual(self.agent.current_node, STATE_START)
+        self.assertEqual(self.agent.current_path, [STATE_START])
 
         # Check that edges got visits and updated weights
-        edges = self.graph.edges["START"]
+        edges = self.graph.edges[STATE_START]
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 2.0)
         self.assertEqual(edges[0].failure_weight, 1.0)
@@ -116,9 +122,9 @@ class TestSEDGE(unittest.TestCase):
         self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
         self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
-        self.agent.feedback(outcome="FAILURE")
+        self.agent.feedback(outcome=OUTCOME_FAILURE)
 
-        edges = self.graph.edges["START"]
+        edges = self.graph.edges[STATE_START]
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 1.0)
         self.assertEqual(edges[0].failure_weight, 2.0)
@@ -129,9 +135,9 @@ class TestSEDGE(unittest.TestCase):
         self.agent.step()  # TARGET_ANALYSIS -> SECURITY_PROFILING
         self.agent.step()  # -> PASSIVE_SCAN or HANDSHAKE_CAPTURE ...
 
-        self.agent.feedback(outcome="PARTIAL_SIGNAL")
+        self.agent.feedback(outcome=OUTCOME_PARTIAL)
 
-        edges = self.graph.edges["START"]
+        edges = self.graph.edges[STATE_START]
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 1.5)
         self.assertEqual(edges[0].failure_weight, 1.5)
@@ -141,15 +147,23 @@ class TestSEDGE(unittest.TestCase):
 
     def test_get_best_next_with_edges(self):
         # We know START has one edge
-        best_edge = self.graph.get_best_next("START")
+        best_edge = self.graph.get_best_next(STATE_START)
         self.assertIsNotNone(best_edge)
         self.assertEqual(best_edge.to_node, "NETWORK_DISCOVERY")
 
     def test_decide_zero_weights(self):
         # Reset graph edges to have zero success_weight (total score = 0)
         self.graph.edges["SECURITY_PROFILING"] = [
-            Edge(from_node="SECURITY_PROFILING", to_node="PASSIVE_SCAN", success_weight=0.0),
-            Edge(from_node="SECURITY_PROFILING", to_node="HANDSHAKE_CAPTURE", success_weight=0.0)
+            Edge(
+                from_node="SECURITY_PROFILING",
+                to_node="PASSIVE_SCAN",
+                success_weight=0.0,
+            ),
+            Edge(
+                from_node="SECURITY_PROFILING",
+                to_node="HANDSHAKE_CAPTURE",
+                success_weight=0.0,
+            ),
         ]
 
         # Test that decision engine can handle this gracefully
