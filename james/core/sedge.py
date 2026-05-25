@@ -138,7 +138,7 @@ class LearningEngine:
         Args:
             graph (DecisionGraph): The current decision graph.
             path (list[str]): The sequence of node IDs traversed.
-            success (bool): Whether the overall operation was successful.
+            outcome (str): Outcome ('SUCCESS', 'FAILURE', etc.).
         """
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
@@ -239,5 +239,3 @@ class SelfEvolvingAgent:
         # reset episode
         self.current_node = "START"
         self.current_path = ["START"]
-
-# Verified compliance with SEDGE logic based on the core idea prompt.
