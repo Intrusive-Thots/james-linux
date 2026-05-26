@@ -31,6 +31,34 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
+        self.assertIn("Ctrl+Tab", keys)
+        self.assertIn("Ctrl+Shift+Tab", keys)
+
+    def test_tab_cycling(self):
+        # Initial tab is 0
+        self.window.tabs.setCurrentIndex(0)
+        self.assertEqual(self.window.tabs.currentIndex(), 0)
+
+        # Test _next_tab wrapping
+        count = self.window.tabs.count()
+        self.assertTrue(count > 0, "There should be at least one tab")
+
+        self.window.tabs.setCurrentIndex(count - 1)
+        self.window._next_tab()
+        self.assertEqual(self.window.tabs.currentIndex(), 0)
+
+        # Test _prev_tab wrapping
+        self.window.tabs.setCurrentIndex(0)
+        self.window._prev_tab()
+        self.assertEqual(self.window.tabs.currentIndex(), count - 1)
+
+        # Test basic cycling
+        self.window.tabs.setCurrentIndex(1)
+        self.window._next_tab()
+        self.assertEqual(self.window.tabs.currentIndex(), 2 % count)
+        self.window._prev_tab()
+        self.assertEqual(self.window.tabs.currentIndex(), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

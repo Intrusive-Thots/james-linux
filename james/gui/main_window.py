@@ -117,9 +117,25 @@ class MainWindow(QMainWindow):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
             shortcut.activated.connect(lambda idx=i-1: self._switch_tab(idx))
 
+        # Tab cycling
+        QShortcut(QKeySequence("Ctrl+Tab"), self).activated.connect(self._next_tab)
+        QShortcut(QKeySequence("Ctrl+Shift+Tab"), self).activated.connect(self._prev_tab)
+
     def _switch_tab(self, index: int):
         if index < self.tabs.count():
             self.tabs.setCurrentIndex(index)
+
+    def _next_tab(self):
+        count = self.tabs.count()
+        if count > 0:
+            next_idx = (self.tabs.currentIndex() + 1) % count
+            self._switch_tab(next_idx)
+
+    def _prev_tab(self):
+        count = self.tabs.count()
+        if count > 0:
+            prev_idx = (self.tabs.currentIndex() - 1) % count
+            self._switch_tab(prev_idx)
 
     # ── UI Construction ───────────────────────────────────────────────
 
