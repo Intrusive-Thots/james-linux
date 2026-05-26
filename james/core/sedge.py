@@ -13,7 +13,7 @@ allowing optimal strategies to emerge automatically.
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from james.tools.constants import (
     SEDGE_EPSILON,
@@ -116,7 +116,7 @@ class DecisionGraph:
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
 
-    def get_best_next(self, node_id: str) -> Optional[Edge]:
+    def get_best_next(self, node_id: str) -> Edge | None:
         """
         Returns the best next edge based on the highest utility score.
 
@@ -124,7 +124,7 @@ class DecisionGraph:
             node_id (str): The identifier of the current node.
 
         Returns:
-            Optional[Edge]: The best edge to traverse, or None.
+            Edge | None: The best edge to traverse, or None.
         """
         edges = self.edges.get(node_id, [])
         if not edges:
@@ -180,7 +180,7 @@ class DecisionEngine:
         """
         self.graph = graph
 
-    def decide(self, current_node: str) -> Optional[str]:
+    def decide(self, current_node: str) -> str | None:
         """
         Selects the next node using weighted stochastic selection.
 
@@ -188,7 +188,7 @@ class DecisionEngine:
             current_node (str): The ID of the node currently occupied.
 
         Returns:
-            Optional[str]: The ID of the next node to transition to.
+            str | None: The ID of the next node to transition to.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
@@ -225,12 +225,12 @@ class SelfEvolvingAgent:
         self.current_node = STATE_START
         self.current_path = [STATE_START]
 
-    def step(self, outcome_signal: Optional[str] = None) -> str:
+    def step(self, outcome_signal: str | None = None) -> str:
         """
         Executes a single step in the decision graph.
 
         Args:
-            outcome_signal (Optional[str]): Optional signal affecting the step.
+            outcome_signal (str | None): Optional signal affecting the step.
 
         Returns:
             str: The next node ID or "halt" if no transition is possible.
@@ -261,29 +261,39 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     """
     Factory function to build and configure the Parrot WiFi SEDGE graph.
 
+    This implements the domain-specific mapping for the Parrot WiFi System, where:
+      - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
+      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+      - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
+
+    After enough runs, the graph converges toward optimal attack/analysis pipelines
+    by building a living decision ecosystem that replaces static scripts.
+
     Returns:
         DecisionGraph: The configured decision graph.
     """
     graph = DecisionGraph()
 
-    # Add Nodes
+    # Add State Nodes
     graph.add_node(Node(id=STATE_START, state_type="state"))
     graph.add_node(Node(id=STATE_NETWORK_DISCOVERY, state_type="state"))
     graph.add_node(Node(id=STATE_TARGET_ANALYSIS, state_type="state"))
     graph.add_node(Node(id=STATE_SECURITY_PROFILING, state_type="state"))
 
+    # Add Action Nodes
     graph.add_node(Node(id=ACTION_PASSIVE_SCAN, state_type="action"))
     graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
     graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
     graph.add_node(Node(id=ACTION_EVIL_TWIN_SIMULATION, state_type="action"))
 
-    # Add Edges
-    # Start -> Network Discovery
+    # Add Transition Edges
+
+    # Sequence: START -> Network Discovery
     graph.add_edge(
         Edge(from_node=STATE_START, to_node=STATE_NETWORK_DISCOVERY)
     )
 
-    # Network Discovery -> Passive Scan -> Target Analysis
+    # Sequence: Network Discovery -> Passive Scan -> Target Analysis
     graph.add_edge(
         Edge(from_node=STATE_NETWORK_DISCOVERY, to_node=ACTION_PASSIVE_SCAN)
     )
