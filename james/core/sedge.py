@@ -261,29 +261,39 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     """
     Factory function to build and configure the Parrot WiFi SEDGE graph.
 
+    This implements the domain-specific mapping for the Parrot WiFi System, where:
+      - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
+      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+      - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
+
+    After enough runs, the graph converges toward optimal attack/analysis pipelines
+    by building a living decision ecosystem that replaces static scripts.
+
     Returns:
         DecisionGraph: The configured decision graph.
     """
     graph = DecisionGraph()
 
-    # Add Nodes
+    # Add State Nodes
     graph.add_node(Node(id=STATE_START, state_type="state"))
     graph.add_node(Node(id=STATE_NETWORK_DISCOVERY, state_type="state"))
     graph.add_node(Node(id=STATE_TARGET_ANALYSIS, state_type="state"))
     graph.add_node(Node(id=STATE_SECURITY_PROFILING, state_type="state"))
 
+    # Add Action Nodes
     graph.add_node(Node(id=ACTION_PASSIVE_SCAN, state_type="action"))
     graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
     graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
     graph.add_node(Node(id=ACTION_EVIL_TWIN_SIMULATION, state_type="action"))
 
-    # Add Edges
-    # Start -> Network Discovery
+    # Add Transition Edges
+
+    # Sequence: START -> Network Discovery
     graph.add_edge(
         Edge(from_node=STATE_START, to_node=STATE_NETWORK_DISCOVERY)
     )
 
-    # Network Discovery -> Passive Scan -> Target Analysis
+    # Sequence: Network Discovery -> Passive Scan -> Target Analysis
     graph.add_edge(
         Edge(from_node=STATE_NETWORK_DISCOVERY, to_node=ACTION_PASSIVE_SCAN)
     )
