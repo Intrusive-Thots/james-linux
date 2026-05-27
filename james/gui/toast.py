@@ -54,7 +54,7 @@ class Toast(QLabel):
         style = self.STYLES.get(level, self.STYLES["info"])
 
         self.setText(f"  {style['icon']}  {message}")
-        self.setFont(QFont("JetBrains Mono", 11))
+        self.setFont(QFont("JetBrains Mono", 14))
         self.setStyleSheet(f"""
             QLabel {{
                 background: {style['bg']};

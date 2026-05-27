@@ -96,7 +96,7 @@ class TroubleshootTab(QWidget):
         self.txt_output = QPlainTextEdit()
         self.txt_output.setReadOnly(True)
         self.txt_output.setStyleSheet(LOG_STYLE)
-        self.txt_output.setFont(QFont("JetBrains Mono", 10))
+        self.txt_output.setFont(QFont("JetBrains Mono", 13))
         self.txt_output.setMinimumHeight(160)
         diag_layout.addWidget(self.txt_output)
         layout.addWidget(diag_group)

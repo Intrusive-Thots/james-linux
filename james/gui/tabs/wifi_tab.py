@@ -229,7 +229,7 @@ class WiFiArsenalTab(QWidget):
     def _build_interface_row(self) -> QWidget:
         row = QWidget()
         row.setFixedHeight(48)
-        row.setStyleSheet("background: #0D1726;")
+        row.setStyleSheet("background: #181818;")
         layout = QHBoxLayout(row)
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(8)
@@ -372,16 +372,16 @@ class WiFiArsenalTab(QWidget):
         lbl = QLabel(label)
         lbl.setObjectName("metaLabel")
         val = QLabel(value)
-        val.setStyleSheet("color: #C8D6E5; font-size: 11px; font-weight: 600;")
+        val.setStyleSheet("color: #CCCCCC; font-size: 14px; font-weight: 600;")
         val.setObjectName(f"_metric_{label.lower().replace(' ', '_')}")
         h.addWidget(lbl)
         h.addWidget(val)
         return w
 
-    def _set_metric(self, widget: QWidget, value: str, color: str = "#C8D6E5"):
+    def _set_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
         lbl = widget.findChildren(QLabel)[1]
         lbl.setText(value)
-        lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600;")
+        lbl.setStyleSheet(f"color: {color}; font-size: 14px; font-weight: 600;")
 
     # ─── Attack tab ───────────────────────────────────────────────────
 
@@ -454,7 +454,7 @@ class WiFiArsenalTab(QWidget):
         cap_lbl.setObjectName("dimLabel")
         cap_lbl.setMinimumWidth(52)
         self.lbl_cap_file = QLabel("None")
-        self.lbl_cap_file.setStyleSheet("color: #C8D6E5; font-size: 11px;")
+        self.lbl_cap_file.setStyleSheet("color: #CCCCCC; font-size: 14px;")
         self.btn_browse_cap = QPushButton("Browse")
         self.btn_browse_cap.setMinimumWidth(80)
 
@@ -561,9 +561,9 @@ class WiFiArsenalTab(QWidget):
         # Live stats — 3 compact metric cards
         stats_row = QHBoxLayout()
         stats_row.setSpacing(8)
-        self._k_clients = self._make_kpi("Clients", "0", "#00C8FF")
-        self._k_dns     = self._make_kpi("DNS Queries", "0", "#6E7B8B")
-        self._k_creds   = self._make_kpi("Credentials", "0", "#00C875")
+        self._k_clients = self._make_kpi("Clients", "0", "#4daafc")
+        self._k_dns     = self._make_kpi("DNS Queries", "0", "#6E7681")
+        self._k_creds   = self._make_kpi("Credentials", "0", "#2EA043")
         for k in (self._k_clients, self._k_dns, self._k_creds):
             stats_row.addWidget(k)
         stats_row.addStretch()
@@ -598,7 +598,7 @@ class WiFiArsenalTab(QWidget):
         self.karma_log.setReadOnly(True)
         self.karma_log.setMaximumHeight(120)
         self.karma_log.setStyleSheet(LOG_STYLE)
-        self.karma_log.setFont(QFont("JetBrains Mono", 10))
+        self.karma_log.setFont(QFont("JetBrains Mono", 13))
         log_layout.addWidget(self.karma_log)
         layout.addWidget(log_group)
         return tab
@@ -614,7 +614,7 @@ class WiFiArsenalTab(QWidget):
         val = QLabel(value)
         val.setAlignment(Qt.AlignLeft)
         val.setStyleSheet(
-            f"color: {color}; font-size: 18px; font-weight: 700;"
+            f"color: {color}; font-size: 22px; font-weight: 700;"
             f" font-family: 'JetBrains Mono', monospace; border: none;"
         )
         cap = QLabel(label)
@@ -665,7 +665,7 @@ class WiFiArsenalTab(QWidget):
             name = ifc["interface"]
             mode = ifc.get("mode", "?").lower()
             self.iface_combo.addItem(f"{name}  [{mode}]", name)
-            color = "#F0A500" if mode == "monitor" else "#00C875"
+            color = "#BB8009" if mode == "monitor" else "#2EA043"
             self.iface_combo.setItemData(i, QColor(color), Qt.ForegroundRole)
         self.iface_combo.blockSignals(False)
         if ifaces:
@@ -746,7 +746,7 @@ class WiFiArsenalTab(QWidget):
             return
         self.btn_start_scan.setEnabled(False)
         self.btn_stop_scan.setEnabled(True)
-        self._set_metric(self._m_status, "Scanning…", "#C8961A")
+        self._set_metric(self._m_status, "Scanning…", "#0078D4")
         self.orchestrator.layer.run("rm -f /tmp/james_recon*")
         self.recon_proc = self.orchestrator.aircrack.start_airodump(
             iface, write_prefix="/tmp/james_recon"
@@ -811,7 +811,7 @@ class WiFiArsenalTab(QWidget):
         self._set_metric(self._m_clients, str(len(clients)))
         chans = sorted({a["channel"] for a in aps if a["channel"].isdigit()})
         self._set_metric(self._m_chan, ", ".join(chans[:4]) or "—")
-        self._set_metric(self._m_status, "Live", "#00C875")
+        self._set_metric(self._m_status, "Live", "#2EA043")
 
         # Update header
         self.main_window.set_ap_count(len(aps))
@@ -827,7 +827,7 @@ class WiFiArsenalTab(QWidget):
                 item = QTableWidgetItem(val)
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 if "OPN" in ap.get("privacy", ""):
-                    item.setForeground(QColor("#3D5060"))
+                    item.setForeground(QColor("#3C3C3C"))
                 self.ap_table.setItem(row, col, item)
 
     def _populate_client_table(self, clients: list):
@@ -851,7 +851,7 @@ class WiFiArsenalTab(QWidget):
         self.lbl_target.setText(
             f"{self.selected_essid or '(hidden)'}  ·  {self.selected_bssid}  ·  ch {self.selected_channel}"
         )
-        self.lbl_target.setStyleSheet("color: #C8961A; font-size: 11px; font-weight: 600;")
+        self.lbl_target.setStyleSheet("color: #0078D4; font-size: 14px; font-weight: 600;")
         self.btn_capture.setEnabled(True)
         self.btn_pmkid.setEnabled(True)
         self.btn_airgeddon.setEnabled(True)
@@ -926,7 +926,7 @@ class WiFiArsenalTab(QWidget):
             f = result["file"]
             self.lbl_cap_file.setText(f)
             self.lbl_result.setText(f"Handshake captured → {f}")
-            self.lbl_result.setStyleSheet("color: #00C875; font-size: 11px; font-weight: 600;")
+            self.lbl_result.setStyleSheet("color: #2EA043; font-size: 14px; font-weight: 600;")
             show_toast(self.main_window, "Handshake captured", "success")
         else:
             show_toast(self.main_window, "No handshake captured", "error")
@@ -958,7 +958,7 @@ class WiFiArsenalTab(QWidget):
         if count:
             self.lbl_cap_file.setText(hc_path)
             self.lbl_result.setText(f"{count} PMKID/EAPOL hash(es)")
-            self.lbl_result.setStyleSheet("color: #00C875; font-size: 11px; font-weight: 600;")
+            self.lbl_result.setStyleSheet("color: #2EA043; font-size: 14px; font-weight: 600;")
             show_toast(self.main_window, f"PMKID: {count} hashes", "success")
         else:
             show_toast(self.main_window, "No PMKID from this AP", "error")
@@ -1000,7 +1000,7 @@ class WiFiArsenalTab(QWidget):
             return
         self.main_window._set_idle(False)
         self.lbl_result.setText("Cracking…")
-        self.lbl_result.setStyleSheet("color: #F0A500; font-size: 11px; font-weight: 600;")
+        self.lbl_result.setStyleSheet("color: #BB8009; font-size: 14px; font-weight: 600;")
         bssid = self.selected_bssid or ""
         essid = self.selected_essid or ""
 
@@ -1020,20 +1020,20 @@ class WiFiArsenalTab(QWidget):
         self.main_window._set_idle(True)
         if isinstance(result, Exception):
             self.lbl_result.setText(f"Error: {result}")
-            self.lbl_result.setStyleSheet("color: #E63946; font-size: 11px;")
+            self.lbl_result.setStyleSheet("color: #F85149; font-size: 14px;")
             return
         if result.get("found"):
             key = result.get("key", "?")
             self.lbl_result.setText(f"KEY FOUND:  {key}")
             self.lbl_result.setStyleSheet(
-                "color: #C8961A; font-size: 13px; font-weight: 700;"
+                "color: #0078D4; font-size: 16px; font-weight: 700;"
                 " font-family: 'JetBrains Mono', monospace;"
             )
             show_toast(self.main_window, f"Cracked: {key}", "success")
             self.main_window._append_log(f"Key cracked: {key}", "OK")
         else:
             self.lbl_result.setText("Not in wordlist")
-            self.lbl_result.setStyleSheet("color: #E63946; font-size: 11px;")
+            self.lbl_result.setStyleSheet("color: #F85149; font-size: 14px;")
 
     def _launch_airgeddon(self):
         self.main_window.tabs.setCurrentIndex(2)

@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QColor
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
@@ -53,70 +53,14 @@ class AirgeddonTab(QWidget):
         self._connect_signals()
 
     def _build_ui(self):
-        # Apply a custom sleek dark/glassmorphism stylesheet locally to this tab
-        self.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3d3d3d;
-                border-radius: 8px;
-                margin-top: 1ex;
-                background-color: #1a1a24;
-                font-weight: bold;
-                color: #00e676;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding: 0 10px;
-                color: #00e676;
-            }
-            QPushButton {
-                background-color: #2d2d3d;
-                border: 1px solid #00e676;
-                border-radius: 5px;
-                color: white;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #00e676;
-                color: black;
-            }
-            QPushButton:disabled {
-                background-color: #1a1a24;
-                border: 1px solid #333;
-                color: #555;
-            }
-            QTableWidget {
-                background-color: #12121a;
-                alternate-background-color: #1a1a24;
-                color: #e0e0e0;
-                gridline-color: #333;
-                border: 1px solid #333;
-                border-radius: 5px;
-            }
-            QHeaderView::section {
-                background-color: #2d2d3d;
-                color: #00e676;
-                font-weight: bold;
-                border: 1px solid #333;
-            }
-            QPlainTextEdit {
-                background-color: #0d0d14;
-                color: #00ff00;
-                border: 1px solid #333;
-                border-radius: 5px;
-                font-family: monospace;
-            }
-        """)
-
+        # Inherit the global Design System v3 stylesheet (no inline override)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(14)
 
-        # Header Title
-        title_lbl = QLabel("📡 AIRGEDDON GUI MODULE")
-        title_lbl.setFont(QFont("Arial", 18, QFont.Bold))
-        title_lbl.setStyleSheet("color: #00e676; letter-spacing: 2px;")
-        title_lbl.setAlignment(Qt.AlignCenter)
+        # Header
+        title_lbl = QLabel("Airgeddon  —  Visual Attack GUI")
+        title_lbl.setObjectName("sectionLabel")
         layout.addWidget(title_lbl)
 
         # Interface Bar
@@ -173,30 +117,29 @@ class AirgeddonTab(QWidget):
         attack_group = QGroupBox("3. Attack Modules")
         attack_layout = QVBoxLayout(attack_group)
 
-        self.lbl_target = QLabel("Target: None Selected")
-        self.lbl_target.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: white;"
-        )
+        self.lbl_target = QLabel("Target: None selected — select an AP from the scan table")
+        self.lbl_target.setObjectName("dimLabel")
         attack_layout.addWidget(self.lbl_target)
 
         attack_btns = QHBoxLayout()
         self.btn_capture = QPushButton("🎯 1. Capture Handshake")
-        self.btn_capture.setMinimumHeight(50)
+        self.btn_capture.setMinimumHeight(44)
+        self.btn_capture.setObjectName("secondaryBtn")
         self.btn_capture.setEnabled(False)
 
         self.btn_evil_twin = QPushButton("👿 2. Launch Evil Twin")
-        self.btn_evil_twin.setMinimumHeight(50)
-        self.btn_evil_twin.setStyleSheet(
-            "color: #ff4444; border-color: #ff4444;"
-        )
+        self.btn_evil_twin.setMinimumHeight(44)
+        self.btn_evil_twin.setObjectName("dangerBtn")
         self.btn_evil_twin.setEnabled(False)
 
         self.btn_wps = QPushButton("🔓 3. WPS Pixie Dust")
-        self.btn_wps.setMinimumHeight(50)
+        self.btn_wps.setMinimumHeight(44)
+        self.btn_wps.setObjectName("secondaryBtn")
         self.btn_wps.setEnabled(False)
 
         self.btn_abort_attack = QPushButton("🛑 Abort Attack")
-        self.btn_abort_attack.setMinimumHeight(50)
+        self.btn_abort_attack.setMinimumHeight(44)
+        self.btn_abort_attack.setObjectName("warnBtn")
         self.btn_abort_attack.setEnabled(False)
 
         attack_btns.addWidget(self.btn_capture)
@@ -211,6 +154,8 @@ class AirgeddonTab(QWidget):
         log_layout = QVBoxLayout(log_group)
         self.log_output = QPlainTextEdit()
         self.log_output.setReadOnly(True)
+        from james.gui.theme import LOG_STYLE
+        self.log_output.setStyleSheet(LOG_STYLE)
         log_layout.addWidget(self.log_output)
         splitter.addWidget(log_group)
 
@@ -340,8 +285,11 @@ class AirgeddonTab(QWidget):
         self.selected_channel = self.ap_table.item(r, 2).text()
 
         self.lbl_target.setText(
-            f"Target: {self.selected_essid} ({self.selected_bssid}) CH: {self.selected_channel}"
+            f"{self.selected_essid}  ·  {self.selected_bssid}  ·  ch {self.selected_channel}"
         )
+        self.lbl_target.setObjectName("goldAccent")
+        self.lbl_target.style().unpolish(self.lbl_target)
+        self.lbl_target.style().polish(self.lbl_target)
 
         if not self._attack_active:
             self.btn_capture.setEnabled(True)

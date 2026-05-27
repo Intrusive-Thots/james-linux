@@ -26,6 +26,8 @@ from james.gui.tabs.autopilot_tab import AutoPilotTab
 from james.gui.tabs.setup_tab import SetupTab
 from james.gui.tabs.troubleshoot_tab import TroubleshootTab
 from james.gui.tabs.airgeddon_tab import AirgeddonTab
+from james.gui.chat_panel import ChatPanel
+from james.gui.setup_wizard import SetupWizard
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +123,10 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Tab"), self).activated.connect(self._next_tab)
         QShortcut(QKeySequence("Ctrl+Shift+Tab"), self).activated.connect(self._prev_tab)
 
+        # Show setup wizard on first run (deferred so the window paints first)
+        if SetupWizard.should_show():
+            QTimer.singleShot(500, self._show_setup_wizard)
+
     def _switch_tab(self, index: int):
         if index < self.tabs.count():
             self.tabs.setCurrentIndex(index)
@@ -151,7 +157,7 @@ class MainWindow(QMainWindow):
 
         # 2. Content lane — tabs + log (flex)
         content_outer = QWidget()
-        content_outer.setStyleSheet("background: #08111F;")
+        content_outer.setStyleSheet("background: #1F1F1F;")
         outer_layout = QHBoxLayout(content_outer)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
@@ -167,12 +173,14 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
 
+        self.chat_panel      = ChatPanel(self.orchestrator, self)
         self.wifi_tab        = WiFiArsenalTab(self)
         self.autopilot_tab   = AutoPilotTab(self)
         self.airgeddon_tab   = AirgeddonTab(self)
         self.setup_tab       = SetupTab(self)
         self.troubleshoot_tab = TroubleshootTab(self)
 
+        self.tabs.addTab(self.chat_panel,       "Agent")
         self.tabs.addTab(self.wifi_tab,         "Wi-Fi Arsenal")
         self.tabs.addTab(self.autopilot_tab,    "Auto-Pilot")
         self.tabs.addTab(self.airgeddon_tab,    "Airgeddon")
@@ -262,7 +270,7 @@ class MainWindow(QMainWindow):
         val = QLabel(value)
         val.setAlignment(Qt.AlignCenter)
         val.setStyleSheet(
-            "color: #C8D6E5; font-size: 14px; font-weight: 700;"
+            "color: #CCCCCC; font-size: 17px; font-weight: 700;"
             " font-family: 'JetBrains Mono', monospace;"
         )
         cap = QLabel(label)
@@ -279,7 +287,7 @@ class MainWindow(QMainWindow):
 
     def _build_log_panel(self) -> QWidget:
         panel = QWidget()
-        panel.setStyleSheet("background: #08111F;")
+        panel.setStyleSheet("background: #1F1F1F;")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(4)
@@ -327,7 +335,7 @@ class MainWindow(QMainWindow):
         self.terminal.setReadOnly(True)
         self.terminal.setMaximumBlockCount(3000)
         self.terminal.setStyleSheet(LOG_STYLE)
-        self.terminal.setFont(QFont("JetBrains Mono", 10))
+        self.terminal.setFont(QFont("JetBrains Mono", 13))
         layout.addWidget(self.terminal)
 
         return panel
@@ -386,6 +394,10 @@ class MainWindow(QMainWindow):
         self._btn_logs.clicked.connect(self._show_log_viewer)
         self.progress_signal.connect(self._update_progress_ui)
         self.log_signal.connect(self._on_log_received)
+        # Mirror chat panel output into the main log
+        self.chat_panel.on_output.connect(
+            lambda t: self._append_log(t, "INFO")
+        )
 
     # ── Logging with timestamps + severity ───────────────────────────
 
@@ -461,7 +473,7 @@ class MainWindow(QMainWindow):
             self._get_hdr_val(self._hdr_keys).setText(str(n_keys))
             if n_keys != self._key_count and n_keys > 0:
                 self._get_hdr_val(self._hdr_keys).setStyleSheet(
-                    "color: #C8961A; font-size: 14px; font-weight: 700;"
+                    "color: #0078D4; font-size: 17px; font-weight: 700;"
                     " font-family: 'JetBrains Mono', monospace;"
                 )
             self._key_count = n_keys
@@ -507,6 +519,12 @@ class MainWindow(QMainWindow):
         self.orchestrator.kill_james()
         event.accept()
 
+    # ── Setup wizard ──────────────────────────────────────────────────
+
+    def _show_setup_wizard(self):
+        wizard = SetupWizard(self.orchestrator, self)
+        wizard.exec_()
+
     # ── Log viewer dialog ─────────────────────────────────────────────
 
     def _show_log_viewer(self):
@@ -543,7 +561,7 @@ class MainWindow(QMainWindow):
         viewer = QTextEdit()
         viewer.setReadOnly(True)
         viewer.setStyleSheet(LOG_STYLE)
-        viewer.setFont(QFont("JetBrains Mono", 10))
+        viewer.setFont(QFont("JetBrains Mono", 13))
         layout.addWidget(viewer)
 
         btns = QDialogButtonBox(QDialogButtonBox.Close)

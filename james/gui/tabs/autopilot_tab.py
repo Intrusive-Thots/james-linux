@@ -741,7 +741,7 @@ class AutoPilotTab(QWidget):
         phase_strip = QWidget()
         phase_strip.setFixedHeight(48)
         phase_strip.setStyleSheet(
-            "background: #0D1726; border: 1px solid #1A2A3D;"
+            "background: #181818; border: 1px solid #2B2B2B;"
             " border-radius: 6px;"
         )
         ps = QHBoxLayout(phase_strip)
@@ -781,7 +781,7 @@ class AutoPilotTab(QWidget):
         self.txt_log.setReadOnly(True)
         self.txt_log.setMaximumBlockCount(2000)
         self.txt_log.setStyleSheet(LOG_STYLE)
-        self.txt_log.setFont(QFont("JetBrains Mono", 10))
+        self.txt_log.setFont(QFont("JetBrains Mono", 13))
         log_layout.addWidget(self.txt_log)
         splitter.addWidget(log_group)
 
@@ -811,7 +811,7 @@ class AutoPilotTab(QWidget):
         val = QLabel(value)
         val.setAlignment(Qt.AlignCenter)
         val.setStyleSheet(
-            "color: #C8D6E5; font-size: 13px; font-weight: 700;"
+            "color: #CCCCCC; font-size: 16px; font-weight: 700;"
             " font-family: 'JetBrains Mono', monospace;"
         )
         cap = QLabel(label)
@@ -821,11 +821,11 @@ class AutoPilotTab(QWidget):
         v.addWidget(cap)
         return w
 
-    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#C8D6E5"):
+    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
         lbl = widget.findChildren(QLabel)[0]
         lbl.setText(value)
         lbl.setStyleSheet(
-            f"color: {color}; font-size: 13px; font-weight: 700;"
+            f"color: {color}; font-size: 16px; font-weight: 700;"
             f" font-family: 'JetBrains Mono', monospace;"
         )
 
@@ -950,26 +950,26 @@ class AutoPilotTab(QWidget):
         hs_item = QTableWidgetItem()
         if ap.get("skip_reason"):
             hs_item.setText("SKIP")
-            hs_item.setForeground(QColor("#3D5060"))
+            hs_item.setForeground(QColor("#3C3C3C"))
         elif ap.get("captured"):
             hs_item.setText("YES")
-            hs_item.setForeground(QColor("#00C875"))
+            hs_item.setForeground(QColor("#2EA043"))
         else:
             hs_item.setText("NO")
-            hs_item.setForeground(QColor("#E63946"))
+            hs_item.setForeground(QColor("#F85149"))
         self.loot_table.setItem(row, 3, hs_item)
 
         # Key status
         key_item = QTableWidgetItem()
         if ap.get("cracked"):
             key_item.setText(ap.get("key", ""))
-            key_item.setForeground(QColor("#C8961A"))
+            key_item.setForeground(QColor("#0078D4"))
         elif ap.get("captured"):
             key_item.setText("pending")
-            key_item.setForeground(QColor("#6E7B8B"))
+            key_item.setForeground(QColor("#6E7681"))
         else:
             key_item.setText("—")
-            key_item.setForeground(QColor("#3D5060"))
+            key_item.setForeground(QColor("#3C3C3C"))
         self.loot_table.setItem(row, 4, key_item)
 
         # Update strip metrics
@@ -982,8 +982,8 @@ class AutoPilotTab(QWidget):
             if self.loot_table.item(r, 4) and self.loot_table.item(r, 4).text() not in ("", "—", "pending")
         )
         self._set_strip_metric(self._m_targets,  str(self.loot_table.rowCount()))
-        self._set_strip_metric(self._m_captured, str(captured), "#00C875" if captured else "#C8D6E5")
-        self._set_strip_metric(self._m_cracked,  str(cracked),  "#C8961A" if cracked  else "#C8D6E5")
+        self._set_strip_metric(self._m_captured, str(captured), "#2EA043" if captured else "#CCCCCC")
+        self._set_strip_metric(self._m_cracked,  str(cracked),  "#0078D4" if cracked  else "#CCCCCC")
 
     def _on_finished(self, success):
         self.btn_start.setEnabled(True)
@@ -995,11 +995,11 @@ class AutoPilotTab(QWidget):
             show_toast(self.main_window, "Auto-Pilot complete", level="success")
             self.lbl_phase.setText("Complete")
             self.lbl_phase.setStyleSheet(
-                "color: #00C875; font-size: 13px; font-weight: 700;"
+                "color: #2EA043; font-size: 16px; font-weight: 700;"
             )
         else:
             show_toast(self.main_window, "Auto-Pilot stopped", level="error")
             self.lbl_phase.setText("Stopped")
             self.lbl_phase.setStyleSheet(
-                "color: #E63946; font-size: 13px; font-weight: 700;"
+                "color: #F85149; font-size: 16px; font-weight: 700;"
             )
