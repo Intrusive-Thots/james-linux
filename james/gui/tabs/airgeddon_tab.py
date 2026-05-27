@@ -429,7 +429,7 @@ class AirgeddonTab(QWidget):
                 self.orchestrator.layer.kill_background(proc)
 
                 if found:
-                    dest = f"/home/malcolm/.james/loot/handshakes/{essid}_{bssid.replace(':','')}.cap"
+                    dest = f"{Path.home()}/.james/loot/handshakes/{essid}_{bssid.replace(':','')}.cap"
                     self.orchestrator.layer.run(f"cp {cap_file} {dest}")
                     return f"SUCCESS: Handshake captured and saved to {dest}"
                 return "FAIL: Could not capture handshake."

@@ -8,6 +8,9 @@
 
 set -e
 
+TARGET_USER=${SUDO_USER:-$USER}
+if [ "$TARGET_USER" = "root" ]; then TARGET_HOME="/root"; else TARGET_HOME="/home/$TARGET_USER"; fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -144,7 +147,7 @@ echo -e "\n${CYAN}[3/5] Wordlists${NC}"
 echo "─────────────────────────────────────────"
 
 WORDLIST_DIR="/usr/share/wordlists"
-JAMES_WL="/home/malcolm/Desktop/james-linux/wordlists"
+JAMES_WL="$TARGET_HOME/Desktop/james-linux/wordlists"
 mkdir -p "$JAMES_WL"
 
 # rockyou.txt
@@ -154,7 +157,7 @@ elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
     info "Decompressing rockyou.txt.gz..."
     gunzip -k "$WORDLIST_DIR/rockyou.txt.gz" 2>/dev/null || gunzip "$WORDLIST_DIR/rockyou.txt.gz"
     ok "rockyou.txt (decompressed)"
-elif [ -f "/home/malcolm/Desktop/rockyou.txt" ]; then
+elif [ -f "$TARGET_HOME/Desktop/rockyou.txt" ]; then
     ok "rockyou.txt (found on Desktop)"
 else
     warn "rockyou.txt not found — download manually"
@@ -297,13 +300,13 @@ systemctl enable ssh 2>/dev/null && ok "SSH service enabled" || warn "SSH servic
 systemctl start ssh 2>/dev/null && ok "SSH service started" || true
 
 # Sudo NOPASSWD for malcolm
-SUDOERS_LINE="malcolm ALL=(ALL) NOPASSWD: ALL"
-if grep -q "^malcolm" /etc/sudoers.d/james 2>/dev/null; then
+SUDOERS_LINE="$TARGET_USER ALL=(ALL) NOPASSWD: ALL"
+if grep -q "^$TARGET_USER" /etc/sudoers.d/james 2>/dev/null; then
     ok "Sudo NOPASSWD (already configured)"
 else
     echo "$SUDOERS_LINE" > /etc/sudoers.d/james
     chmod 440 /etc/sudoers.d/james
-    ok "Sudo NOPASSWD configured for malcolm"
+    ok "Sudo NOPASSWD configured for $TARGET_USER"
 fi
 
 # Bluetooth
@@ -373,9 +376,9 @@ echo ""
 # Generate JAMES WiFi-optimized wordlists
 echo -e "${CYAN}[BONUS] Generating JAMES WiFi Wordlists${NC}"
 echo "─────────────────────────────────────────"
-JAMES_DIR="/home/malcolm/Desktop/james-linux"
+JAMES_DIR="$TARGET_HOME/Desktop/james-linux"
 if [ -f "$JAMES_DIR/james/wordlists/generator.py" ]; then
-    su - malcolm -c "cd $JAMES_DIR && python3 -c '
+    su - $TARGET_USER -c "cd $JAMES_DIR && python3 -c '
 from james.wordlists.generator import WifiWordlistGenerator
 gen = WifiWordlistGenerator()
 common = gen.generate_wifi_common()

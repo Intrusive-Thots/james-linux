@@ -4,6 +4,7 @@ JAMES Wordlist Generator — creates high-value custom wordlists
 optimized for real-world pentesting scenarios.
 """
 
+from pathlib import Path
 import itertools
 import os
 import sys
@@ -487,7 +488,7 @@ def gen_hybrid_wifi():
     # Pull top entries from rockyou that meet WPA length requirements
     rockyou_paths = [
         "/usr/share/wordlists/rockyou.txt",
-        "/home/malcolm/Desktop/rockyou.txt",
+        str(Path.home() / "Desktop" / "rockyou.txt"),
     ]
     for rp in rockyou_paths:
         if os.path.exists(rp):
