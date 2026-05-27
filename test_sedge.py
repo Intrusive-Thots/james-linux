@@ -199,6 +199,65 @@ class TestSEDGE(unittest.TestCase):
             next_node, [ACTION_PASSIVE_SCAN, ACTION_HANDSHAKE_CAPTURE]
         )
 
+    def test_stochastic_weighted_selection(self):
+        # We'll set up two paths from START, one heavily favored
+        self.graph.add_edge(Edge(from_node=STATE_START, to_node=ACTION_PASSIVE_SCAN, success_weight=9.0, failure_weight=1.0))
+        self.graph.add_edge(Edge(from_node=STATE_START, to_node=ACTION_HANDSHAKE_CAPTURE, success_weight=1.0, failure_weight=1.0))
+
+        counts = {ACTION_PASSIVE_SCAN: 0, ACTION_HANDSHAKE_CAPTURE: 0, STATE_NETWORK_DISCOVERY: 0}
+        iterations = 10000
+        for _ in range(iterations):
+            next_node = self.agent.decision_engine.decide(STATE_START)
+            if next_node in counts:
+                counts[next_node] += 1
+
+        # With original graph START->NETWORK_DISCOVERY has score 1.0 (1/1)
+        # PASSIVE_SCAN has score 9.0 (9/1)
+        # HANDSHAKE_CAPTURE has score 1.0 (1/1)
+        # Total score = 1 + 9 + 1 = 11.
+        # PASSIVE_SCAN should be chosen roughly 9/11 times (~81.8%)
+        # NETWORK_DISCOVERY roughly 1/11 times (~9.1%)
+        # HANDSHAKE_CAPTURE roughly 1/11 times (~9.1%)
+
+        passive_prob = counts[ACTION_PASSIVE_SCAN] / iterations
+        handshake_prob = counts[ACTION_HANDSHAKE_CAPTURE] / iterations
+        network_prob = counts[STATE_NETWORK_DISCOVERY] / iterations
+
+        self.assertTrue(0.78 < passive_prob < 0.85, f"Expected ~0.818, got {passive_prob}")
+        self.assertTrue(0.07 < handshake_prob < 0.12, f"Expected ~0.091, got {handshake_prob}")
+        self.assertTrue(0.07 < network_prob < 0.12, f"Expected ~0.091, got {network_prob}")
+
+    def test_graph_convergence(self):
+        # Simulate multiple agent runs and verify that optimal paths gain higher probability
+        iterations = 100
+        for _ in range(iterations):
+            # Agent steps through the graph
+            while True:
+                next_node = self.agent.step()
+                if next_node == "halt":
+                    break
+
+            # Simulate a scenario where EVIL_TWIN_SIMULATION always fails
+            # and PASSIVE_SCAN path succeeds if it gets there (but in our setup, it's just reaching the end)
+            last_node = self.agent.current_path[-1]
+            if last_node == ACTION_EVIL_TWIN_SIMULATION:
+                self.agent.feedback(outcome=OUTCOME_FAILURE)
+            elif last_node == ACTION_PASSIVE_SCAN:
+                self.agent.feedback(outcome=OUTCOME_SUCCESS)
+            else:
+                self.agent.feedback(outcome=OUTCOME_PARTIAL)
+
+        # Check that EVIL_TWIN_SIMULATION failure weight is very high compared to success
+        edges_to_evil_twin = [e for e in self.graph.edges[STATE_SECURITY_PROFILING] if e.to_node == ACTION_EVIL_TWIN_SIMULATION]
+        edges_to_passive = [e for e in self.graph.edges[STATE_SECURITY_PROFILING] if e.to_node == ACTION_PASSIVE_SCAN]
+
+        evil_twin_edge = edges_to_evil_twin[0]
+        passive_edge = edges_to_passive[0]
+
+        # The passive scan edge should have a higher score than the evil twin edge
+        self.assertTrue(passive_edge.score() > evil_twin_edge.score(),
+                        f"Passive score {passive_edge.score()} should be greater than Evil Twin score {evil_twin_edge.score()}")
+
 
 if __name__ == "__main__":
     unittest.main()

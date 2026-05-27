@@ -169,6 +169,8 @@ class LearningEngine:
 class DecisionEngine:
     """
     Policy layer for making stochastic weighted selections.
+    Naturally balances exploration (trying weak paths occasionally)
+    and exploitation (using strong known paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -210,6 +212,9 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     """
     Agent that learns optimal paths through a self-evolution loop.
+    Over time, successful paths gain higher success_weight (stronger
+    traversal probability), while failed paths gain higher failure_weight
+    (reduced probability).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
