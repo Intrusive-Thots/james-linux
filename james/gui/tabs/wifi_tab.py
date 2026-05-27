@@ -936,7 +936,7 @@ class WiFiArsenalTab(QWidget):
         if wl_dir.exists():
             for wl in sorted(wl_dir.glob("*.txt")):
                 self.wl_combo.addItem(wl.name, str(wl))
-        for p in ["/usr/share/wordlists/rockyou.txt", "/home/malcolm/Desktop/rockyou.txt"]:
+        for p in ["/usr/share/wordlists/rockyou.txt", str(Path.home() / "Desktop" / "rockyou.txt")]:
             if Path(p).exists():
                 self.wl_combo.addItem(Path(p).name, p)
 

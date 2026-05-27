@@ -820,7 +820,7 @@ class Agent:
             # Auto-chain: start cracking in background
             wordlist = self.orch.ensure_wordlist(
                 self.context.get(
-                    "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                    "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
                 )
             )
             lines.append(f"🔓 Auto-starting Smart WPA Crack in background...")
@@ -845,7 +845,7 @@ class Agent:
             m.group(2)
             if m.group(2)
             else self.context.get(
-                "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
             )
         )
         bssid = self.context.get("target_bssid")
@@ -874,7 +874,7 @@ class Agent:
             m.group(2)
             if m.group(2)
             else self.context.get(
-                "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
             )
         )
 
@@ -1123,7 +1123,7 @@ class Agent:
                         elif var_name in ("wordlist", "wordlist_path"):
                             try:
                                 resolved = self.orch.ensure_wordlist(
-                                    "/home/malcolm/Desktop/rockyou.txt"
+                                    str(Path.home() / "Desktop" / "rockyou.txt")
                                 )
                                 self.context[var_name] = resolved
                                 auto_resolved.append(
@@ -1183,7 +1183,7 @@ class Agent:
             iface = self.orch.ensure_wireless_interface(iface)
             wordlist = self.orch.ensure_wordlist(
                 self.context.get(
-                    "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                    "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
                 )
             )
         except RuntimeError as e:
@@ -1710,7 +1710,7 @@ class Agent:
 
         lines.append("")
         lines.append("  ══════════════════════════════════════")
-        lines.append(f"  SSH:          ssh malcolm@{ip}")
+        lines.append(f"  SSH:          ssh {os.getenv('USER', 'root')}@{ip}")
         lines.append(f"  JAMES Remote: http://{ip}:1337  (text commands)")
         lines.append(f"  GUI Remote:   http://{ip}:6080  (full desktop)")
         lines.append(f"  RDP:          {ip}:3389 (if xrdp installed)")
@@ -2159,7 +2159,7 @@ class Agent:
             # Auto-chain: start cracking
             wordlist = self.orch.ensure_wordlist(
                 self.context.get(
-                    "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                    "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
                 )
             )
             lines.append(f"🔓 Auto-cracking with {wordlist}...")
@@ -2189,7 +2189,7 @@ class Agent:
             iface = self.orch.ensure_wireless_interface(iface)
             wordlist = self.orch.ensure_wordlist(
                 self.context.get(
-                    "wordlist", "/home/malcolm/Desktop/rockyou.txt"
+                    "wordlist", str(Path.home() / "Desktop" / "rockyou.txt")
                 )
             )
         except RuntimeError as e:

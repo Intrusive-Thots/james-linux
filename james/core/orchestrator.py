@@ -85,10 +85,10 @@ class Orchestrator:
 
     # Common wordlist paths for auto-detection (preferred order)
     _WORDLISTS = [
-        "/home/malcolm/Desktop/rockyou.txt",
+        str(Path.home() / "Desktop" / "rockyou.txt"),
         "/usr/share/wordlists/rockyou.txt",
         "/usr/share/wordlists/rockyou.txt.gz",
-        "/home/malcolm/Desktop/wordlists/rockyou.txt",
+        str(Path.home() / "Desktop" / "wordlists" / "rockyou.txt"),
     ]
 
     # Project-local wordlist directory
