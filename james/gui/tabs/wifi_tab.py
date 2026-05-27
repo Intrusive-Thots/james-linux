@@ -7,9 +7,10 @@ from PyQt5.QtWidgets import (
     QHeaderView, QFileDialog, QSpinBox, QMessageBox,
     QAbstractItemView, QSplitter, QMenu, QLineEdit,
     QPlainTextEdit, QProgressBar, QFrame, QTabWidget,
+    QShortcut, QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint
-from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtGui import QColor, QFont, QKeySequence
 import time
 import logging
 
@@ -151,6 +152,53 @@ class WiFiArsenalTab(QWidget):
 
         self._build_ui()
         self._connect_signals()
+        self._build_shortcuts()
+
+    # ── Shortcuts ─────────────────────────────────────────────────────
+
+    def _build_shortcuts(self):
+        """Build keyboard shortcuts for the Wi-Fi Arsenal tab."""
+        # Refresh Interfaces
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.btn_refresh.click)
+
+        # Toggle Scan
+        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_scan)
+
+        # Copy Selected AP BSSID or Client MAC (only when tables are focused to avoid blocking global copy)
+        ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
+        ap_copy.setContext(Qt.WidgetShortcut)
+        ap_copy.activated.connect(self._copy_selected)
+
+        client_copy = QShortcut(QKeySequence("Ctrl+C"), self.client_table)
+        client_copy.setContext(Qt.WidgetShortcut)
+        client_copy.activated.connect(self._copy_selected)
+
+    def _toggle_scan(self):
+        if self.btn_start_scan.isEnabled():
+            self.btn_start_scan.click()
+        elif self.btn_stop_scan.isEnabled():
+            self.btn_stop_scan.click()
+
+    def _copy_selected(self):
+        # Check if ap_table has focus or selection
+        if self.ap_table.hasFocus():
+            row = self.ap_table.currentRow()
+            if row >= 0:
+                bssid = (self.ap_table.item(row, 0) or QTableWidgetItem("")).text()
+                if bssid:
+                    QApplication.clipboard().setText(bssid)
+                    show_toast(self.main_window, "BSSID copied", "info")
+            return
+
+        # Check if client_table has focus or selection
+        if self.client_table.hasFocus():
+            row = self.client_table.currentRow()
+            if row >= 0:
+                mac = (self.client_table.item(row, 0) or QTableWidgetItem("")).text()
+                if mac:
+                    QApplication.clipboard().setText(mac)
+                    show_toast(self.main_window, "Client MAC copied", "info")
+            return
 
     # ── Build ─────────────────────────────────────────────────────────
 
@@ -205,6 +253,7 @@ class WiFiArsenalTab(QWidget):
 
         self.btn_refresh     = QPushButton("↻  Refresh")
         self.btn_refresh.setMinimumWidth(88)
+        self.btn_refresh.setToolTip("Refresh network interfaces (Ctrl+R)")
         self.btn_hw_info     = QPushButton("HW Info")
         self.btn_hw_info.setMinimumWidth(76)
         self.btn_monitor_on  = QPushButton("▶ Mon ON")
@@ -239,13 +288,13 @@ class WiFiArsenalTab(QWidget):
         self.btn_start_scan = QPushButton("  START SCAN  ")
         self.btn_start_scan.setObjectName("primaryBtn")
         self.btn_start_scan.setMinimumWidth(220)
-        self.btn_start_scan.setToolTip("Scan for nearby Wi-Fi networks")
+        self.btn_start_scan.setToolTip("Scan for nearby Wi-Fi networks (Ctrl+S)")
 
         self.btn_stop_scan = QPushButton("Stop")
         self.btn_stop_scan.setObjectName("secondaryBtn")
         self.btn_stop_scan.setMinimumWidth(80)
         self.btn_stop_scan.setEnabled(False)
-        self.btn_stop_scan.setToolTip("Stop ongoing Wi-Fi scan")
+        self.btn_stop_scan.setToolTip("Stop ongoing Wi-Fi scan (Ctrl+S)")
 
         action_row.addWidget(self.btn_start_scan)
         action_row.addWidget(self.btn_stop_scan)

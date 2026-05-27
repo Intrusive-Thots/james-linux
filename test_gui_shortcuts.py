@@ -59,6 +59,15 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.window._prev_tab()
         self.assertEqual(self.window.tabs.currentIndex(), 1)
 
+    def test_wifi_tab_shortcuts(self):
+        # The WiFi tab is a child of the window. Let's find shortcuts defined directly in the tab.
+        shortcuts = self.window.wifi_tab.findChildren(QShortcut)
+        keys = [s.key().toString() for s in shortcuts]
+
+        # Verify WiFiArsenalTab specific shortcuts are present
+        self.assertTrue(any(s.key() == QKeySequence("Ctrl+R") for s in shortcuts))
+        self.assertTrue(any(s.key() == QKeySequence("Ctrl+S") for s in shortcuts))
+        self.assertTrue(any(s.key() == QKeySequence("Ctrl+C") for s in shortcuts))
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,8 +39,9 @@ class TestGUITooltips(unittest.TestCase):
     def test_wifi_tab_tooltips(self):
         self.assertEqual(self.wifi_tab.btn_monitor_on.toolTip(), "Enable monitor mode on the selected interface")
         self.assertEqual(self.wifi_tab.btn_monitor_off.toolTip(), "Disable monitor mode on the selected interface")
-        self.assertEqual(self.wifi_tab.btn_start_scan.toolTip(), "Scan for nearby Wi-Fi networks")
-        self.assertEqual(self.wifi_tab.btn_stop_scan.toolTip(), "Stop ongoing Wi-Fi scan")
+        self.assertEqual(self.wifi_tab.btn_refresh.toolTip(), "Refresh network interfaces (Ctrl+R)")
+        self.assertEqual(self.wifi_tab.btn_start_scan.toolTip(), "Scan for nearby Wi-Fi networks (Ctrl+S)")
+        self.assertEqual(self.wifi_tab.btn_stop_scan.toolTip(), "Stop ongoing Wi-Fi scan (Ctrl+S)")
         self.assertEqual(self.wifi_tab.btn_airgeddon.toolTip(), "Launch Evil Twin attack pipeline")
         self.assertEqual(self.wifi_tab.btn_airgeddon_stop.toolTip(), "Stop Evil Twin pipeline")
 
