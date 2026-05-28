@@ -476,11 +476,6 @@ class ChatPanel(QWidget):
             self._add_bubble(f"Loot read error: {exc}", is_user=False)
         QTimer.singleShot(50, self._scroll_to_bottom)
 
-    def showEvent(self, event):
-        """Set focus to the input field when the chat panel is shown."""
-        super().showEvent(event)
-        self._input.setFocus()
-
 
 # ── History-aware line edit ────────────────────────────────────────────────
 

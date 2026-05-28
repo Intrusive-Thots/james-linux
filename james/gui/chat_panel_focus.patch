@@ -1,0 +1,35 @@
+--- james/gui/main_window.py
++++ james/gui/main_window.py
+@@ -190,6 +190,12 @@
+         splitter.addWidget(self._build_log_panel())
+         splitter.setSizes([560, 180])
+         splitter.setChildrenCollapsible(False)
+
+         lane_layout.addWidget(splitter)
+
+         outer_layout.addStretch()
+         outer_layout.addWidget(self._content_lane, stretch=1)
+         outer_layout.addStretch()
+         root.addWidget(content_outer, stretch=1)
+
+         # 3. Session strip (fixed)
+@@ -198,6 +204,11 @@
+         # 4. Status bar
+         self._build_statusbar()
+
++    def _on_tab_changed(self, index: int):
++        widget = self.tabs.widget(index)
++        if isinstance(widget, ChatPanel):
++            widget._input.setFocus()
++
+     def _build_header(self) -> QWidget:
+         header = QWidget()
+         header.setFixedHeight(72)
+@@ -172,6 +183,7 @@
+         # Tab widget
+         self.tabs = QTabWidget()
+         self.tabs.setDocumentMode(True)
++        self.tabs.currentChanged.connect(self._on_tab_changed)
+
+         self.chat_panel      = ChatPanel(self.orchestrator, self)
+         self.wifi_tab        = WiFiArsenalTab(self)
