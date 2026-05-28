@@ -13,6 +13,7 @@ import logging
 import time
 import traceback
 import shlex
+import shutil
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -347,7 +348,7 @@ class AutoPilotWorker(QThread):
                         self.loot_dir
                         / f"{safe_name}_{bssid.replace(':', '')}.cap"
                     )
-                    self.orchestrator.layer.run(f"cp {cap_file} {final_path}")
+                    shutil.copy2(cap_file, final_path)
                     ap["loot_path"] = str(final_path)
                     ap["captured"] = True
                     captured_files.append((ap, str(final_path)))
