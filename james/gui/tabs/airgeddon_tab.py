@@ -6,6 +6,7 @@ for Airgeddon's core workflows (Recon, Handshake, Evil Twin), built natively.
 from pathlib import Path
 import time
 import os
+import shutil
 
 from PyQt5.QtWidgets import (
     QWidget,
@@ -378,7 +379,7 @@ class AirgeddonTab(QWidget):
 
                 if found:
                     dest = f"{Path.home()}/.james/loot/handshakes/{essid}_{bssid.replace(':','')}.cap"
-                    self.orchestrator.layer.run(f"cp {cap_file} {dest}")
+                    shutil.copy2(cap_file, dest)
                     return f"SUCCESS: Handshake captured and saved to {dest}"
                 return "FAIL: Could not capture handshake."
             except Exception as e:
