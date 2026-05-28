@@ -187,8 +187,6 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.setup_tab,        "Setup")
         self.tabs.addTab(self.troubleshoot_tab, "Troubleshoot")
 
-        self.tabs.currentChanged.connect(self._on_tab_changed)
-
         # Splitter: tabs (flex) + log panel (fixed-ish)
         splitter = QSplitter(Qt.Vertical)
         splitter.setHandleWidth(1)
@@ -209,11 +207,6 @@ class MainWindow(QMainWindow):
 
         # 4. Status bar
         self._build_statusbar()
-
-    def _on_tab_changed(self, index: int):
-        widget = self.tabs.widget(index)
-        if hasattr(widget, "_input") and widget == self.chat_panel:
-            widget._input.setFocus()
 
     def _build_header(self) -> QWidget:
         header = QWidget()
