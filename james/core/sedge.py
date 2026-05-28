@@ -33,6 +33,7 @@ from james.tools.constants import (
 
 @dataclass
 class Node:
+    # SEDGE logic implementation
     """
     Represents a system situation or decision point in the decision graph.
 
@@ -52,6 +53,7 @@ class Node:
 
 @dataclass
 class Edge:
+    # SEDGE logic implementation
     """
     Represents a transition between decisions, storing experience weight.
 
@@ -87,6 +89,7 @@ class Edge:
 
 
 class DecisionGraph:
+    # SEDGE core logic feature
     """
     Directed weighted decision graph storing nodes and edges.
 
@@ -133,6 +136,7 @@ class DecisionGraph:
 
 
 class LearningEngine:
+    # SEDGE core logic feature
     """
     Updates edge weights across the graph based on execution feedback.
 
@@ -167,6 +171,7 @@ class LearningEngine:
 
 
 class DecisionEngine:
+    # SEDGE core logic feature
     """
     Policy layer for making stochastic weighted selections.
     Naturally balances exploration (trying weak paths occasionally)
@@ -210,6 +215,7 @@ class DecisionEngine:
 
 
 class SelfEvolvingAgent:
+    # SEDGE core logic feature
     """
     Agent that learns optimal paths through a self-evolution loop.
     Over time, successful paths gain higher success_weight (stronger
