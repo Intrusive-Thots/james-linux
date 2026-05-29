@@ -205,8 +205,8 @@ class DecisionEngine:
         weights = [c.score() for c in candidates]
         total = sum(weights)
 
-        # Fallback to uniform selection if all paths have zero utility
-        if total == 0:
+        # Handle zero-division edge case and fallback to uniform selection
+        if total <= 0.0:
             return random.choice(candidates).to_node
 
         probs = [w / total for w in weights]
@@ -273,13 +273,16 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     """
     Factory function to build and configure the Parrot WiFi SEDGE graph.
 
-    This implements the domain-specific mapping for the Parrot WiFi System, where:
+    This implements the domain-specific mapping for the Parrot WiFi
+    System, where:
       - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST,
+        EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    After enough runs, the graph converges toward optimal attack/analysis pipelines
-    by building a living decision ecosystem that replaces static scripts.
+    After enough runs, the graph converges toward optimal
+    attack/analysis pipelines by building a living decision ecosystem
+    that replaces static scripts.
 
     Returns:
         DecisionGraph: The configured decision graph.
