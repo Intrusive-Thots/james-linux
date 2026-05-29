@@ -146,5 +146,32 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.assertGreater(deauth_selections, 0)
 
 
+
+    def test_edge_score_zero_division_prevention(self):
+        edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=0.0)
+        # Should not raise ZeroDivisionError
+        score = edge.score()
+        self.assertGreater(score, 1000) # Should be a very large number
+
+    def test_decision_engine_zero_utility_fallback(self):
+        decision_engine = DecisionEngine(self.graph)
+
+        edge_b = Edge(from_node="A", to_node="B", success_weight=0.0, failure_weight=0.0)
+        edge_c = Edge(from_node="A", to_node="C", success_weight=0.0, failure_weight=0.0)
+        self.graph.add_edge(edge_b)
+        self.graph.add_edge(edge_c)
+
+        # When utility is zero for all, it should fallback to uniform random selection
+        counts = {"B": 0, "C": 0}
+        iterations = 1000
+        for _ in range(iterations):
+            choice = decision_engine.decide("A")
+            counts[choice] += 1
+
+        # Check that it falls back to uniform distribution roughly
+        self.assertGreater(counts["B"], 100)
+        self.assertGreater(counts["C"], 100)
+
+
 if __name__ == "__main__":
     unittest.main()
