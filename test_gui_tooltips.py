@@ -45,5 +45,11 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.wifi_tab.btn_airgeddon.toolTip(), "Launch Evil Twin attack pipeline")
         self.assertEqual(self.wifi_tab.btn_airgeddon_stop.toolTip(), "Stop Evil Twin pipeline")
 
+    def test_chat_panel_tooltips(self):
+        from james.gui.chat_panel import ChatPanel
+        chat_panel = self.main_window.tabs.widget(0)
+        self.assertIsInstance(chat_panel, ChatPanel)
+        self.assertEqual(chat_panel._btn_clear.toolTip(), "Clear chat history")
+
 if __name__ == "__main__":
     unittest.main()

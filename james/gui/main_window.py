@@ -114,7 +114,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self.kill_james)
 
         # Tabs
-        for i in range(1, 6):
+        for i in range(1, 7):
             # Tab indices are 0-based
             shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
             shortcut.activated.connect(lambda idx=i-1: self._switch_tab(idx))
@@ -129,7 +129,10 @@ class MainWindow(QMainWindow):
 
     def _switch_tab(self, index: int):
         if index < self.tabs.count():
-            self.tabs.setCurrentIndex(index)
+            if index == self.tabs.currentIndex():
+                self._on_tab_changed(index)
+            else:
+                self.tabs.setCurrentIndex(index)
 
     def _next_tab(self):
         count = self.tabs.count()
