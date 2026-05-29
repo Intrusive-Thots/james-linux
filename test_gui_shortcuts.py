@@ -31,6 +31,7 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
+        self.assertIn("Ctrl+6", keys)
         self.assertIn("Ctrl+Tab", keys)
         self.assertIn("Ctrl+Shift+Tab", keys)
 
@@ -58,6 +59,36 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertEqual(self.window.tabs.currentIndex(), 2 % count)
         self.window._prev_tab()
         self.assertEqual(self.window.tabs.currentIndex(), 1)
+
+    def test_tab_refocus(self):
+        import unittest.mock as mock
+        self.window.tabs.setCurrentIndex(0)
+        self.assertEqual(self.window.tabs.currentIndex(), 0)
+
+        # Mock _on_tab_changed to verify it is called when switching to the same tab
+        with mock.patch.object(self.window, '_on_tab_changed') as mock_on_tab_changed:
+            self.window._switch_tab(0)
+            mock_on_tab_changed.assert_called_once_with(0)
+
+        # Verify it still changes tab if different
+        self.window._switch_tab(1)
+        self.assertEqual(self.window.tabs.currentIndex(), 1)
+
+    def test_escape_key_clears_input(self):
+        from james.gui.chat_panel import _HistoryLineEdit
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QKeyEvent
+
+        line_edit = _HistoryLineEdit([])
+        line_edit.setText("some text")
+        self.assertEqual(line_edit.text(), "some text")
+
+        # Synthesize escape key press
+        event = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier)
+        line_edit.keyPressEvent(event)
+
+        # Verify text is cleared
+        self.assertEqual(line_edit.text(), "")
 
     def test_wifi_tab_shortcuts(self):
         # The WiFi tab is a child of the window. Let's find shortcuts defined directly in the tab.

@@ -346,6 +346,7 @@ class ChatPanel(QWidget):
         self._btn_clear = QPushButton("Clear")
         self._btn_clear.setFixedWidth(64)
         self._btn_clear.setFixedHeight(36)
+        self._btn_clear.setToolTip("Clear chat history")
 
         input_layout.addWidget(self._input, stretch=1)
         input_layout.addWidget(self._btn_send)
@@ -493,7 +494,9 @@ class _HistoryLineEdit(QLineEdit):
         self._idx = -1
 
     def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key_Up:
+        if event.key() == Qt.Key_Escape:
+            self.clear()
+        elif event.key() == Qt.Key_Up:
             if self._history:
                 self._idx = max(0, (self._idx - 1) if self._idx > 0
                                 else len(self._history) - 1)
