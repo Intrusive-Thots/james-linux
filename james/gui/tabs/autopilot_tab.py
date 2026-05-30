@@ -653,10 +653,10 @@ class AutoPilotWorker(QThread):
 class AutoPilotTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
-        self.main_window  = main_window
+        self.main_window = main_window
         self.orchestrator = main_window.orchestrator
-        self.worker       = None
-        self._elapsed     = 0
+        self.worker = None
+        self._elapsed = 0
         self._elapsed_timer = QTimer(self)
         self._elapsed_timer.timeout.connect(self._tick_elapsed)
         self._build_ui()
@@ -730,10 +730,19 @@ class AutoPilotTab(QWidget):
         et_min = QLabel("min")
         et_min.setObjectName("dimLabel")
 
-        for w in (recon_lbl, self.spin_recon, recon_sec,
-                  deauth_lbl, self.spin_deauth, deauth_x,
-                  self.chk_crack, self.chk_airgeddon,
-                  et_lbl, self.spin_airgeddon_timeout, et_min):
+        for w in (
+            recon_lbl,
+            self.spin_recon,
+            recon_sec,
+            deauth_lbl,
+            self.spin_deauth,
+            deauth_x,
+            self.chk_crack,
+            self.chk_airgeddon,
+            et_lbl,
+            self.spin_airgeddon_timeout,
+            et_min,
+        ):
             settings_row.addWidget(w)
         settings_row.addStretch()
         layout.addLayout(settings_row)
@@ -753,13 +762,18 @@ class AutoPilotTab(QWidget):
         self.lbl_phase.setObjectName("goldAccent")
         self.lbl_phase.setMinimumWidth(200)
 
-        self._m_elapsed  = self._make_strip_metric("Elapsed",  "00:00")
-        self._m_targets  = self._make_strip_metric("Targets",  "0")
+        self._m_elapsed = self._make_strip_metric("Elapsed", "00:00")
+        self._m_targets = self._make_strip_metric("Targets", "0")
         self._m_captured = self._make_strip_metric("Captured", "0")
-        self._m_cracked  = self._make_strip_metric("Cracked",  "0")
+        self._m_cracked = self._make_strip_metric("Cracked", "0")
 
         ps.addWidget(self.lbl_phase, stretch=1)
-        for m in (self._m_elapsed, self._m_targets, self._m_captured, self._m_cracked):
+        for m in (
+            self._m_elapsed,
+            self._m_targets,
+            self._m_captured,
+            self._m_cracked,
+        ):
             ps.addWidget(m)
         layout.addWidget(phase_strip)
 
@@ -794,8 +808,12 @@ class AutoPilotTab(QWidget):
         self.loot_table.setHorizontalHeaderLabels(
             ["ESSID", "BSSID", "CH", "HS", "Key"]
         )
-        self.loot_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.loot_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.loot_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch
+        )
+        self.loot_table.horizontalHeader().setSectionResizeMode(
+            4, QHeaderView.Stretch
+        )
         self.loot_table.verticalHeader().setVisible(False)
         self.loot_table.setAlternatingRowColors(True)
         loot_layout.addWidget(self.loot_table)
@@ -822,7 +840,9 @@ class AutoPilotTab(QWidget):
         v.addWidget(cap)
         return w
 
-    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
+    def _set_strip_metric(
+        self, widget: QWidget, value: str, color: str = "#CCCCCC"
+    ):
         lbl = widget.findChildren(QLabel)[0]
         lbl.setText(value)
         lbl.setStyleSheet(
@@ -875,9 +895,9 @@ class AutoPilotTab(QWidget):
         # Reset elapsed timer
         self._elapsed = 0
         self._set_strip_metric(self._m_elapsed, "00:00")
-        self._set_strip_metric(self._m_targets,  "0")
+        self._set_strip_metric(self._m_targets, "0")
         self._set_strip_metric(self._m_captured, "0")
-        self._set_strip_metric(self._m_cracked,  "0")
+        self._set_strip_metric(self._m_cracked, "0")
         self.lbl_phase.setText("Starting…")
         self.lbl_phase.setObjectName("goldAccent")
         self._elapsed_timer.start(1000)
@@ -908,6 +928,7 @@ class AutoPilotTab(QWidget):
 
     def _log(self, text):
         from datetime import datetime
+
         ts = datetime.now().strftime("%H:%M")
         self.txt_log.appendPlainText(f"[{ts}]  {text}")
         sb = self.txt_log.verticalScrollBar()
@@ -975,16 +996,28 @@ class AutoPilotTab(QWidget):
 
         # Update strip metrics
         captured = sum(
-            1 for r in range(self.loot_table.rowCount())
-            if self.loot_table.item(r, 3) and self.loot_table.item(r, 3).text() == "YES"
+            1
+            for r in range(self.loot_table.rowCount())
+            if self.loot_table.item(r, 3)
+            and self.loot_table.item(r, 3).text() == "YES"
         )
         cracked = sum(
-            1 for r in range(self.loot_table.rowCount())
-            if self.loot_table.item(r, 4) and self.loot_table.item(r, 4).text() not in ("", "—", "pending")
+            1
+            for r in range(self.loot_table.rowCount())
+            if self.loot_table.item(r, 4)
+            and self.loot_table.item(r, 4).text() not in ("", "—", "pending")
         )
-        self._set_strip_metric(self._m_targets,  str(self.loot_table.rowCount()))
-        self._set_strip_metric(self._m_captured, str(captured), "#2EA043" if captured else "#CCCCCC")
-        self._set_strip_metric(self._m_cracked,  str(cracked),  "#0078D4" if cracked  else "#CCCCCC")
+        self._set_strip_metric(
+            self._m_targets, str(self.loot_table.rowCount())
+        )
+        self._set_strip_metric(
+            self._m_captured,
+            str(captured),
+            "#2EA043" if captured else "#CCCCCC",
+        )
+        self._set_strip_metric(
+            self._m_cracked, str(cracked), "#0078D4" if cracked else "#CCCCCC"
+        )
 
     def _on_finished(self, success):
         self.btn_start.setEnabled(True)
@@ -993,7 +1026,9 @@ class AutoPilotTab(QWidget):
         self._elapsed_timer.stop()
 
         if success:
-            show_toast(self.main_window, "Auto-Pilot complete", level="success")
+            show_toast(
+                self.main_window, "Auto-Pilot complete", level="success"
+            )
             self.lbl_phase.setText("Complete")
             self.lbl_phase.setStyleSheet(
                 "color: #2EA043; font-size: 16px; font-weight: 700;"

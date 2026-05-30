@@ -9,6 +9,7 @@ app = QApplication(sys.argv)
 from james.gui.main_window import MainWindow
 from james.core.orchestrator import Orchestrator
 
+
 class TestMainWindowShortcuts(unittest.TestCase):
     def setUp(self):
         self.orchestrator = Orchestrator()
@@ -62,11 +63,14 @@ class TestMainWindowShortcuts(unittest.TestCase):
 
     def test_tab_refocus(self):
         import unittest.mock as mock
+
         self.window.tabs.setCurrentIndex(0)
         self.assertEqual(self.window.tabs.currentIndex(), 0)
 
         # Mock _on_tab_changed to verify it is called when switching to the same tab
-        with mock.patch.object(self.window, '_on_tab_changed') as mock_on_tab_changed:
+        with mock.patch.object(
+            self.window, "_on_tab_changed"
+        ) as mock_on_tab_changed:
             self.window._switch_tab(0)
             mock_on_tab_changed.assert_called_once_with(0)
 
@@ -96,9 +100,16 @@ class TestMainWindowShortcuts(unittest.TestCase):
         keys = [s.key().toString() for s in shortcuts]
 
         # Verify WiFiArsenalTab specific shortcuts are present
-        self.assertTrue(any(s.key() == QKeySequence("Ctrl+R") for s in shortcuts))
-        self.assertTrue(any(s.key() == QKeySequence("Ctrl+S") for s in shortcuts))
-        self.assertTrue(any(s.key() == QKeySequence("Ctrl+C") for s in shortcuts))
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+R") for s in shortcuts)
+        )
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+S") for s in shortcuts)
+        )
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+C") for s in shortcuts)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

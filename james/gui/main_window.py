@@ -4,11 +4,25 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QPlainTextEdit, QProgressBar,
-    QMessageBox, QSplitter, QStatusBar, QTabWidget,
-    QDialog, QTextEdit, QDialogButtonBox, QComboBox,
-    QFrame, QSizePolicy, QShortcut,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QPlainTextEdit,
+    QProgressBar,
+    QMessageBox,
+    QSplitter,
+    QStatusBar,
+    QTabWidget,
+    QDialog,
+    QTextEdit,
+    QDialogButtonBox,
+    QComboBox,
+    QFrame,
+    QSizePolicy,
+    QShortcut,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QKeySequence
@@ -16,8 +30,11 @@ import logging
 
 from james.core.orchestrator import Orchestrator
 from james.gui.theme import (
-    DARK_STYLESHEET, TERMINAL_STYLE, LOG_STYLE,
-    HEADER_STYLE, SESSION_STRIP_STYLE,
+    DARK_STYLESHEET,
+    TERMINAL_STYLE,
+    LOG_STYLE,
+    HEADER_STYLE,
+    SESSION_STRIP_STYLE,
 )
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
@@ -36,7 +53,7 @@ _SEV = {
     "INFO": "INFO ",
     "WARN": "WARN ",
     "CRIT": "CRIT ",
-    "OK":   "OK   ",
+    "OK": "OK   ",
 }
 
 
@@ -58,7 +75,7 @@ class MainWindow(QMainWindow):
     """JAMES main window — Design System v3."""
 
     progress_signal = pyqtSignal(str, int, int)
-    log_signal      = pyqtSignal(str, str)   # (message, severity)
+    log_signal = pyqtSignal(str, str)  # (message, severity)
 
     def __init__(self, orchestrator: Orchestrator):
         super().__init__()
@@ -71,22 +88,22 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(DARK_STYLESHEET)
 
         # Shared state
-        self.active_interface  = None
-        self.selected_bssid    = None
-        self.selected_essid    = None
-        self.selected_channel  = None
-        self._log_count        = 0
-        self._ap_count         = 0
-        self._key_count        = 0
-        self._last_action      = "—"
-        self._current_mode     = "IDLE"
-        self.uptime_seconds    = 0
+        self.active_interface = None
+        self.selected_bssid = None
+        self.selected_essid = None
+        self.selected_channel = None
+        self._log_count = 0
+        self._ap_count = 0
+        self._key_count = 0
+        self._last_action = "—"
+        self._current_mode = "IDLE"
+        self.uptime_seconds = 0
 
         self._build_ui()
         self._connect_signals()
         self._build_shortcuts()
 
-        self.orchestrator.on_print    = lambda t: self._append_log(t, "INFO")
+        self.orchestrator.on_print = lambda t: self._append_log(t, "INFO")
         self.orchestrator.on_progress = self._on_orchestrator_progress
 
         self._append_log("JAMES initialized", "OK")
@@ -107,21 +124,31 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self.close)
 
         # Logs
-        QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(self._show_log_viewer)
-        QShortcut(QKeySequence("Ctrl+Shift+C"), self).activated.connect(self._clear_log)
+        QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(
+            self._show_log_viewer
+        )
+        QShortcut(QKeySequence("Ctrl+Shift+C"), self).activated.connect(
+            self._clear_log
+        )
 
         # Kill JAMES
-        QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self.kill_james)
+        QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(
+            self.kill_james
+        )
 
         # Tabs
         for i in range(1, 7):
             # Tab indices are 0-based
             shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
-            shortcut.activated.connect(lambda idx=i-1: self._switch_tab(idx))
+            shortcut.activated.connect(lambda idx=i - 1: self._switch_tab(idx))
 
         # Tab cycling
-        QShortcut(QKeySequence("Ctrl+Tab"), self).activated.connect(self._next_tab)
-        QShortcut(QKeySequence("Ctrl+Shift+Tab"), self).activated.connect(self._prev_tab)
+        QShortcut(QKeySequence("Ctrl+Tab"), self).activated.connect(
+            self._next_tab
+        )
+        QShortcut(QKeySequence("Ctrl+Shift+Tab"), self).activated.connect(
+            self._prev_tab
+        )
 
         # Show setup wizard on first run (deferred so the window paints first)
         if SetupWizard.should_show():
@@ -176,18 +203,18 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
 
-        self.chat_panel      = ChatPanel(self.orchestrator, self)
-        self.wifi_tab        = WiFiArsenalTab(self)
-        self.autopilot_tab   = AutoPilotTab(self)
-        self.airgeddon_tab   = AirgeddonTab(self)
-        self.setup_tab       = SetupTab(self)
+        self.chat_panel = ChatPanel(self.orchestrator, self)
+        self.wifi_tab = WiFiArsenalTab(self)
+        self.autopilot_tab = AutoPilotTab(self)
+        self.airgeddon_tab = AirgeddonTab(self)
+        self.setup_tab = SetupTab(self)
         self.troubleshoot_tab = TroubleshootTab(self)
 
-        self.tabs.addTab(self.chat_panel,       "Agent")
-        self.tabs.addTab(self.wifi_tab,         "Wi-Fi Arsenal")
-        self.tabs.addTab(self.autopilot_tab,    "Auto-Pilot")
-        self.tabs.addTab(self.airgeddon_tab,    "Airgeddon")
-        self.tabs.addTab(self.setup_tab,        "Setup")
+        self.tabs.addTab(self.chat_panel, "Agent")
+        self.tabs.addTab(self.wifi_tab, "Wi-Fi Arsenal")
+        self.tabs.addTab(self.autopilot_tab, "Auto-Pilot")
+        self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
+        self.tabs.addTab(self.setup_tab, "Setup")
         self.tabs.addTab(self.troubleshoot_tab, "Troubleshoot")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
@@ -249,11 +276,16 @@ class MainWindow(QMainWindow):
 
         # Compact metric row (T4 pairs)
         self._hdr_iface = self._make_hdr_metric("INTERFACE", "none")
-        self._hdr_aps   = self._make_hdr_metric("APs", "0")
-        self._hdr_keys  = self._make_hdr_metric("CRACKED", "0")
-        self._hdr_up    = self._make_hdr_metric("UPTIME", "00:00")
+        self._hdr_aps = self._make_hdr_metric("APs", "0")
+        self._hdr_keys = self._make_hdr_metric("CRACKED", "0")
+        self._hdr_up = self._make_hdr_metric("UPTIME", "00:00")
 
-        for w in (self._hdr_iface, self._hdr_aps, self._hdr_keys, self._hdr_up):
+        for w in (
+            self._hdr_iface,
+            self._hdr_aps,
+            self._hdr_keys,
+            self._hdr_up,
+        ):
             layout.addWidget(w)
             layout.addWidget(_sep_v())
 
@@ -322,14 +354,18 @@ class MainWindow(QMainWindow):
         btn_copy = QPushButton("Copy")
         btn_copy.setMinimumWidth(64)
         btn_copy.setFixedHeight(26)
-        btn_copy.setStyleSheet("font-size: 10px; padding: 0 10px; min-height: 26px;")
+        btn_copy.setStyleSheet(
+            "font-size: 10px; padding: 0 10px; min-height: 26px;"
+        )
         btn_copy.setToolTip("Copy terminal output to clipboard")
         btn_copy.clicked.connect(self._copy_log)
 
         btn_clear = QPushButton("Clear")
         btn_clear.setMinimumWidth(64)
         btn_clear.setFixedHeight(26)
-        btn_clear.setStyleSheet("font-size: 10px; padding: 0 10px; min-height: 26px;")
+        btn_clear.setStyleSheet(
+            "font-size: 10px; padding: 0 10px; min-height: 26px;"
+        )
         btn_clear.setToolTip("Clear terminal output (Ctrl+Shift+C)")
         btn_clear.clicked.connect(self._clear_log)
 
@@ -358,13 +394,18 @@ class MainWindow(QMainWindow):
         row.setContentsMargins(24, 0, 24, 0)
         row.setSpacing(16)
 
-        self._sess_iface  = self._make_session_kv("INTERFACE", "none")
-        self._sess_mode   = self._make_session_kv("MODE", "IDLE")
-        self._sess_last   = self._make_session_kv("LAST ACTION", "—")
+        self._sess_iface = self._make_session_kv("INTERFACE", "none")
+        self._sess_mode = self._make_session_kv("MODE", "IDLE")
+        self._sess_last = self._make_session_kv("LAST ACTION", "—")
         self._sess_uptime = self._make_session_kv("UPTIME", "00:00:00")
 
         for i, widget in enumerate(
-            (self._sess_iface, self._sess_mode, self._sess_last, self._sess_uptime)
+            (
+                self._sess_iface,
+                self._sess_mode,
+                self._sess_last,
+                self._sess_uptime,
+            )
         ):
             row.addWidget(widget)
             if i < 3:
@@ -435,6 +476,7 @@ class MainWindow(QMainWindow):
 
     def _copy_log(self):
         from PyQt5.QtWidgets import QApplication
+
         QApplication.clipboard().setText(self.terminal.toPlainText())
         show_toast(self, "Log copied", "info")
 
@@ -477,9 +519,9 @@ class MainWindow(QMainWindow):
 
     def _refresh_stats(self):
         try:
-            summary  = self.orchestrator.get_loot_summary()
-            n_loot   = summary.get("total_handshakes", 0)
-            n_keys   = summary.get("total_cracked", 0)
+            summary = self.orchestrator.get_loot_summary()
+            n_loot = summary.get("total_handshakes", 0)
+            n_keys = summary.get("total_cracked", 0)
             self._get_hdr_val(self._hdr_keys).setText(str(n_keys))
             if n_keys != self._key_count and n_keys > 0:
                 self._get_hdr_val(self._hdr_keys).setStyleSheet(
@@ -513,7 +555,8 @@ class MainWindow(QMainWindow):
 
     def kill_james(self):
         reply = QMessageBox.question(
-            self, "Kill JAMES",
+            self,
+            "Kill JAMES",
             "Abort all operations and restore networking?\n\n"
             "This will stop all tools, restore Wi-Fi interfaces,\n"
             "and restart NetworkManager.",
@@ -559,9 +602,15 @@ class MainWindow(QMainWindow):
         sel.setSpacing(8)
         combo = QComboBox()
         combo.setMinimumWidth(320)
-        log_files = sorted(log_dir.glob("*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+        log_files = sorted(
+            log_dir.glob("*.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
         for lf in log_files:
-            combo.addItem(f"{lf.name}  ({lf.stat().st_size / 1024:.0f} KB)", str(lf))
+            combo.addItem(
+                f"{lf.name}  ({lf.stat().st_size / 1024:.0f} KB)", str(lf)
+            )
         btn_reload = QPushButton("Reload")
         btn_reload.setFixedWidth(72)
         sel.addWidget(combo, stretch=1)
@@ -582,8 +631,14 @@ class MainWindow(QMainWindow):
             path = combo.currentData()
             if path:
                 try:
-                    viewer.setPlainText(Path(path).read_text(encoding="utf-8", errors="replace"))
-                    viewer.verticalScrollBar().setValue(viewer.verticalScrollBar().maximum())
+                    viewer.setPlainText(
+                        Path(path).read_text(
+                            encoding="utf-8", errors="replace"
+                        )
+                    )
+                    viewer.verticalScrollBar().setValue(
+                        viewer.verticalScrollBar().maximum()
+                    )
                 except Exception as e:
                     viewer.setPlainText(f"Error: {e}")
 

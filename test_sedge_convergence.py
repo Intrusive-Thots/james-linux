@@ -28,18 +28,26 @@ class TestSedgeConvergence(unittest.TestCase):
         # Nodes
         self.graph.add_node(Node(id=STATE_START, state_type="state"))
         self.graph.add_node(Node(id=STATE_TARGET_ANALYSIS, state_type="state"))
-        self.graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
+        self.graph.add_node(
+            Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action")
+        )
         self.graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
 
         # Edges
-        self.graph.add_edge(Edge(from_node=STATE_START, to_node=STATE_TARGET_ANALYSIS))
+        self.graph.add_edge(
+            Edge(from_node=STATE_START, to_node=STATE_TARGET_ANALYSIS)
+        )
 
         # This will be our "optimal" path
-        self.optimal_edge = Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_HANDSHAKE_CAPTURE)
+        self.optimal_edge = Edge(
+            from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_HANDSHAKE_CAPTURE
+        )
         self.graph.add_edge(self.optimal_edge)
 
         # This will be our "unstable" path
-        self.unstable_edge = Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_DEAUTH_TEST)
+        self.unstable_edge = Edge(
+            from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_DEAUTH_TEST
+        )
         self.graph.add_edge(self.unstable_edge)
 
         self.agent = SelfEvolvingAgent(self.graph)
@@ -74,13 +82,21 @@ class TestSedgeConvergence(unittest.TestCase):
                 self.agent.feedback(OUTCOME_FAILURE)
 
         # The weight of the optimal path should be significantly higher
-        self.assertTrue(self.optimal_edge.success_weight > self.unstable_edge.success_weight)
+        self.assertTrue(
+            self.optimal_edge.success_weight
+            > self.unstable_edge.success_weight
+        )
 
         # The failure weight of the unstable path should be significantly higher
-        self.assertTrue(self.unstable_edge.failure_weight >= self.optimal_edge.failure_weight)
+        self.assertTrue(
+            self.unstable_edge.failure_weight
+            >= self.optimal_edge.failure_weight
+        )
 
         # The score of the optimal path should dominate
-        self.assertTrue(self.optimal_edge.score() > self.unstable_edge.score() * 10)
+        self.assertTrue(
+            self.optimal_edge.score() > self.unstable_edge.score() * 10
+        )
 
         # To ensure the stochastic decision engine favors the optimal path,
         # we can verify that the optimal path was selected more often overall,

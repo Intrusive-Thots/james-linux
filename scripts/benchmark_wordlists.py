@@ -5,18 +5,26 @@ import multiprocessing
 import uvicorn
 from james.api.server import app
 
+
 def run_server():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="error")
 
+
 async def fetch_wordlists(client):
     start = time.time()
-    response = await client.get("http://127.0.0.1:8000/api/wordlists", timeout=10.0)
+    response = await client.get(
+        "http://127.0.0.1:8000/api/wordlists", timeout=10.0
+    )
     return time.time() - start
+
 
 async def fetch_health(client):
     start = time.time()
-    response = await client.get("http://127.0.0.1:8000/api/status", timeout=10.0)
+    response = await client.get(
+        "http://127.0.0.1:8000/api/status", timeout=10.0
+    )
     return time.time() - start
+
 
 async def main():
     p = multiprocessing.Process(target=run_server)
@@ -27,7 +35,9 @@ async def main():
     try:
         async with httpx.AsyncClient() as client:
             # Warmup
-            await client.get("http://127.0.0.1:8000/api/wordlists", timeout=10.0)
+            await client.get(
+                "http://127.0.0.1:8000/api/wordlists", timeout=10.0
+            )
 
             start_time = time.time()
 
@@ -42,14 +52,21 @@ async def main():
             health_times = times[5:]
 
             print(f"Total time for 25 concurrent requests: {total_time:.4f}s")
-            print(f"Average time per wordlist request: {sum(wordlist_times)/len(wordlist_times):.4f}s")
-            print(f"Max time for a wordlist request: {max(wordlist_times):.4f}s")
-            print(f"Average time per health request: {sum(health_times)/len(health_times):.4f}s")
+            print(
+                f"Average time per wordlist request: {sum(wordlist_times)/len(wordlist_times):.4f}s"
+            )
+            print(
+                f"Max time for a wordlist request: {max(wordlist_times):.4f}s"
+            )
+            print(
+                f"Average time per health request: {sum(health_times)/len(health_times):.4f}s"
+            )
             print(f"Max time for a health request: {max(health_times):.4f}s")
             print(f"Min time for a health request: {min(health_times):.4f}s")
     finally:
         p.terminate()
         p.join()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

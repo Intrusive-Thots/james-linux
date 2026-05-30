@@ -92,8 +92,12 @@ class TestSedgeIssueValidation(unittest.TestCase):
         # We'll use law of large numbers.
         decision_engine = DecisionEngine(self.graph)
 
-        edge_b = Edge(from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0) # Highly favored
-        edge_c = Edge(from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0) # Not favored
+        edge_b = Edge(
+            from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0
+        )  # Highly favored
+        edge_c = Edge(
+            from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0
+        )  # Not favored
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
 
@@ -103,7 +107,9 @@ class TestSedgeIssueValidation(unittest.TestCase):
             choice = decision_engine.decide("A")
             counts[choice] += 1
 
-        self.assertGreater(counts["B"], counts["C"] * 10) # B should be picked significantly more often
+        self.assertGreater(
+            counts["B"], counts["C"] * 10
+        )  # B should be picked significantly more often
 
     def test_self_evolving_agent_and_convergence(self):
         # Build the graph mapped to Parrot WiFi System as requested
@@ -139,22 +145,39 @@ class TestSedgeIssueValidation(unittest.TestCase):
 
         # We verify that optimal paths became dominant.
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
-        handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
-        deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
+        handshake_edge = next(
+            (
+                e
+                for e in analysis_edges
+                if e.to_node == ACTION_HANDSHAKE_CAPTURE
+            ),
+            None,
+        )
+        deauth_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST),
+            None,
+        )
 
         self.assertIsNotNone(handshake_edge)
         self.assertIsNotNone(deauth_edge)
 
         # High yield workflow (handshake) became dominant
-        self.assertGreater(handshake_edge.success_weight, deauth_edge.success_weight)
+        self.assertGreater(
+            handshake_edge.success_weight, deauth_edge.success_weight
+        )
         self.assertGreater(handshake_edge.score(), deauth_edge.score())
 
         # Unstable technique (deauth) decayed automatically
-        self.assertGreater(deauth_edge.failure_weight, handshake_edge.failure_weight)
+        self.assertGreater(
+            deauth_edge.failure_weight, handshake_edge.failure_weight
+        )
 
         # Exploration vs Exploitation balance
         self.assertGreater(handshake_selections, deauth_selections)
-        self.assertGreater(deauth_selections, 0) # Weak path should still be explored occasionally
+        self.assertGreater(
+            deauth_selections, 0
+        )  # Weak path should still be explored occasionally
+
 
 if __name__ == "__main__":
     unittest.main()

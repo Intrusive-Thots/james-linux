@@ -21,7 +21,7 @@ from james.gui.utils.worker import WorkerThread
 class SetupTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
-        self.main_window  = main_window
+        self.main_window = main_window
         self.orchestrator = main_window.orchestrator
         self.worker = None
         self._build_ui()
@@ -95,7 +95,9 @@ class SetupTab(QWidget):
         lan = self.txt_lan_iface.text().strip()
         wan = self.txt_wan_iface.text().strip()
         if not lan or not wan:
-            show_toast(self.main_window, "Enter both LAN and WAN interfaces", "error")
+            show_toast(
+                self.main_window, "Enter both LAN and WAN interfaces", "error"
+            )
             return
         self.main_window._set_idle(False)
         self.main_window._append_log(f"🔗 Setting up ICS: {lan} → {wan}")
@@ -106,7 +108,9 @@ class SetupTab(QWidget):
                 f"ipv4.method shared con-name Shared-Ethernet",
                 sudo=True,
             )
-            self.orchestrator.layer.run("nmcli connection up Shared-Ethernet", sudo=True)
+            self.orchestrator.layer.run(
+                "nmcli connection up Shared-Ethernet", sudo=True
+            )
             return {"success": True}
 
         self.worker = WorkerThread(_do)

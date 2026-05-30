@@ -333,7 +333,8 @@ class Hashcat:
         cracked = self._parse_cracked(result.stdout)
         return {
             "command": cmd,
-            "success": result.returncode in (0, 1),  # 1 = exhausted but no error
+            "success": result.returncode
+            in (0, 1),  # 1 = exhausted but no error
             "found": bool(cracked),
             "total_cracked": len(cracked),
             "cracked_keys": cracked,
@@ -401,9 +402,9 @@ class Hashcat:
         timeout_per_stage: int = 300,
     ) -> dict:
         """Wi-Fi optimised hashcat pipeline:
-          1. best64 rules on provided wordlist
-          2. Mask attack (8-digit PIN patterns common on routers)
-          3. Cascading rule stages fallback
+        1. best64 rules on provided wordlist
+        2. Mask attack (8-digit PIN patterns common on routers)
+        3. Cascading rule stages fallback
         """
         stages_tried: list[str] = []
 
@@ -443,7 +444,9 @@ class Hashcat:
 
         # Stage 3: cascading rules fallback
         cascade = self.crack_cascading(
-            hash_file, wordlist, hash_mode=hash_mode,
+            hash_file,
+            wordlist,
+            hash_mode=hash_mode,
             timeout_per_stage=timeout_per_stage,
         )
         stages_tried.extend(cascade.get("stages_tried", []))
@@ -464,7 +467,11 @@ class Hashcat:
         for line in output.splitlines():
             line = line.strip()
             # hashcat prints "hash:plain" on crack lines
-            if ":" in line and not line.startswith("[") and not line.startswith("#"):
+            if (
+                ":" in line
+                and not line.startswith("[")
+                and not line.startswith("#")
+            ):
                 parts = line.split(":")
                 if len(parts) >= 2:
                     plain = parts[-1].strip()
@@ -744,7 +751,10 @@ class Nmap:
                 ports = []
                 for port_el in host_el.findall(".//port"):
                     state_el = port_el.find("state")
-                    if state_el is not None and state_el.get("state") == "open":
+                    if (
+                        state_el is not None
+                        and state_el.get("state") == "open"
+                    ):
                         svc_el = port_el.find("service")
                         svc = ""
                         version = ""
@@ -894,7 +904,11 @@ class Wafw00f:
 
         for line in output.splitlines():
             low = line.lower()
-            if "is behind" in low or "protected by" in low or "detected" in low:
+            if (
+                "is behind" in low
+                or "protected by" in low
+                or "detected" in low
+            ):
                 waf_detected = True
                 # Try to extract the WAF name
                 m = re.search(
@@ -1020,17 +1034,27 @@ class Reaver:
         aps: list[dict] = []
         for line in result.stdout.splitlines():
             stripped = line.strip()
-            if not stripped or stripped.startswith("BSSID") or stripped.startswith("-"):
+            if (
+                not stripped
+                or stripped.startswith("BSSID")
+                or stripped.startswith("-")
+            ):
                 continue
             parts = stripped.split()
-            if len(parts) >= 5 and re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", parts[0]):
+            if len(parts) >= 5 and re.match(
+                r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", parts[0]
+            ):
                 aps.append(
                     {
                         "bssid": parts[0],
                         "channel": parts[1] if len(parts) > 1 else "",
                         "rssi": parts[2] if len(parts) > 2 else "",
                         "wps_version": parts[3] if len(parts) > 3 else "",
-                        "wps_locked": parts[4].upper() == "YES" if len(parts) > 4 else False,
+                        "wps_locked": (
+                            parts[4].upper() == "YES"
+                            if len(parts) > 4
+                            else False
+                        ),
                         "essid": " ".join(parts[5:]) if len(parts) > 5 else "",
                     }
                 )
@@ -1212,7 +1236,10 @@ class IoTTools:
             for host_el in root.findall("host"):
                 for port_el in host_el.findall(".//port"):
                     state_el = port_el.find("state")
-                    if state_el is not None and state_el.get("state") == "open":
+                    if (
+                        state_el is not None
+                        and state_el.get("state") == "open"
+                    ):
                         portid = port_el.get("portid", "")
                         svc_el = port_el.find("service")
                         svc = ""
@@ -1254,7 +1281,9 @@ class IoTTools:
             "count": len(devices),
         }
 
-    def scan_mqtt(self, host: str, port: int = 1883, *, timeout: int = 10) -> dict:
+    def scan_mqtt(
+        self, host: str, port: int = 1883, *, timeout: int = 10
+    ) -> dict:
         """Probe an MQTT broker for unauthenticated access."""
         # Use mosquitto_sub to subscribe and capture a few messages
         cmd = (

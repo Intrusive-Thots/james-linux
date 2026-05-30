@@ -15,10 +15,21 @@ import logging
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QStackedWidget,
-    QProgressBar, QTableWidget, QTableWidgetItem,
-    QHeaderView, QFrame, QCheckBox, QSpacerItem,
+    QDialog,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QLineEdit,
+    QStackedWidget,
+    QProgressBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QFrame,
+    QCheckBox,
+    QSpacerItem,
     QSizePolicy,
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
@@ -33,15 +44,32 @@ SETTINGS_FILE = Path.home() / ".config" / "james" / "settings.json"
 
 # ── Worker for dependency check ────────────────────────────────────────────
 
+
 class _CheckWorker(QThread):
-    progress = pyqtSignal(str, bool)   # (tool_name, found)
-    done     = pyqtSignal()
+    progress = pyqtSignal(str, bool)  # (tool_name, found)
+    done = pyqtSignal()
 
     TOOLS = [
-        "aircrack-ng", "airmon-ng", "airodump-ng", "aireplay-ng",
-        "hashcat", "hcxdumptool", "hcxpcapngtool", "hostapd",
-        "dnsmasq", "nmap", "john", "hydra", "reaver", "bully",
-        "mdk4", "nikto", "gobuster", "sqlmap", "macchanger", "masscan",
+        "aircrack-ng",
+        "airmon-ng",
+        "airodump-ng",
+        "aireplay-ng",
+        "hashcat",
+        "hcxdumptool",
+        "hcxpcapngtool",
+        "hostapd",
+        "dnsmasq",
+        "nmap",
+        "john",
+        "hydra",
+        "reaver",
+        "bully",
+        "mdk4",
+        "nikto",
+        "gobuster",
+        "sqlmap",
+        "macchanger",
+        "masscan",
     ]
 
     def __init__(self, orchestrator):
@@ -62,6 +90,7 @@ class _CheckWorker(QThread):
 
 
 # ── Page helpers ───────────────────────────────────────────────────────────
+
 
 def _sep_h() -> QFrame:
     f = QFrame()
@@ -100,6 +129,7 @@ class _PageBase(QWidget):
 
 # ── Page 1 — Welcome ──────────────────────────────────────────────────────
 
+
 class _WelcomePage(_PageBase):
     def __init__(self):
         super().__init__(
@@ -107,11 +137,31 @@ class _WelcomePage(_PageBase):
             "Just Another Multipurpose Exploitation System — autonomous Wi-Fi & network pentesting agent.",
         )
         items = [
-            ("🔥", "One-click attack chains",   "PMKID · Handshake · WPS · Evil Twin — fully automated."),
-            ("🔑", "Persistent loot cache",     "Cracked keys survive reboots and are indexed by network."),
-            ("📡", "Live AP scanner",           "See every network in range, select a target in one click."),
-            ("⚡", "35+ tool wrappers",         "nmap · aircrack-ng · hashcat · hydra · sqlmap and more."),
-            ("🤖", "AI agent brain",            "Type plain English — JAMES plans and executes the attack."),
+            (
+                "🔥",
+                "One-click attack chains",
+                "PMKID · Handshake · WPS · Evil Twin — fully automated.",
+            ),
+            (
+                "🔑",
+                "Persistent loot cache",
+                "Cracked keys survive reboots and are indexed by network.",
+            ),
+            (
+                "📡",
+                "Live AP scanner",
+                "See every network in range, select a target in one click.",
+            ),
+            (
+                "⚡",
+                "35+ tool wrappers",
+                "nmap · aircrack-ng · hashcat · hydra · sqlmap and more.",
+            ),
+            (
+                "🤖",
+                "AI agent brain",
+                "Type plain English — JAMES plans and executes the attack.",
+            ),
         ]
         for icon, title, desc in items:
             row = QHBoxLayout()
@@ -121,7 +171,9 @@ class _WelcomePage(_PageBase):
             text_v = QVBoxLayout()
             text_v.setSpacing(1)
             t_lbl = QLabel(title)
-            t_lbl.setStyleSheet("color: #CCCCCC; font-size: 14px; font-weight: 700;")
+            t_lbl.setStyleSheet(
+                "color: #CCCCCC; font-size: 14px; font-weight: 700;"
+            )
             d_lbl = QLabel(desc)
             d_lbl.setObjectName("dimLabel")
             d_lbl.setWordWrap(True)
@@ -146,6 +198,7 @@ class _WelcomePage(_PageBase):
 
 # ── Page 2 — Sudo ─────────────────────────────────────────────────────────
 
+
 class _SudoPage(_PageBase):
     def __init__(self):
         super().__init__(
@@ -155,7 +208,9 @@ class _SudoPage(_PageBase):
         )
         self._pwd_edit = QLineEdit()
         self._pwd_edit.setEchoMode(QLineEdit.Password)
-        self._pwd_edit.setPlaceholderText("Enter sudo password (leave blank to be prompted each time)")
+        self._pwd_edit.setPlaceholderText(
+            "Enter sudo password (leave blank to be prompted each time)"
+        )
         self._pwd_edit.setStyleSheet(
             "background: #181818; color: #CCCCCC; border: 1px solid #2B2B2B;"
             " border-radius: 6px; padding: 8px 12px; font-size: 14px;"
@@ -188,6 +243,7 @@ class _SudoPage(_PageBase):
 
 # ── Page 3 — Tool check ───────────────────────────────────────────────────
 
+
 class _ToolCheckPage(_PageBase):
     def __init__(self):
         super().__init__(
@@ -196,8 +252,12 @@ class _ToolCheckPage(_PageBase):
         )
         self._table = QTableWidget(0, 2)
         self._table.setHorizontalHeaderLabels(["Tool", "Status"])
-        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeToContents
+        )
+        self._table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Stretch
+        )
         self._table.verticalHeader().setVisible(False)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
@@ -257,6 +317,7 @@ class _ToolCheckPage(_PageBase):
 
 # ── Page 4 — Done ─────────────────────────────────────────────────────────
 
+
 class _DonePage(_PageBase):
     def __init__(self):
         super().__init__(
@@ -264,7 +325,9 @@ class _DonePage(_PageBase):
             "JAMES is ready. Click Launch to open the main dashboard.",
         )
         tips_lbl = QLabel("Quick-start tips:")
-        tips_lbl.setStyleSheet("color: #CCCCCC; font-size: 14px; font-weight: 700;")
+        tips_lbl.setStyleSheet(
+            "color: #CCCCCC; font-size: 14px; font-weight: 700;"
+        )
         self._body.addWidget(tips_lbl)
 
         for tip in [
@@ -281,6 +344,7 @@ class _DonePage(_PageBase):
 
 
 # ── Main wizard dialog ─────────────────────────────────────────────────────
+
 
 class SetupWizard(QDialog):
     """
@@ -316,12 +380,16 @@ class SetupWizard(QDialog):
         # Header strip
         hdr = QWidget()
         hdr.setFixedHeight(56)
-        hdr.setStyleSheet("background: #181818; border-bottom: 1px solid #2B2B2B;")
+        hdr.setStyleSheet(
+            "background: #181818; border-bottom: 1px solid #2B2B2B;"
+        )
         hdr_l = QHBoxLayout(hdr)
         hdr_l.setContentsMargins(24, 0, 24, 0)
         title = QLabel("JAMES  Setup Wizard")
         title.setObjectName("titleLabel")
-        title.setStyleSheet("font-size: 19px; font-weight: 700; color: #CCCCCC;")
+        title.setStyleSheet(
+            "font-size: 19px; font-weight: 700; color: #CCCCCC;"
+        )
         self._step_lbl = QLabel("Step 1 / 4")
         self._step_lbl.setObjectName("metaLabel")
         hdr_l.addWidget(title)
@@ -346,9 +414,9 @@ class SetupWizard(QDialog):
         self._stack.setStyleSheet("background: #1F1F1F;")
 
         self._p_welcome = _WelcomePage()
-        self._p_sudo    = _SudoPage()
-        self._p_tools   = _ToolCheckPage()
-        self._p_done    = _DonePage()
+        self._p_sudo = _SudoPage()
+        self._p_tools = _ToolCheckPage()
+        self._p_done = _DonePage()
 
         for p in (self._p_welcome, self._p_sudo, self._p_tools, self._p_done):
             self._stack.addWidget(p)
@@ -358,7 +426,9 @@ class SetupWizard(QDialog):
         # Footer nav
         nav = QWidget()
         nav.setFixedHeight(52)
-        nav.setStyleSheet("background: #181818; border-top: 1px solid #2B2B2B;")
+        nav.setStyleSheet(
+            "background: #181818; border-top: 1px solid #2B2B2B;"
+        )
         nav_l = QHBoxLayout(nav)
         nav_l.setContentsMargins(24, 0, 24, 0)
         nav_l.setSpacing(8)
@@ -374,7 +444,9 @@ class SetupWizard(QDialog):
 
         self._btn_skip = QPushButton("Skip")
         self._btn_skip.setFixedHeight(36)
-        self._btn_skip.setStyleSheet("color: #6E7681; border: none; background: transparent;")
+        self._btn_skip.setStyleSheet(
+            "color: #6E7681; border: none; background: transparent;"
+        )
 
         nav_l.addWidget(self._btn_skip)
         nav_l.addStretch()

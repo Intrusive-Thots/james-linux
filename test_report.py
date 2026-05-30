@@ -19,28 +19,29 @@ class TestReport(unittest.TestCase):
         mock_mkdir.assert_not_called()
 
     @patch("james.core.report.datetime")
-    @patch.object(Path, "write_text")
-    @patch.object(Path, "mkdir")
     @patch.object(Path, "home")
     def test_save_report_with_default_path(
-        self, mock_home, mock_mkdir, mock_write_text, mock_datetime
+        self, mock_home, mock_datetime
     ):
-        mock_home.return_value = Path("/mock/home")
-        mock_datetime.now.return_value.strftime.return_value = (
-            "20231010_120000"
-        )
+        import tempfile
 
-        html_content = "<html><body>Report</body></html>"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            mock_home.return_value = tmp_path
+            mock_datetime.now.return_value.strftime.return_value = (
+                "20231010_120000"
+            )
 
-        result = save_report(html_content)
+            html_content = "<html><body>Report</body></html>"
 
-        expected_path = Path(
-            "/mock/home/.james/loot/report_20231010_120000.html"
-        )
-        self.assertEqual(result, expected_path)
+            result = save_report(html_content)
 
-        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        mock_write_text.assert_called_once_with(html_content, encoding="utf-8")
+            expected_path = (
+                tmp_path / ".james" / "loot" / "report_20231010_120000.html"
+            )
+            self.assertEqual(result, expected_path)
+            self.assertTrue(expected_path.exists())
+            self.assertEqual(expected_path.read_text(encoding="utf-8"), html_content)
 
 
 if __name__ == "__main__":

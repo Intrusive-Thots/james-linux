@@ -11,25 +11,25 @@ Typography: 4 strict tiers
 
 # ── Palette ────────────────────────────────────────────────────────────
 PALETTE = {
-    "bg_deep":   "#1F1F1F",   # editor.background
-    "surface1":  "#181818",   # panel.background / sideBar.background
-    "surface2":  "#202020",   # editorWidget.background
-    "hover":     "#2B2B2B",   # tab.hoverBackground / textBlockQuote.background
-    "border":    "#2B2B2B",   # sideBar.border / editorGroup.border
-    "gold":      "#0078D4",   # button.background / focusBorder (primary blue)
-    "gold_hi":   "#026EC1",   # button.hoverBackground
-    "gold_dim":  "#0078D428", # primary blue @ low opacity
-    "cyan":      "#4daafc",   # textLink.foreground (active/nav blue)
-    "cyan_dim":  "#4daafc1A", # active blue @ low opacity
-    "green":     "#2EA043",   # editorGutter.addedBackground
-    "green_dim": "#2EA04320", # green @ low opacity
-    "red":       "#F85149",   # errorForeground
-    "red_dim":   "#F8514920", # red @ low opacity
-    "amber":     "#BB8009",   # editor.findMatchBackground (warm amber)
-    "amber_dim": "#BB800920", # amber @ low opacity
-    "text":      "#CCCCCC",   # editor.foreground / foreground
-    "text_mid":  "#6E7681",   # editorLineNumber.foreground
-    "text_dim":  "#3C3C3C",   # textPreformat.background / border tones
+    "bg_deep": "#1F1F1F",  # editor.background
+    "surface1": "#181818",  # panel.background / sideBar.background
+    "surface2": "#202020",  # editorWidget.background
+    "hover": "#2B2B2B",  # tab.hoverBackground / textBlockQuote.background
+    "border": "#2B2B2B",  # sideBar.border / editorGroup.border
+    "gold": "#0078D4",  # button.background / focusBorder (primary blue)
+    "gold_hi": "#026EC1",  # button.hoverBackground
+    "gold_dim": "#0078D428",  # primary blue @ low opacity
+    "cyan": "#4daafc",  # textLink.foreground (active/nav blue)
+    "cyan_dim": "#4daafc1A",  # active blue @ low opacity
+    "green": "#2EA043",  # editorGutter.addedBackground
+    "green_dim": "#2EA04320",  # green @ low opacity
+    "red": "#F85149",  # errorForeground
+    "red_dim": "#F8514920",  # red @ low opacity
+    "amber": "#BB8009",  # editor.findMatchBackground (warm amber)
+    "amber_dim": "#BB800920",  # amber @ low opacity
+    "text": "#CCCCCC",  # editor.foreground / foreground
+    "text_mid": "#6E7681",  # editorLineNumber.foreground
+    "text_dim": "#3C3C3C",  # textPreformat.background / border tones
 }
 
 DARK_STYLESHEET = """
@@ -471,24 +471,14 @@ LOG_STYLE = (
     "font-size: 14px;"
 )
 
-HEADER_STYLE = (
-    "background: #181818;"
-    "border-bottom: 1px solid #2B2B2B;"
-)
+HEADER_STYLE = "background: #181818;" "border-bottom: 1px solid #2B2B2B;"
 
-SESSION_STRIP_STYLE = (
-    "background: #181818;"
-    "border-top: 1px solid #2B2B2B;"
-)
+SESSION_STRIP_STYLE = "background: #181818;" "border-top: 1px solid #2B2B2B;"
 
 SURFACE_CARD_STYLE = (
-    "background: #202020;"
-    "border: 1px solid #2B2B2B;"
-    "border-radius: 8px;"
+    "background: #202020;" "border: 1px solid #2B2B2B;" "border-radius: 8px;"
 )
 
 METRIC_CARD_STYLE = (
-    "background: #181818;"
-    "border: 1px solid #2B2B2B;"
-    "border-radius: 6px;"
+    "background: #181818;" "border: 1px solid #2B2B2B;" "border-radius: 6px;"
 )
