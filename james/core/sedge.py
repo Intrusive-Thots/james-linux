@@ -119,9 +119,7 @@ class DecisionGraph:
         Args:
             edge (Edge): The directed edge connecting two states.
         """
-        if edge.from_node not in self.edges:
-            self.edges[edge.from_node] = []
-        self.edges[edge.from_node].append(edge)
+        self.edges.setdefault(edge.from_node, []).append(edge)
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
@@ -160,8 +158,7 @@ class LearningEngine:
             path (list[str]): The sequence of node IDs traversed.
             outcome (str): Final outcome (e.g., "SUCCESS", "FAILURE").
         """
-        for i in range(len(path) - 1):
-            frm, to = path[i], path[i + 1]
+        for frm, to in zip(path[:-1], path[1:]):
             edges = graph.edges.get(frm, [])
             for e in edges:
                 if e.to_node == to:
