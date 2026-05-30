@@ -39,6 +39,8 @@ class Node:
     """
     Represents a system situation or decision point in the decision graph.
 
+    Implements the SEDGE CORE IDEA state/action node model.
+
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
 
@@ -58,6 +60,8 @@ class Edge:
     # Core SEDGE class
     """
     Represents a transition between decisions, storing experience weight.
+
+    Implements the SEDGE CORE IDEA edge transition model.
 
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
@@ -95,6 +99,8 @@ class DecisionGraph:
     """
     Directed weighted decision graph storing nodes and edges.
 
+    Implements the SEDGE CORE IDEA directed weighted decision graph.
+
     This forms the core structure of the Self-Evolving Decision Graph Engine.
     """
 
@@ -119,9 +125,7 @@ class DecisionGraph:
         Args:
             edge (Edge): The directed edge connecting two states.
         """
-        if edge.from_node not in self.edges:
-            self.edges[edge.from_node] = []
-        self.edges[edge.from_node].append(edge)
+        self.edges.setdefault(edge.from_node, []).append(edge)
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
@@ -144,6 +148,8 @@ class LearningEngine:
     """
     Updates edge weights across the graph based on execution feedback.
 
+    Implements the SEDGE CORE IDEA execution feedback learning layer.
+
     This implements the learning mechanism that allows optimal
     strategies to emerge over time automatically.
     """
@@ -160,8 +166,7 @@ class LearningEngine:
             path (list[str]): The sequence of node IDs traversed.
             outcome (str): Final outcome (e.g., "SUCCESS", "FAILURE").
         """
-        for i in range(len(path) - 1):
-            frm, to = path[i], path[i + 1]
+        for frm, to in zip(path[:-1], path[1:]):
             edges = graph.edges.get(frm, [])
             for e in edges:
                 if e.to_node == to:
@@ -179,6 +184,8 @@ class DecisionEngine:
     # Core SEDGE class
     """
     Policy layer for making stochastic weighted selections.
+
+    Implements the SEDGE CORE IDEA decision engine policy layer.
     Naturally balances exploration (trying weak paths occasionally)
     and exploitation (using strong known paths).
     """
@@ -223,6 +230,8 @@ class SelfEvolvingAgent:
     # Core SEDGE class
     """
     Agent that learns optimal paths through a self-evolution loop.
+
+    Implements the SEDGE CORE IDEA self-evolution loop agent.
     It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
@@ -279,6 +288,8 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     """
     Factory function to build and configure the Parrot WiFi SEDGE graph
     with specific states, actions, and string outcomes.
+
+    Implements the SEDGE CORE IDEA Parrot WiFi system mapping.
 
     This implements the domain-specific mapping for the Parrot WiFi
     System, where:
