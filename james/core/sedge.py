@@ -117,7 +117,9 @@ class DecisionGraph:
         Args:
             edge (Edge): The directed edge connecting two states.
         """
-        self.edges.setdefault(edge.from_node, []).append(edge)
+        if edge.from_node not in self.edges:
+            self.edges[edge.from_node] = []
+        self.edges[edge.from_node].append(edge)
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
