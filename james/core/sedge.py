@@ -218,6 +218,7 @@ class SelfEvolvingAgent:
     # Core SEDGE class
     """
     Agent that learns optimal paths through a self-evolution loop.
+    It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
     (reduced probability).
