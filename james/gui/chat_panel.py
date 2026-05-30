@@ -25,9 +25,17 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
-    QLabel, QLineEdit, QPushButton, QFrame, QSizePolicy,
-    QPlainTextEdit, QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QScrollArea,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QFrame,
+    QSizePolicy,
+    QPlainTextEdit,
+    QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread
 from PyQt5.QtGui import QFont, QKeyEvent
@@ -38,23 +46,24 @@ logger = logging.getLogger(__name__)
 
 # ── Quick-action chip definitions ──────────────────────────────────────────
 CHIPS = [
-    ("Scan APs",       "scan aps"),
-    ("Show Loot",      "show loot"),
-    ("Status",         "status"),
-    ("Wi-Fi Blitz",    "wifi blitz"),
-    ("List Skills",    "list skills"),
-    ("Network Recon",  "network dominate"),
-    ("Kill JAMES",     "kill james"),
+    ("Scan APs", "scan aps"),
+    ("Show Loot", "show loot"),
+    ("Status", "status"),
+    ("Wi-Fi Blitz", "wifi blitz"),
+    ("List Skills", "list skills"),
+    ("Network Recon", "network dominate"),
+    ("Kill JAMES", "kill james"),
 ]
 
 
 # ── Worker ─────────────────────────────────────────────────────────────────
 
+
 class AgentWorker(QThread):
     """Run orchestrator.handle_command in a background thread."""
 
-    result_signal  = pyqtSignal(str)   # agent reply text
-    error_signal   = pyqtSignal(str)   # error description
+    result_signal = pyqtSignal(str)  # agent reply text
+    error_signal = pyqtSignal(str)  # error description
 
     def __init__(self, orchestrator, command: str):
         super().__init__()
@@ -69,11 +78,17 @@ class AgentWorker(QThread):
             elif hasattr(self.orchestrator, "handle_command"):
                 result = self.orchestrator.handle_command(self.command)
             else:
-                result = {"output": f"[JAMES] Received: {self.command!r}\n"
-                          "(Agent brain not loaded — orchestrator.handle_command not found)"}
+                result = {
+                    "output": f"[JAMES] Received: {self.command!r}\n"
+                    "(Agent brain not loaded — orchestrator.handle_command not found)"
+                }
             # Normalise to a plain string
             if isinstance(result, dict):
-                text = result.get("output") or result.get("message") or json.dumps(result, indent=2)
+                text = (
+                    result.get("output")
+                    or result.get("message")
+                    or json.dumps(result, indent=2)
+                )
             else:
                 text = str(result)
             self.result_signal.emit(text)
@@ -82,6 +97,7 @@ class AgentWorker(QThread):
 
 
 # ── Bubble widget ──────────────────────────────────────────────────────────
+
 
 class _Bubble(QFrame):
     """A single chat message bubble."""
@@ -154,6 +170,7 @@ class _Bubble(QFrame):
 
 # ── Loot banner ────────────────────────────────────────────────────────────
 
+
 class _LootBanner(QFrame):
     """Highlighted block shown when cracked keys are in loot."""
 
@@ -173,10 +190,10 @@ class _LootBanner(QFrame):
         )
         v.addWidget(header)
 
-        for entry in loot_entries[:20]:   # cap at 20
+        for entry in loot_entries[:20]:  # cap at 20
             essid = entry.get("essid", entry.get("id", "?"))
-            key   = entry.get("key", "?")
-            when  = entry.get("when", "")[:10]
+            key = entry.get("key", "?")
+            when = entry.get("when", "")[:10]
             row = QLabel(f"  {essid}  →  {key}  [{when}]")
             row.setStyleSheet(
                 "color: #CCCCCC; font-size: 14px;"
@@ -188,11 +205,14 @@ class _LootBanner(QFrame):
 
 # ── Typing indicator ───────────────────────────────────────────────────────
 
+
 class _TypingIndicator(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._frame = 0
-        self.setStyleSheet("color: #6E7681; font-size: 14px; padding: 4px 8px;")
+        self.setStyleSheet(
+            "color: #6E7681; font-size: 14px; padding: 4px 8px;"
+        )
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
 
@@ -214,6 +234,7 @@ class _TypingIndicator(QLabel):
 
 # ── Main chat panel ────────────────────────────────────────────────────────
 
+
 class ChatPanel(QWidget):
     """
     The primary conversational interface widget.
@@ -229,7 +250,7 @@ class ChatPanel(QWidget):
     def __init__(self, orchestrator, main_window):
         super().__init__()
         self.orchestrator = orchestrator
-        self.main_window  = main_window
+        self.main_window = main_window
         self._worker: Optional[AgentWorker] = None
         self._history: list[str] = []
         self._history_idx = -1
@@ -327,7 +348,9 @@ class ChatPanel(QWidget):
         input_layout.setSpacing(8)
 
         self._input = _HistoryLineEdit(self._history)
-        self._input.setPlaceholderText("Talk to JAMES…  (e.g. wifi blitz wlan0)")
+        self._input.setPlaceholderText(
+            "Talk to JAMES…  (e.g. wifi blitz wlan0)"
+        )
         self._input.setStyleSheet(
             "QLineEdit {"
             "  background: #202020; color: #CCCCCC;"
@@ -355,7 +378,9 @@ class ChatPanel(QWidget):
 
     def _connect_signals(self):
         self._btn_send.clicked.connect(lambda: self._send(self._input.text()))
-        self._input.returnPressed.connect(lambda: self._send(self._input.text()))
+        self._input.returnPressed.connect(
+            lambda: self._send(self._input.text())
+        )
         self._btn_clear.clicked.connect(self._clear_chat)
 
     # ── Actions ────────────────────────────────────────────────────
@@ -365,7 +390,9 @@ class ChatPanel(QWidget):
         if not text:
             return
         if self._worker and self._worker.isRunning():
-            self._add_bubble("Please wait — JAMES is still thinking…", is_user=False)
+            self._add_bubble(
+                "Please wait — JAMES is still thinking…", is_user=False
+            )
             return
 
         self._input.clear()
@@ -485,6 +512,7 @@ class ChatPanel(QWidget):
 
 # ── History-aware line edit ────────────────────────────────────────────────
 
+
 class _HistoryLineEdit(QLineEdit):
     """QLineEdit with ↑/↓ command history navigation."""
 
@@ -498,14 +526,23 @@ class _HistoryLineEdit(QLineEdit):
             self.clear()
         elif event.key() == Qt.Key_Up:
             if self._history:
-                self._idx = max(0, (self._idx - 1) if self._idx > 0
-                                else len(self._history) - 1)
+                self._idx = max(
+                    0,
+                    (
+                        (self._idx - 1)
+                        if self._idx > 0
+                        else len(self._history) - 1
+                    ),
+                )
                 self.setText(self._history[self._idx])
         elif event.key() == Qt.Key_Down:
             if self._history:
                 self._idx = min(len(self._history) - 1, self._idx + 1)
-                self.setText(self._history[self._idx]
-                             if self._idx < len(self._history) else "")
+                self.setText(
+                    self._history[self._idx]
+                    if self._idx < len(self._history)
+                    else ""
+                )
         else:
             self._idx = len(self._history)
             super().keyPressEvent(event)

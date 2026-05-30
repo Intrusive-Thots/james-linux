@@ -118,7 +118,9 @@ class AirgeddonTab(QWidget):
         attack_group = QGroupBox("3. Attack Modules")
         attack_layout = QVBoxLayout(attack_group)
 
-        self.lbl_target = QLabel("Target: None selected — select an AP from the scan table")
+        self.lbl_target = QLabel(
+            "Target: None selected — select an AP from the scan table"
+        )
         self.lbl_target.setObjectName("dimLabel")
         attack_layout.addWidget(self.lbl_target)
 
@@ -156,6 +158,7 @@ class AirgeddonTab(QWidget):
         self.log_output = QPlainTextEdit()
         self.log_output.setReadOnly(True)
         from james.gui.theme import LOG_STYLE
+
         self.log_output.setStyleSheet(LOG_STYLE)
         log_layout.addWidget(self.log_output)
         splitter.addWidget(log_group)

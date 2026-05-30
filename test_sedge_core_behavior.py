@@ -151,11 +151,16 @@ class TestSEDGECoreBehavior(unittest.TestCase):
 
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
         handshake_edge = next(
-            (e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE),
+            (
+                e
+                for e in analysis_edges
+                if e.to_node == ACTION_HANDSHAKE_CAPTURE
+            ),
             None,
         )
         deauth_edge = next(
-            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST),
+            None,
         )
 
         self.assertIsNotNone(handshake_edge)

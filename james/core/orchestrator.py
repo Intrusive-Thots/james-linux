@@ -1455,8 +1455,13 @@ class Orchestrator:
             stripped = line.strip()
             if stripped.startswith("+ Server:"):
                 server_info = stripped[9:].strip()
-            elif stripped.startswith("+ ") and "OSVDB" in stripped or (
-                stripped.startswith("+") and "vulnerable" in stripped.lower()
+            elif (
+                stripped.startswith("+ ")
+                and "OSVDB" in stripped
+                or (
+                    stripped.startswith("+")
+                    and "vulnerable" in stripped.lower()
+                )
             ):
                 vulnerabilities.append(stripped.lstrip("+ "))
             elif stripped.startswith("+") and any(
@@ -1525,7 +1530,9 @@ class Orchestrator:
         records = [
             line.strip()
             for line in result.stdout.splitlines()
-            if line.strip() and not line.startswith(";") and not line.startswith("\t;")
+            if line.strip()
+            and not line.startswith(";")
+            and not line.startswith("\t;")
         ]
         res = {
             "domain": domain,
@@ -1553,7 +1560,9 @@ class Orchestrator:
         findings: list[dict] = []
         for line in result.stdout.splitlines():
             # gobuster: "/path  (Status: 200) [Size: 1234]"
-            m = re.search(r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)\]", line)
+            m = re.search(
+                r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)\]", line
+            )
             if m:
                 findings.append(
                     {
@@ -1585,9 +1594,17 @@ class Orchestrator:
         vulnerabilities: list[str] = []
         for line in result.stdout.splitlines():
             stripped = line.strip()
-            if "is vulnerable" in stripped or "parameter" in stripped.lower() and "injectable" in stripped.lower():
+            if (
+                "is vulnerable" in stripped
+                or "parameter" in stripped.lower()
+                and "injectable" in stripped.lower()
+            ):
                 injectable = True
-            if "Type:" in stripped or "Title:" in stripped or "Payload:" in stripped:
+            if (
+                "Type:" in stripped
+                or "Title:" in stripped
+                or "Payload:" in stripped
+            ):
                 vulnerabilities.append(stripped)
         res = {
             "url": url,
@@ -1650,9 +1667,7 @@ class Orchestrator:
         if not SKILLS_DIR.exists():
             return []
         return [
-            p.stem
-            for p in sorted(SKILLS_DIR.glob("*.json"))
-            if p.is_file()
+            p.stem for p in sorted(SKILLS_DIR.glob("*.json")) if p.is_file()
         ]
 
     def load_skill(self, name: str) -> dict:
@@ -1706,7 +1721,9 @@ class Orchestrator:
             method = getattr(self, action, None)
             if method is None:
                 self._print(f"  ⚠️ Unknown action: {action}")
-                results.append({"step": i, "action": action, "error": "unknown action"})
+                results.append(
+                    {"step": i, "action": action, "error": "unknown action"}
+                )
                 continue
             try:
                 result = method(**params)
@@ -1782,7 +1799,9 @@ class Orchestrator:
             # Check cache first
             cached = self.get_cached_key(bssid)
             if cached:
-                self._print(f"  🔑 {essid} ({bssid}) — already cracked: {cached}")
+                self._print(
+                    f"  🔑 {essid} ({bssid}) — already cracked: {cached}"
+                )
                 cracked.append({"bssid": bssid, "essid": essid, "key": cached})
                 continue
 
@@ -1811,7 +1830,11 @@ class Orchestrator:
                                         bssid, key, method="pmkid", essid=essid
                                     )
                                     cracked.append(
-                                        {"bssid": bssid, "essid": essid, "key": key}
+                                        {
+                                            "bssid": bssid,
+                                            "essid": essid,
+                                            "key": key,
+                                        }
                                     )
                                     break
                         if cracked and cracked[-1].get("bssid") == bssid:
@@ -1851,7 +1874,9 @@ class Orchestrator:
             "cracked_count": len(cracked),
             "cracked": cracked,
         }
-        self._print(f"\n🏁 AUTOPILOT done — {len(cracked)} network(s) cracked.")
+        self._print(
+            f"\n🏁 AUTOPILOT done — {len(cracked)} network(s) cracked."
+        )
         return summary
 
     def auto_install_deps(self) -> dict:
@@ -1859,7 +1884,9 @@ class Orchestrator:
         self._print("━" * 50)
         self._print("🔧 Auto-installing dependencies...")
         self._print("━" * 50)
-        script = Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
+        script = (
+            Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
+        )
         if script.exists():
             cmd = f"bash {script}"
         else:
@@ -1872,7 +1899,10 @@ class Orchestrator:
             cmd = f"apt-get install -y {packages}"
         result = self.layer.run(cmd, sudo=True, timeout=600)
         self._print(result.stdout[-2000:])
-        return {"success": result.returncode == 0, "output": result.stdout[-2000:]}
+        return {
+            "success": result.returncode == 0,
+            "output": result.stdout[-2000:],
+        }
 
     # ── one-click attack chains ──────────────────────────────────
 
@@ -1952,7 +1982,9 @@ class Orchestrator:
 
         self._emit_progress("WHOIS", 3, 4)
         self._print("\n[3/4] WHOIS lookup...")
-        whois_r = self.layer.run(f"whois {shlex.quote(target)} 2>/dev/null | head -40", timeout=15)
+        whois_r = self.layer.run(
+            f"whois {shlex.quote(target)} 2>/dev/null | head -40", timeout=15
+        )
         results["whois"] = {"output": whois_r.stdout[:2000]}
 
         self._emit_progress("Passive nmap", 4, 4)
@@ -1977,7 +2009,9 @@ class Orchestrator:
         )
         return result
 
-    def oneclick_pineapple(self, interface: str, portal: str = "default") -> dict:
+    def oneclick_pineapple(
+        self, interface: str, portal: str = "default"
+    ) -> dict:
         """Full Pineapple campaign: scan → karma → portal → harvest."""
         self._print("━" * 50)
         self._print("🍍 PINEAPPLE CAMPAIGN")

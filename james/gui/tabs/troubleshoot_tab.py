@@ -20,19 +20,33 @@ from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
 from james.gui.theme import LOG_STYLE
 
-
 DEPS = [
-    "aircrack-ng", "hashcat", "hcxdumptool", "hcxpcapngtool",
-    "hostapd", "dnsmasq", "macchanger", "nmap", "hydra",
-    "nikto", "gobuster", "reaver", "bully", "mdk4",
-    "sqlmap", "sslscan", "ettercap", "masscan", "john",
+    "aircrack-ng",
+    "hashcat",
+    "hcxdumptool",
+    "hcxpcapngtool",
+    "hostapd",
+    "dnsmasq",
+    "macchanger",
+    "nmap",
+    "hydra",
+    "nikto",
+    "gobuster",
+    "reaver",
+    "bully",
+    "mdk4",
+    "sqlmap",
+    "sslscan",
+    "ettercap",
+    "masscan",
+    "john",
 ]
 
 
 class TroubleshootTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
-        self.main_window  = main_window
+        self.main_window = main_window
         self.orchestrator = main_window.orchestrator
         self.worker = None
         self._build_ui()
@@ -67,9 +81,15 @@ class TroubleshootTab(QWidget):
 
         self.dep_table = QTableWidget(0, 3)
         self.dep_table.setHorizontalHeaderLabels(["Tool", "Status", "Path"])
-        self.dep_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.dep_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.dep_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.dep_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeToContents
+        )
+        self.dep_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeToContents
+        )
+        self.dep_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Stretch
+        )
         self.dep_table.setMaximumHeight(220)
         self.dep_table.verticalHeader().setVisible(False)
         self.dep_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -82,11 +102,11 @@ class TroubleshootTab(QWidget):
         diag_layout.setSpacing(8)
 
         diag_btns = QHBoxLayout()
-        self.btn_view_logs   = QPushButton("📄  dmesg (kernel log)")
+        self.btn_view_logs = QPushButton("📄  dmesg (kernel log)")
         self.btn_view_logs.setMinimumHeight(36)
-        self.btn_iw_list     = QPushButton("📡  iw list (Wi-Fi caps)")
+        self.btn_iw_list = QPushButton("📡  iw list (Wi-Fi caps)")
         self.btn_iw_list.setMinimumHeight(36)
-        self.btn_ip_link     = QPushButton("🔌  ip link (interfaces)")
+        self.btn_ip_link = QPushButton("🔌  ip link (interfaces)")
         self.btn_ip_link.setMinimumHeight(36)
         diag_btns.addWidget(self.btn_view_logs)
         diag_btns.addWidget(self.btn_iw_list)
@@ -121,7 +141,9 @@ class TroubleshootTab(QWidget):
     def _connect_signals(self):
         self.btn_check_deps.clicked.connect(self.check_deps)
         self.btn_install_deps.clicked.connect(self.install_deps)
-        self.btn_view_logs.clicked.connect(lambda: self._run_cmd("dmesg | tail -n 60"))
+        self.btn_view_logs.clicked.connect(
+            lambda: self._run_cmd("dmesg | tail -n 60")
+        )
         self.btn_iw_list.clicked.connect(lambda: self._run_cmd("iw list"))
         self.btn_ip_link.clicked.connect(lambda: self._run_cmd("ip link show"))
         self.btn_kill_all.clicked.connect(self.kill_processes)
@@ -198,7 +220,9 @@ class TroubleshootTab(QWidget):
     def _run_cmd(self, cmd: str):
         self.main_window._set_idle(False)
         self.txt_output.setPlainText(f"$ {cmd}\n")
-        self.worker = WorkerThread(self.orchestrator.layer.run, cmd, timeout=15)
+        self.worker = WorkerThread(
+            self.orchestrator.layer.run, cmd, timeout=15
+        )
         self.worker.finished.connect(self._on_cmd_done)
         self.worker.start()
 

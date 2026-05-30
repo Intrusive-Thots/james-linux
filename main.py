@@ -204,9 +204,7 @@ def run_setup():
         wizard.show()
         sys.exit(app.exec_())
     except ImportError:
-        logger.error(
-            "GUI dependencies not available. Run: pip install PyQt5"
-        )
+        logger.error("GUI dependencies not available. Run: pip install PyQt5")
         sys.exit(1)
 
 

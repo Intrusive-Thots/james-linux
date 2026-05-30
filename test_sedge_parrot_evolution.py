@@ -62,7 +62,9 @@ class TestSedgeParrotEvolution(unittest.TestCase):
         # Retrieve the edges from TARGET_ANALYSIS to compare weights
         target_analysis_edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
         handshake_edge = next(
-            e for e in target_analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE
+            e
+            for e in target_analysis_edges
+            if e.to_node == ACTION_HANDSHAKE_CAPTURE
         )
         deauth_edge = next(
             e for e in target_analysis_edges if e.to_node == ACTION_DEAUTH_TEST

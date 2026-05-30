@@ -31,7 +31,9 @@ class TestSedgeArchitecture(unittest.TestCase):
 
     def test_node_and_edge_initialization(self):
         """Test Node and Edge model definitions."""
-        node = Node(id="test_state", state_type="state", metadata={"key": "val"})
+        node = Node(
+            id="test_state", state_type="state", metadata={"key": "val"}
+        )
         self.assertEqual(node.id, "test_state")
         self.assertEqual(node.state_type, "state")
         self.assertEqual(node.metadata, {"key": "val"})
@@ -45,12 +47,16 @@ class TestSedgeArchitecture(unittest.TestCase):
 
     def test_edge_score_calculation(self):
         """Test the utility score calculation for an Edge."""
-        edge = Edge(from_node="A", to_node="B", success_weight=5.0, failure_weight=2.0)
+        edge = Edge(
+            from_node="A", to_node="B", success_weight=5.0, failure_weight=2.0
+        )
         # Expected: 5.0 / (2.0 + 1e-6) ~= 2.5
         self.assertAlmostEqual(edge.score(), 2.5, places=5)
 
         # Test zero division prevention
-        edge_zero = Edge(from_node="C", to_node="D", success_weight=1.0, failure_weight=0.0)
+        edge_zero = Edge(
+            from_node="C", to_node="D", success_weight=1.0, failure_weight=0.0
+        )
         self.assertGreater(edge_zero.score(), 1000)
 
     def test_decision_graph_add_get_best_next(self):
@@ -103,8 +109,12 @@ class TestSedgeArchitecture(unittest.TestCase):
         """Test that the DecisionEngine selects paths stochastically based on weights."""
         decision_engine = DecisionEngine(self.graph)
 
-        edge_b = Edge(from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0)
-        edge_c = Edge(from_node="A", to_node="C", success_weight=10.0, failure_weight=1.0)
+        edge_b = Edge(
+            from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0
+        )
+        edge_c = Edge(
+            from_node="A", to_node="C", success_weight=10.0, failure_weight=1.0
+        )
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
 
@@ -115,7 +125,7 @@ class TestSedgeArchitecture(unittest.TestCase):
             counts[choice] += 1
 
         self.assertGreater(counts["B"], counts["C"])
-        self.assertGreater(counts["C"], 0) # ensure exploration happens
+        self.assertGreater(counts["C"], 0)  # ensure exploration happens
 
     def test_self_evolving_agent_loop_and_feedback(self):
         """Test the SelfEvolvingAgent execution feedback loop."""
@@ -139,15 +149,28 @@ class TestSedgeArchitecture(unittest.TestCase):
             agent.feedback(outcome)
 
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
-        handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
-        deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
+        handshake_edge = next(
+            (
+                e
+                for e in analysis_edges
+                if e.to_node == ACTION_HANDSHAKE_CAPTURE
+            ),
+            None,
+        )
+        deauth_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST),
+            None,
+        )
 
         self.assertIsNotNone(handshake_edge)
         self.assertIsNotNone(deauth_edge)
 
         # The handshake path should have become much stronger due to SUCCESS
-        self.assertGreater(handshake_edge.success_weight, deauth_edge.success_weight)
+        self.assertGreater(
+            handshake_edge.success_weight, deauth_edge.success_weight
+        )
         self.assertGreater(handshake_edge.score(), deauth_edge.score())
+
 
 if __name__ == "__main__":
     unittest.main()

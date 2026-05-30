@@ -1123,7 +1123,9 @@ class Agent:
                         elif var_name in ("wordlist", "wordlist_path"):
                             try:
                                 resolved = self.orch.ensure_wordlist(
-                                    str(Path.home() / "Desktop" / "rockyou.txt")
+                                    str(
+                                        Path.home() / "Desktop" / "rockyou.txt"
+                                    )
                                 )
                                 self.context[var_name] = resolved
                                 auto_resolved.append(

@@ -90,8 +90,12 @@ class TestSedgeIssueFeatures(unittest.TestCase):
     def test_decision_engine_stochastic_selection(self):
         decision_engine = DecisionEngine(self.graph)
 
-        edge_b = Edge(from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0)
-        edge_c = Edge(from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0)
+        edge_b = Edge(
+            from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0
+        )
+        edge_c = Edge(
+            from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0
+        )
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
 
@@ -130,16 +134,30 @@ class TestSedgeIssueFeatures(unittest.TestCase):
             agent.feedback(outcome)
 
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
-        handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
-        deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
+        handshake_edge = next(
+            (
+                e
+                for e in analysis_edges
+                if e.to_node == ACTION_HANDSHAKE_CAPTURE
+            ),
+            None,
+        )
+        deauth_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST),
+            None,
+        )
 
         self.assertIsNotNone(handshake_edge)
         self.assertIsNotNone(deauth_edge)
 
-        self.assertGreater(handshake_edge.success_weight, deauth_edge.success_weight)
+        self.assertGreater(
+            handshake_edge.success_weight, deauth_edge.success_weight
+        )
         self.assertGreater(handshake_edge.score(), deauth_edge.score())
 
-        self.assertGreater(deauth_edge.failure_weight, handshake_edge.failure_weight)
+        self.assertGreater(
+            deauth_edge.failure_weight, handshake_edge.failure_weight
+        )
 
         self.assertGreater(handshake_selections, deauth_selections)
         self.assertGreater(deauth_selections, 0)

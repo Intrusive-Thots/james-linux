@@ -201,10 +201,28 @@ class TestSEDGE(unittest.TestCase):
 
     def test_stochastic_weighted_selection(self):
         # We'll set up two paths from START, one heavily favored
-        self.graph.add_edge(Edge(from_node=STATE_START, to_node=ACTION_PASSIVE_SCAN, success_weight=9.0, failure_weight=1.0))
-        self.graph.add_edge(Edge(from_node=STATE_START, to_node=ACTION_HANDSHAKE_CAPTURE, success_weight=1.0, failure_weight=1.0))
+        self.graph.add_edge(
+            Edge(
+                from_node=STATE_START,
+                to_node=ACTION_PASSIVE_SCAN,
+                success_weight=9.0,
+                failure_weight=1.0,
+            )
+        )
+        self.graph.add_edge(
+            Edge(
+                from_node=STATE_START,
+                to_node=ACTION_HANDSHAKE_CAPTURE,
+                success_weight=1.0,
+                failure_weight=1.0,
+            )
+        )
 
-        counts = {ACTION_PASSIVE_SCAN: 0, ACTION_HANDSHAKE_CAPTURE: 0, STATE_NETWORK_DISCOVERY: 0}
+        counts = {
+            ACTION_PASSIVE_SCAN: 0,
+            ACTION_HANDSHAKE_CAPTURE: 0,
+            STATE_NETWORK_DISCOVERY: 0,
+        }
         iterations = 10000
         for _ in range(iterations):
             next_node = self.agent.decision_engine.decide(STATE_START)
@@ -223,9 +241,16 @@ class TestSEDGE(unittest.TestCase):
         handshake_prob = counts[ACTION_HANDSHAKE_CAPTURE] / iterations
         network_prob = counts[STATE_NETWORK_DISCOVERY] / iterations
 
-        self.assertTrue(0.78 < passive_prob < 0.85, f"Expected ~0.818, got {passive_prob}")
-        self.assertTrue(0.07 < handshake_prob < 0.12, f"Expected ~0.091, got {handshake_prob}")
-        self.assertTrue(0.07 < network_prob < 0.12, f"Expected ~0.091, got {network_prob}")
+        self.assertTrue(
+            0.78 < passive_prob < 0.85, f"Expected ~0.818, got {passive_prob}"
+        )
+        self.assertTrue(
+            0.07 < handshake_prob < 0.12,
+            f"Expected ~0.091, got {handshake_prob}",
+        )
+        self.assertTrue(
+            0.07 < network_prob < 0.12, f"Expected ~0.091, got {network_prob}"
+        )
 
     def test_graph_convergence(self):
         # Simulate multiple agent runs and verify that optimal paths gain higher probability
@@ -248,15 +273,25 @@ class TestSEDGE(unittest.TestCase):
                 self.agent.feedback(outcome=OUTCOME_PARTIAL)
 
         # Check that EVIL_TWIN_SIMULATION failure weight is very high compared to success
-        edges_to_evil_twin = [e for e in self.graph.edges[STATE_SECURITY_PROFILING] if e.to_node == ACTION_EVIL_TWIN_SIMULATION]
-        edges_to_passive = [e for e in self.graph.edges[STATE_SECURITY_PROFILING] if e.to_node == ACTION_PASSIVE_SCAN]
+        edges_to_evil_twin = [
+            e
+            for e in self.graph.edges[STATE_SECURITY_PROFILING]
+            if e.to_node == ACTION_EVIL_TWIN_SIMULATION
+        ]
+        edges_to_passive = [
+            e
+            for e in self.graph.edges[STATE_SECURITY_PROFILING]
+            if e.to_node == ACTION_PASSIVE_SCAN
+        ]
 
         evil_twin_edge = edges_to_evil_twin[0]
         passive_edge = edges_to_passive[0]
 
         # The passive scan edge should have a higher score than the evil twin edge
-        self.assertTrue(passive_edge.score() > evil_twin_edge.score(),
-                        f"Passive score {passive_edge.score()} should be greater than Evil Twin score {evil_twin_edge.score()}")
+        self.assertTrue(
+            passive_edge.score() > evil_twin_edge.score(),
+            f"Passive score {passive_edge.score()} should be greater than Evil Twin score {evil_twin_edge.score()}",
+        )
 
 
 if __name__ == "__main__":

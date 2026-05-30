@@ -24,10 +24,20 @@ class TestSedgeExploration(unittest.TestCase):
         self.graph.add_node(Node(id="WEAK_PATH", state_type="action"))
 
         # Strong edge simulates a path with high success history
-        self.strong_edge = Edge(from_node="START", to_node="STRONG_PATH", success_weight=90.0, failure_weight=1.0)
+        self.strong_edge = Edge(
+            from_node="START",
+            to_node="STRONG_PATH",
+            success_weight=90.0,
+            failure_weight=1.0,
+        )
 
         # Weak edge simulates a path with poor success history
-        self.weak_edge = Edge(from_node="START", to_node="WEAK_PATH", success_weight=10.0, failure_weight=1.0)
+        self.weak_edge = Edge(
+            from_node="START",
+            to_node="WEAK_PATH",
+            success_weight=10.0,
+            failure_weight=1.0,
+        )
 
         self.graph.add_edge(self.strong_edge)
         self.graph.add_edge(self.weak_edge)
@@ -50,11 +60,21 @@ class TestSedgeExploration(unittest.TestCase):
         weak_count = selections["WEAK_PATH"]
 
         # Ensure that both exploration and exploitation occurred
-        self.assertGreater(strong_count, 0, "Exploitation failed: strong path was never selected.")
-        self.assertGreater(weak_count, 0, "Exploration failed: weak path was never selected.")
+        self.assertGreater(
+            strong_count,
+            0,
+            "Exploitation failed: strong path was never selected.",
+        )
+        self.assertGreater(
+            weak_count, 0, "Exploration failed: weak path was never selected."
+        )
 
         # Ensure that the strong path is heavily favored
-        self.assertGreater(strong_count, weak_count * 5, "Exploitation failed: strong path was not favored enough.")
+        self.assertGreater(
+            strong_count,
+            weak_count * 5,
+            "Exploitation failed: strong path was not favored enough.",
+        )
 
         # Calculate approximate probabilities
         strong_prob = strong_count / iterations
