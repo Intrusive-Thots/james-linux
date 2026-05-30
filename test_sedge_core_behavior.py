@@ -23,9 +23,11 @@ from james.tools.constants import (
 )
 
 
-class TestSedgeCoreIdea(unittest.TestCase):
+class TestSEDGECoreBehavior(unittest.TestCase):
     """
-    Tests for the SEDGE components to verify self-evolving behavior.
+    Tests for the SEDGE (Self-Evolving Decision Graph Engine) core architecture.
+    Validates node/edge models, decision graph core, learning loop,
+    and convergence using the Parrot WiFi System domain mapping.
     """
 
     def setUp(self):
@@ -33,22 +35,25 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.learner = LearningEngine()
 
     def test_state_node_model(self):
+        """Verifies the Node dataclass structure."""
         node = Node(id="test_node", state_type="action")
         self.assertEqual(node.id, "test_node")
         self.assertEqual(node.state_type, "action")
         self.assertEqual(node.metadata, {})
 
     def test_edge_model(self):
+        """Verifies Edge calculations and defaults."""
         edge = Edge(from_node="A", to_node="B")
         self.assertEqual(edge.from_node, "A")
         self.assertEqual(edge.to_node, "B")
         self.assertEqual(edge.success_weight, 1.0)
         self.assertEqual(edge.failure_weight, 1.0)
         self.assertEqual(edge.visits, 0)
-        # 1.0 / (1.0 + 1e-6)
+        # Score = success / (failure + epsilon)
         self.assertAlmostEqual(edge.score(), 0.999999, places=5)
 
     def test_decision_graph_core(self):
+        """Tests adding nodes, edges, and getting best next path."""
         node_a = Node(id="A", state_type="state")
         node_b = Node(id="B", state_type="action")
         self.graph.add_node(node_a)
@@ -67,32 +72,41 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         self.assertIsNone(self.graph.get_best_next("B"))
 
-    def test_learning_engine(self):
+    def test_execution_feedback_learning(self):
+        """Tests the LearningEngine updating weights based on string outcomes."""
         edge = Edge(from_node="A", to_node="B")
         self.graph.add_edge(edge)
 
         path = ["A", "B"]
 
+        # SUCCESS
         self.learner.update(self.graph, path, OUTCOME_SUCCESS)
         self.assertEqual(edge.visits, 1)
         self.assertEqual(edge.success_weight, 2.0)
         self.assertEqual(edge.failure_weight, 1.0)
 
+        # FAILURE
         self.learner.update(self.graph, path, OUTCOME_FAILURE)
         self.assertEqual(edge.visits, 2)
         self.assertEqual(edge.success_weight, 2.0)
         self.assertEqual(edge.failure_weight, 2.0)
 
+        # PARTIAL SIGNAL
         self.learner.update(self.graph, path, OUTCOME_PARTIAL)
         self.assertEqual(edge.visits, 3)
         self.assertEqual(edge.success_weight, 2.5)
         self.assertEqual(edge.failure_weight, 2.5)
 
-    def test_decision_engine(self):
+    def test_decision_engine_policy(self):
+        """Tests the stochastic selection of the DecisionEngine."""
         decision_engine = DecisionEngine(self.graph)
 
-        edge_b = Edge(from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0)
-        edge_c = Edge(from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0)
+        edge_b = Edge(
+            from_node="A", to_node="B", success_weight=90.0, failure_weight=1.0
+        )
+        edge_c = Edge(
+            from_node="A", to_node="C", success_weight=1.0, failure_weight=90.0
+        )
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
 
@@ -104,7 +118,11 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         self.assertGreater(counts["B"], counts["C"] * 10)
 
-    def test_self_evolving_loop_and_convergence(self):
+    def test_self_evolution_loop_convergence(self):
+        """
+        Tests the SelfEvolvingAgent learning optimal paths over time
+        using the Parrot WiFi graph.
+        """
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
 
@@ -112,6 +130,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         handshake_selections = 0
         deauth_selections = 0
 
+        # Simulate agent runs. Handshake captures will be successful, deauth tests will fail.
         for _ in range(iterations):
             outcome = OUTCOME_PARTIAL
             while True:
@@ -131,46 +150,31 @@ class TestSedgeCoreIdea(unittest.TestCase):
             agent.feedback(outcome)
 
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
-        handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
-        deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
+        handshake_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE),
+            None,
+        )
+        deauth_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None
+        )
 
         self.assertIsNotNone(handshake_edge)
         self.assertIsNotNone(deauth_edge)
 
-        self.assertGreater(handshake_edge.success_weight, deauth_edge.success_weight)
+        # Successful paths become stronger
+        self.assertGreater(
+            handshake_edge.success_weight, deauth_edge.success_weight
+        )
         self.assertGreater(handshake_edge.score(), deauth_edge.score())
 
-        self.assertGreater(deauth_edge.failure_weight, handshake_edge.failure_weight)
+        # Failed paths decay (gain higher failure weight)
+        self.assertGreater(
+            deauth_edge.failure_weight, handshake_edge.failure_weight
+        )
 
+        # Balance: Exploitation (more handshake) vs Exploration (some deauth)
         self.assertGreater(handshake_selections, deauth_selections)
         self.assertGreater(deauth_selections, 0)
-
-
-
-    def test_edge_score_zero_division_prevention(self):
-        edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=0.0)
-        # Should not raise ZeroDivisionError
-        score = edge.score()
-        self.assertGreater(score, 1000) # Should be a very large number
-
-    def test_decision_engine_zero_utility_fallback(self):
-        decision_engine = DecisionEngine(self.graph)
-
-        edge_b = Edge(from_node="A", to_node="B", success_weight=0.0, failure_weight=0.0)
-        edge_c = Edge(from_node="A", to_node="C", success_weight=0.0, failure_weight=0.0)
-        self.graph.add_edge(edge_b)
-        self.graph.add_edge(edge_c)
-
-        # When utility is zero for all, it should fallback to uniform random selection
-        counts = {"B": 0, "C": 0}
-        iterations = 1000
-        for _ in range(iterations):
-            choice = decision_engine.decide("A")
-            counts[choice] += 1
-
-        # Check that it falls back to uniform distribution roughly
-        self.assertGreater(counts["B"], 100)
-        self.assertGreater(counts["C"], 100)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import time
+import shlex
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -744,7 +745,7 @@ class Orchestrator:
         mon_iface = self.ensure_monitor_mode(interface)
 
         prefix = "/tmp/james_apscan"
-        self.layer.run(f"rm -f {prefix}*")
+        self.layer.run(f"rm -f {shlex.quote(prefix)}*")
         proc = self.aircrack.start_airodump(
             mon_iface,
             write_prefix=prefix,
@@ -1231,7 +1232,7 @@ class Orchestrator:
         # Stage 3: Hashcat WiFi-enhanced (JAMES rules → mask → cascading)
         self._print("\n[3/6] Hashcat WiFi-enhanced pipeline...")
         hc_file = "/tmp/james_smart_wpa.hc22000"
-        self.layer.run(f"rm -f {hc_file}")
+        self.layer.run(f"rm -f {shlex.quote(hc_file)}")
         conv = self.hcxtools.extract_hashes(capture, hc_file)
         if conv.get("success"):
             hc_result = self.hashcat.crack_wifi_enhanced(
@@ -1819,7 +1820,7 @@ class Orchestrator:
             # Handshake fallback
             self._print("    [Handshake] Capturing (25s)...")
             cap_prefix = f"/tmp/james_auto_{bssid.replace(':', '')}"
-            self.layer.run(f"rm -f {cap_prefix}*")
+            self.layer.run(f"rm -f {shlex.quote(cap_prefix)}*")
             proc = self.aircrack.start_airodump(
                 mon_iface, bssid=bssid, write_prefix=cap_prefix
             )
@@ -1951,7 +1952,7 @@ class Orchestrator:
 
         self._emit_progress("WHOIS", 3, 4)
         self._print("\n[3/4] WHOIS lookup...")
-        whois_r = self.layer.run(f"whois {target} 2>/dev/null | head -40", timeout=15)
+        whois_r = self.layer.run(f"whois {shlex.quote(target)} 2>/dev/null | head -40", timeout=15)
         results["whois"] = {"output": whois_r.stdout[:2000]}
 
         self._emit_progress("Passive nmap", 4, 4)

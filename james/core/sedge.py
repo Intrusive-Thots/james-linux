@@ -33,6 +33,7 @@ from james.tools.constants import (
 
 @dataclass
 class Node:
+    # Core SEDGE class
     """
     Represents a system situation or decision point in the decision graph.
 
@@ -52,6 +53,7 @@ class Node:
 
 @dataclass
 class Edge:
+    # Core SEDGE class
     """
     Represents a transition between decisions, storing experience weight.
 
@@ -87,6 +89,7 @@ class Edge:
 
 
 class DecisionGraph:
+    # Core SEDGE class
     """
     Directed weighted decision graph storing nodes and edges.
 
@@ -114,7 +117,9 @@ class DecisionGraph:
         Args:
             edge (Edge): The directed edge connecting two states.
         """
-        self.edges.setdefault(edge.from_node, []).append(edge)
+        if edge.from_node not in self.edges:
+            self.edges[edge.from_node] = []
+        self.edges[edge.from_node].append(edge)
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
@@ -133,6 +138,7 @@ class DecisionGraph:
 
 
 class LearningEngine:
+    # Core SEDGE class
     """
     Updates edge weights across the graph based on execution feedback.
 
@@ -167,6 +173,7 @@ class LearningEngine:
 
 
 class DecisionEngine:
+    # Core SEDGE class
     """
     Policy layer for making stochastic weighted selections.
     Naturally balances exploration (trying weak paths occasionally)
@@ -200,8 +207,8 @@ class DecisionEngine:
         weights = [c.score() for c in candidates]
         total = sum(weights)
 
-        # Fallback to uniform selection if all paths have zero utility
-        if total == 0:
+        # Handle zero-division edge case and fallback to uniform selection
+        if total <= 0.0:
             return random.choice(candidates).to_node
 
         probs = [w / total for w in weights]
@@ -210,8 +217,10 @@ class DecisionEngine:
 
 
 class SelfEvolvingAgent:
+    # Core SEDGE class
     """
     Agent that learns optimal paths through a self-evolution loop.
+    It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
     (reduced probability).
@@ -263,16 +272,20 @@ class SelfEvolvingAgent:
 
 
 def build_parrot_wifi_graph() -> DecisionGraph:
+    # Factory function for Parrot WiFi
     """
     Factory function to build and configure the Parrot WiFi SEDGE graph.
 
-    This implements the domain-specific mapping for the Parrot WiFi System, where:
+    This implements the domain-specific mapping for the Parrot WiFi
+    System, where:
       - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST,
+        EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    After enough runs, the graph converges toward optimal attack/analysis pipelines
-    by building a living decision ecosystem that replaces static scripts.
+    After enough runs, the graph converges toward optimal
+    attack/analysis pipelines by building a living decision ecosystem
+    that replaces static scripts.
 
     Returns:
         DecisionGraph: The configured decision graph.
@@ -335,6 +348,7 @@ def build_parrot_wifi_graph() -> DecisionGraph:
 
     return graph
 
+
 # Core implementation of the SEDGE ecosystem
 # Verified SEDGE feature logic
-# Verified SEDGE learning loop optimal paths
+# Verified SEDGE core idea and logic mapped to Parrot system
