@@ -1,6 +1,8 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
 
+# SEDGE CORE IDEA implementation
+
 Core Idea:
 The system builds a directed weighted decision graph where:
   - Nodes = system states or actions
@@ -151,6 +153,7 @@ class LearningEngine:
     ) -> None:
         """
         Updates the success and failure weights of edges in a given path.
+        Handles string outcomes like OUTCOME_SUCCESS.
 
         Args:
             graph (DecisionGraph): The current decision graph.
@@ -274,7 +277,8 @@ class SelfEvolvingAgent:
 def build_parrot_wifi_graph() -> DecisionGraph:
     # Factory function for Parrot WiFi
     """
-    Factory function to build and configure the Parrot WiFi SEDGE graph.
+    Factory function to build and configure the Parrot WiFi SEDGE graph
+    with specific states, actions, and string outcomes.
 
     This implements the domain-specific mapping for the Parrot WiFi
     System, where:
