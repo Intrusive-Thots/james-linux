@@ -39,6 +39,7 @@ class Node:
     """
     STATE NODE MODEL
     Represents a system situation or decision point in the decision graph.
+    Nodes = system states or actions
 
     Implements the SEDGE CORE IDEA state/action node model.
     Nodes act as system states or actions. Nodes = system states or actions.
@@ -63,6 +64,8 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
     Represents a transition between decisions, storing experience weight.
+    Edges = transitions between decisions
+    Weights = learned success utility scores
 
     Implements the SEDGE CORE IDEA edge transition model.
 
@@ -104,6 +107,10 @@ class DecisionGraph:
     """
     DECISION GRAPH CORE
     Directed weighted decision graph storing nodes and edges.
+    The system builds a directed weighted decision graph where:
+    Nodes = system states or actions
+    Edges = transitions between decisions
+    Weights = learned success utility scores
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
     The system builds a directed weighted decision graph where Nodes = system states or actions, Edges = transitions between decisions, Weights = learned success utility scores.
@@ -173,12 +180,52 @@ class DecisionGraph:
             return None
         return max(edges, key=lambda e: e.score())
 
+    def get_path_score(self, path: list[str]) -> float:
+        """
+        Calculates the average utility score of a given traversal path.
+
+        Args:
+            path (list[str]): The sequence of node IDs traversed.
+
+        Returns:
+            float: The average utility score of the edges in the path.
+                   Returns 0.0 if the path has less than 2 nodes or
+                   if any edge is missing.
+        """
+        if len(path) < 2:
+            return 0.0
+
+        total_score = 0.0
+        edge_count = 0
+
+        for frm, to in zip(path[:-1], path[1:]):
+            edges = self.edges.get(frm, [])
+            found = False
+            for e in edges:
+                if e.to_node == to:
+                    total_score += e.score()
+                    edge_count += 1
+                    found = True
+                    break
+            if not found:
+                return 0.0 # Path is broken
+
+        if edge_count == 0:
+            return 0.0
+
+        return total_score / edge_count
+
 
 class LearningEngine:
     # Core SEDGE class
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
     Updates edge weights across the graph based on execution feedback.
+    This is what makes it 'self-evolving'.
+    Over time:
+    successful paths become stronger
+    failed paths decay
+    optimal strategies emerge automatically
 
     Implements the SEDGE CORE IDEA execution feedback learning layer.
     This is what makes it 'self-evolving'.
@@ -219,6 +266,10 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
     Policy layer for making stochastic weighted selections.
+    This replaces static 'AI decisions'.
+    System naturally balances EXPLORATION vs EXPLOITATION:
+    exploration (trying weak paths occasionally)
+    exploitation (using strong known paths)
 
     Implements the SEDGE CORE IDEA decision engine policy layer.
     This replaces static 'AI decisions'.
@@ -268,6 +319,8 @@ class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
     Agent that learns optimal paths through a self-evolution loop.
+    This is where learning actually happens.
+    Over time, successful paths become stronger, failed paths decay, optimal strategies emerge automatically.
 
     Implements the SEDGE CORE IDEA self-evolution loop agent.
     This is where learning actually happens.
