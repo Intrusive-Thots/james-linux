@@ -84,6 +84,26 @@ class TestGUITooltips(unittest.TestCase):
         self.assertIsInstance(chat_panel, ChatPanel)
         self.assertEqual(chat_panel._btn_clear.toolTip(), "Clear chat history")
 
+    def test_troubleshoot_tab_tooltips(self):
+        from james.gui.tabs.troubleshoot_tab import TroubleshootTab
+        troubleshoot_tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), TroubleshootTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(troubleshoot_tab, "TroubleshootTab not found")
+
+        self.assertEqual(
+            troubleshoot_tab.btn_check_deps.toolTip(),
+            "Check all dependencies (Ctrl+R)",
+        )
+        self.assertEqual(
+            troubleshoot_tab.btn_install_deps.toolTip(),
+            "Auto-install missing dependencies (Ctrl+I)",
+        )
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,6 +110,29 @@ class TestMainWindowShortcuts(unittest.TestCase):
             any(s.key() == QKeySequence("Ctrl+C") for s in shortcuts)
         )
 
+    def test_troubleshoot_tab_shortcuts(self):
+        from james.gui.tabs.troubleshoot_tab import TroubleshootTab
+        troubleshoot_tab = next(
+            (
+                self.window.tabs.widget(i)
+                for i in range(self.window.tabs.count())
+                if isinstance(self.window.tabs.widget(i), TroubleshootTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(troubleshoot_tab, "TroubleshootTab not found")
+
+        shortcuts = troubleshoot_tab.findChildren(QShortcut)
+
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+R") for s in shortcuts),
+            "Ctrl+R shortcut not found in TroubleshootTab"
+        )
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+I") for s in shortcuts),
+            "Ctrl+I shortcut not found in TroubleshootTab"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
