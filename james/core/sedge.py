@@ -37,6 +37,7 @@ from james.tools.constants import (
 class Node:
     # Core SEDGE class
     """
+    STATE NODE MODEL
     Represents a system situation or decision point in the decision graph.
 
     Implements the SEDGE CORE IDEA state/action node model.
@@ -60,6 +61,7 @@ class Node:
 class Edge:
     # Core SEDGE class
     """
+    EDGE MODEL (LEARNING PATHS)
     Represents a transition between decisions, storing experience weight.
 
     Implements the SEDGE CORE IDEA edge transition model.
@@ -100,6 +102,7 @@ class Edge:
 class DecisionGraph:
     # Core SEDGE class
     """
+    DECISION GRAPH CORE
     Directed weighted decision graph storing nodes and edges.
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
@@ -131,6 +134,30 @@ class DecisionGraph:
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
 
+    def get_node(self, node_id: str) -> Node | None:
+        """
+        Returns the node by its identifier.
+
+        Args:
+            node_id (str): The identifier of the node.
+
+        Returns:
+            Node | None: The node if it exists, None otherwise.
+        """
+        return self.nodes.get(node_id)
+
+    def get_edges(self, node_id: str) -> list[Edge]:
+        """
+        Returns all edges originating from a node.
+
+        Args:
+            node_id (str): The identifier of the origin node.
+
+        Returns:
+            list[Edge]: The list of edges originating from the node.
+        """
+        return self.edges.get(node_id, [])
+
     def get_best_next(self, node_id: str) -> Edge | None:
         """
         Returns the best next edge based on the highest utility score.
@@ -150,9 +177,11 @@ class DecisionGraph:
 class LearningEngine:
     # Core SEDGE class
     """
+    EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
     Updates edge weights across the graph based on execution feedback.
 
     Implements the SEDGE CORE IDEA execution feedback learning layer.
+    This is what makes it 'self-evolving'.
 
     This implements the learning mechanism that allows optimal
     strategies to emerge over time automatically.
@@ -189,9 +218,11 @@ class LearningEngine:
 class DecisionEngine:
     # Core SEDGE class
     """
+    DECISION ENGINE (POLICY LAYER)
     Policy layer for making stochastic weighted selections.
 
     Implements the SEDGE CORE IDEA decision engine policy layer.
+    This replaces static 'AI decisions'.
     Stochastic weighted selection naturally balances exploration
     (trying weak paths occasionally) and exploitation (using strong known paths).
     """
@@ -235,9 +266,11 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     # Core SEDGE class
     """
+    SELF-EVOLUTION LOOP
     Agent that learns optimal paths through a self-evolution loop.
 
     Implements the SEDGE CORE IDEA self-evolution loop agent.
+    This is where learning actually happens.
     It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
@@ -284,7 +317,13 @@ class SelfEvolvingAgent:
             outcome (str): The outcome of the episode (e.g., "SUCCESS").
         """
         self.learner.update(self.graph, self.current_path, outcome)
-        # reset episode
+        self.reset()
+
+    def reset(self) -> None:
+        """
+        Resets the agent's current path and node to the start state,
+        beginning a new episode.
+        """
         self.current_node = STATE_START
         self.current_path = [STATE_START]
 
@@ -292,6 +331,7 @@ class SelfEvolvingAgent:
 def build_parrot_wifi_graph() -> DecisionGraph:
     # Factory function for Parrot WiFi
     """
+    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
     Factory function to build and configure the Parrot WiFi SEDGE graph
     with specific states, actions, and string outcomes.
 
