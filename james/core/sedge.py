@@ -323,7 +323,13 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     graph.add_node(Node(id=ACTION_PASSIVE_SCAN, state_type="action"))
     graph.add_node(Node(id=ACTION_HANDSHAKE_CAPTURE, state_type="action"))
     graph.add_node(Node(id=ACTION_DEAUTH_TEST, state_type="action"))
-    graph.add_node(Node(id=ACTION_EVIL_TWIN_SIMULATION, state_type="action"))
+    graph.add_node(
+        Node(
+            id=ACTION_EVIL_TWIN_SIMULATION,
+            state_type="action",
+            metadata={"authorized_only": True},
+        )
+    )
 
     # Add Transition Edges
 
