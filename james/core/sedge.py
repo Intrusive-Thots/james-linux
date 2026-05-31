@@ -41,7 +41,7 @@ class Node:
     Represents a system situation or decision point in the decision graph.
 
     Implements the SEDGE CORE IDEA state/action node model.
-    Nodes act as system states or actions.
+    Nodes act as system states or actions. Nodes = system states or actions.
 
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
@@ -69,7 +69,7 @@ class Edge:
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
     Edges act as transitions between decisions and weights are learned success
-    utility scores.
+    utility scores. Edges = transitions between decisions, Weights = learned success utility scores.
 
     Attributes:
         from_node (str): The starting node of the transition.
@@ -106,7 +106,7 @@ class DecisionGraph:
     Directed weighted decision graph storing nodes and edges.
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
-    The system builds a directed weighted decision graph.
+    The system builds a directed weighted decision graph where Nodes = system states or actions, Edges = transitions between decisions, Weights = learned success utility scores.
 
     This forms the core structure of the Self-Evolving Decision Graph Engine.
     """
@@ -185,8 +185,7 @@ class LearningEngine:
 
     This implements the learning mechanism that allows optimal
     strategies to emerge over time automatically.
-    Over time, successful paths become stronger, failed paths decay,
-    and optimal strategies emerge automatically.
+    Over time: successful paths become stronger, failed paths decay, optimal strategies emerge automatically.
     """
 
     def update(
@@ -225,6 +224,7 @@ class DecisionEngine:
     This replaces static 'AI decisions'.
     Stochastic weighted selection naturally balances exploration
     (trying weak paths occasionally) and exploitation (using strong known paths).
+    System naturally balances: exploration (trying weak paths occasionally) exploitation (using strong known paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -274,7 +274,7 @@ class SelfEvolvingAgent:
     It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
-    (reduced probability).
+    (reduced probability). SELF-EVOLUTION LOOP - This is where learning actually happens.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -344,9 +344,9 @@ def build_parrot_wifi_graph() -> DecisionGraph:
         EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    After enough runs, the graph converges toward optimal
-    attack/analysis pipelines by building a living decision ecosystem
-    that replaces static scripts.
+    After enough runs:
+    graph converges toward optimal attack/analysis pipelines, unstable techniques decay automatically, high-yield workflows become dominant paths.
+    This creates: a living decision ecosystem instead of static scripts.
 
     Returns:
         DecisionGraph: The configured decision graph.
