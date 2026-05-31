@@ -12,9 +12,10 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QShortcut,
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont, QColor, QKeySequence
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
@@ -70,10 +71,12 @@ class TroubleshootTab(QWidget):
         self.btn_check_deps = QPushButton("🔍  Check All Dependencies")
         self.btn_check_deps.setObjectName("primaryBtn")
         self.btn_check_deps.setMinimumHeight(38)
+        self.btn_check_deps.setToolTip("Check all dependencies (Ctrl+R)")
 
         self.btn_install_deps = QPushButton("⚡  Auto-Install Missing")
         self.btn_install_deps.setObjectName("successBtn")
         self.btn_install_deps.setMinimumHeight(38)
+        self.btn_install_deps.setToolTip("Auto-install missing dependencies (Ctrl+I)")
 
         btn_row.addWidget(self.btn_check_deps)
         btn_row.addWidget(self.btn_install_deps)
@@ -141,6 +144,10 @@ class TroubleshootTab(QWidget):
     def _connect_signals(self):
         self.btn_check_deps.clicked.connect(self.check_deps)
         self.btn_install_deps.clicked.connect(self.install_deps)
+
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.check_deps)
+        QShortcut(QKeySequence("Ctrl+I"), self).activated.connect(self.install_deps)
+
         self.btn_view_logs.clicked.connect(
             lambda: self._run_cmd("dmesg | tail -n 60")
         )
