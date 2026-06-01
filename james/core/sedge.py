@@ -293,6 +293,7 @@ class LearningEngine:
                     elif outcome == OUTCOME_PARTIAL:
                         e.success_weight += 0.5
                         e.failure_weight += 0.5
+                    break
 
 
 class DecisionEngine:
