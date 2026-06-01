@@ -38,7 +38,7 @@ class Node:
     # Core SEDGE class
     """
     STATE NODE MODEL
-    Represents a system situation or decision point in the decision graph.
+    Each node represents a system situation or decision point:
     Nodes = system states or actions
 
     Implements the SEDGE CORE IDEA state/action node model.
@@ -63,7 +63,7 @@ class Edge:
     # Core SEDGE class
     """
     EDGE MODEL (LEARNING PATHS)
-    Represents a transition between decisions, storing experience weight.
+    Edges store experience weight:
     Edges = transitions between decisions
     Weights = learned success utility scores
 
@@ -111,6 +111,10 @@ class DecisionGraph:
     Nodes = system states or actions
     Edges = transitions between decisions
     Weights = learned success utility scores
+    Over time:
+    successful paths become stronger
+    failed paths decay
+    optimal strategies emerge automatically
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
     The system builds a directed weighted decision graph where Nodes = system states or actions, Edges = transitions between decisions, Weights = learned success utility scores.
@@ -220,8 +224,7 @@ class LearningEngine:
     # Core SEDGE class
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
-    Updates edge weights across the graph based on execution feedback.
-    This is what makes it 'self-evolving'.
+    This is what makes it "self-evolving".
     Over time:
     successful paths become stronger
     failed paths decay
@@ -265,9 +268,8 @@ class DecisionEngine:
     # Core SEDGE class
     """
     DECISION ENGINE (POLICY LAYER)
-    Policy layer for making stochastic weighted selections.
-    This replaces static 'AI decisions'.
-    System naturally balances EXPLORATION vs EXPLOITATION:
+    This replaces static "AI decisions".
+    System naturally balances:
     exploration (trying weak paths occasionally)
     exploitation (using strong known paths)
 
@@ -318,7 +320,6 @@ class SelfEvolvingAgent:
     # Core SEDGE class
     """
     SELF-EVOLUTION LOOP
-    Agent that learns optimal paths through a self-evolution loop.
     This is where learning actually happens.
     Over time, successful paths become stronger, failed paths decay, optimal strategies emerge automatically.
 
@@ -397,9 +398,13 @@ def build_parrot_wifi_graph() -> DecisionGraph:
         EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
+    REAL EVOLUTION BEHAVIOR
     After enough runs:
-    graph converges toward optimal attack/analysis pipelines, unstable techniques decay automatically, high-yield workflows become dominant paths.
-    This creates: a living decision ecosystem instead of static scripts.
+    graph converges toward optimal attack/analysis pipelines
+    unstable techniques decay automatically
+    high-yield workflows become dominant paths
+    This creates:
+    a living decision ecosystem instead of static scripts
 
     Returns:
         DecisionGraph: The configured decision graph.
