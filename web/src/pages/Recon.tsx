@@ -14,6 +14,9 @@ import {
   Swords,
   Bot,
   XCircle,
+  KeyRound,
+  ShieldAlert,
+  Zap,
 } from "lucide-react";
 import type { AP, AppState, PageId } from "../hooks/useAppState";
 import { SignalBars } from "../components/ui/SignalBars";
@@ -56,7 +59,80 @@ export function Recon({
   const [filter, setFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("map");
 
-  const handleQuickAttack = useCallback(() => {
+  /* ── Smart Attack Advisor ──────────────────────────────────────
+     Analyzes the selected AP's properties and recommends the best
+     attack strategy.  This is the core beginner UX: the user never
+     needs to understand PMKID vs deauth vs WPA3 — we decide for them
+     and explain the reasoning in plain English.
+  */
+  const getRecommendation = useCallback((ap: AP) => {
+    const priv = (ap.privacy || "").toUpperCase();
+    const isWpa3 = priv.includes("WPA3") || priv.includes("SAE");
+    const isOpen = priv.includes("OPN") || priv.includes("OPEN");
+    const hasClients = ap.clients > 0;
+    const strongSignal = ap.power >= -70;
+
+    if (isOpen) {
+      return {
+        strategy: "none" as const,
+        label: "Open Network",
+        icon: Unlock,
+        color: "text-success",
+        borderColor: "border-success/30",
+        bgColor: "bg-success/5",
+        explanation: "This network has no password. You can connect directly — no cracking needed!",
+        actionLabel: "No Cracking Needed",
+        disabled: true,
+      };
+    }
+
+    if (isWpa3) {
+      return {
+        strategy: "wpa3_warning" as const,
+        label: "WPA3 Detected",
+        icon: ShieldAlert,
+        color: "text-accent-cyan",
+        borderColor: "border-accent-cyan/30",
+        bgColor: "bg-accent-cyan/5",
+        explanation: "WPA3 uses SAE authentication which resists offline dictionary attacks. PMKID capture may still work on transition-mode APs. Try PMKID first.",
+        actionLabel: "🔑 Try PMKID Capture",
+        disabled: false,
+      };
+    }
+
+    if (!hasClients) {
+      return {
+        strategy: "pmkid" as const,
+        label: "PMKID Recommended",
+        icon: KeyRound,
+        color: "text-warning",
+        borderColor: "border-warning/30",
+        bgColor: "bg-warning/5",
+        explanation: `No clients are connected to this AP. PMKID capture works without clients — it requests the hash directly from the router.${!strongSignal ? " Signal is weak — move closer for better results." : ""}`,
+        actionLabel: "🔑 Crack via PMKID",
+        disabled: false,
+      };
+    }
+
+    // Has clients → deauth is the primary, PMKID as backup
+    return {
+      strategy: "deauth" as const,
+      label: "Deauth + Handshake",
+      icon: Zap,
+      color: "text-accent-purple",
+      borderColor: "border-accent-purple/30",
+      bgColor: "bg-accent-purple/5",
+      explanation: `${ap.clients} client${ap.clients > 1 ? "s" : ""} connected — we'll briefly disconnect ${ap.clients > 1 ? "them" : "it"} to capture the WPA handshake when ${ap.clients > 1 ? "they" : "it"} reconnects.${!strongSignal ? " Tip: move closer for a cleaner capture." : ""}`,
+      actionLabel: "⚡ Crack This Network",
+      disabled: false,
+    };
+  }, []);
+
+  /**
+   * Smart attack — fires the optimal capture strategy based on AP analysis.
+   * PMKID for clientless, deauth for clients present, warning for WPA3.
+   */
+  const handleSmartAttack = useCallback(() => {
     if (!state.selectedAP) return;
     if (!state.adapter) {
       addLog?.("error", "No wireless adapter detected. Configure one in Settings.");
@@ -67,20 +143,42 @@ export function Recon({
       return;
     }
 
-    addLog?.(
-      "info",
-      `Quick Attack: Starting automated capture/crack pipeline targeting ${
-        state.selectedAP.essid || "[Hidden]"
-      } (${state.selectedAP.bssid})`
-    );
+    const rec = getRecommendation(state.selectedAP);
+    const ap = state.selectedAP;
+    const name = ap.essid || "[Hidden]";
 
-    send("capture_handshake", {
+    if (rec.strategy === "pmkid" || rec.strategy === "wpa3_warning") {
+      addLog?.("info", `Smart Attack: PMKID capture on ${name} (${ap.bssid}) — no clients needed`);
+      send("capture_pmkid", {
+        interface: state.adapter,
+        bssid: ap.bssid,
+        essid: ap.essid,
+        timeout: 60,
+      });
+    } else {
+      addLog?.("info", `Smart Attack: Deauth + handshake capture on ${name} (${ap.bssid})`);
+      send("capture_handshake", {
+        interface: state.adapter,
+        bssid: ap.bssid,
+        channel: ap.channel,
+        essid: ap.essid,
+      });
+    }
+
+    onNavigate("attacks");
+  }, [state.selectedAP, state.adapter, send, addLog, onNavigate, getRecommendation]);
+
+  /** Force PMKID regardless of recommendation */
+  const handleForcePmkid = useCallback(() => {
+    if (!state.selectedAP || !state.adapter || !send) return;
+    const ap = state.selectedAP;
+    addLog?.("info", `Force PMKID capture on ${ap.essid || "[Hidden]"} (${ap.bssid})`);
+    send("capture_pmkid", {
       interface: state.adapter,
-      bssid: state.selectedAP.bssid,
-      channel: state.selectedAP.channel,
-      essid: state.selectedAP.essid,
+      bssid: ap.bssid,
+      essid: ap.essid,
+      timeout: 60,
     });
-
     onNavigate("attacks");
   }, [state.selectedAP, state.adapter, send, addLog, onNavigate]);
 
@@ -94,7 +192,7 @@ export function Recon({
       return;
     }
 
-    addLog?.("info", "Quick Attack: Engaging Auto-Pilot router scan...");
+    addLog?.("info", "Auto-Pilot: Full autonomous scan → capture → crack pipeline");
     
     send("auto_pilot", {
       interface: state.adapter,
@@ -322,8 +420,11 @@ export function Recon({
           )}
         </motion.div>
 
-        {/* Selected AP Detail Panel */}
-        {state.selectedAP && (
+        {/* Selected AP: Smart Attack Advisor Panel */}
+        {state.selectedAP && (() => {
+          const rec = getRecommendation(state.selectedAP);
+          const RecIcon = rec.icon;
+          return (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -343,9 +444,9 @@ export function Recon({
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-lg items-center">
+            <div className="grid grid-cols-12 gap-lg items-start">
               {/* Target Data Console */}
-              <div className="col-span-8 grid grid-cols-3 gap-md border-r border-border/40 pr-lg">
+              <div className="col-span-5 grid grid-cols-2 gap-md border-r border-border/40 pr-lg">
                 <div className="space-y-[4px]">
                   <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Target ESSID</span>
                   <span className="text-body font-bold text-text-primary block truncate">
@@ -360,7 +461,7 @@ export function Recon({
                 </div>
 
                 <div className="space-y-[4px]">
-                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Signal Metrics</span>
+                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Signal</span>
                   <div className="flex items-center gap-xs py-[2px]">
                     <SignalBars power={state.selectedAP.power} />
                     <span className={cn(
@@ -370,42 +471,77 @@ export function Recon({
                       {state.selectedAP.power} dBm
                     </span>
                   </div>
-                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">Channel & Bandwidth</span>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">Channel</span>
                   <span className="text-xs font-mono text-accent-cyan block">
-                    CH {state.selectedAP.channel} <span className="text-[10px] text-text-muted">(2.4 GHz)</span>
+                    CH {state.selectedAP.channel}
                   </span>
-                </div>
-
-                <div className="space-y-[4px]">
-                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Vulnerability Vector</span>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase mt-[2px]">Security</span>
                   <div className="py-[2px]">
                     <SecurityBadge privacy={state.selectedAP.privacy} />
                   </div>
-                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">Connected Clients</span>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase mt-[2px]">Clients</span>
                   <span className="text-xs font-mono text-accent-purple block font-bold">
                     {state.selectedAP.clients > 0 ? (
                       <span className="flex items-center gap-xs">
                         <Users className="w-3 h-3" />
-                        {state.selectedAP.clients} client{state.selectedAP.clients > 1 ? "s" : ""} active
+                        {state.selectedAP.clients}
                       </span>
                     ) : (
-                      "0 clients detected"
+                      "0"
                     )}
                   </span>
                 </div>
               </div>
 
-              {/* Action Deck */}
-              <div className="col-span-4 space-y-sm pl-sm">
+              {/* Smart Attack Advisor — the core beginner UX innovation.
+                  Analyzes the AP and shows exactly what will happen + why. */}
+              <div className="col-span-7 space-y-sm">
+                {/* Recommendation badge + explanation */}
+                <div className={cn(
+                  "rounded-btn border p-md space-y-sm",
+                  rec.borderColor, rec.bgColor
+                )}>
+                  <div className="flex items-center gap-sm">
+                    <div className={cn("w-8 h-8 rounded-btn flex items-center justify-center", rec.bgColor, rec.borderColor, "border")}>
+                      <RecIcon className={cn("w-4 h-4", rec.color)} />
+                    </div>
+                    <div>
+                      <div className={cn("text-xs font-extrabold uppercase tracking-wider", rec.color)}>
+                        {rec.label}
+                      </div>
+                      <div className="text-[10px] text-text-muted font-mono uppercase">Smart Advisor</div>
+                    </div>
+                  </div>
+                  <p className="text-small text-text-secondary leading-relaxed">
+                    {rec.explanation}
+                  </p>
+                </div>
+
+                {/* Action buttons */}
                 <button
-                  className="btn-primary w-full justify-center text-xs font-bold tracking-wider uppercase py-md h-10 shadow-glow flex items-center gap-sm"
-                  onClick={handleQuickAttack}
+                  className={cn(
+                    "w-full justify-center text-xs font-bold tracking-wider uppercase py-md h-10 flex items-center gap-sm rounded-btn border transition-all duration-200",
+                    rec.disabled
+                      ? "btn-ghost opacity-60 cursor-not-allowed"
+                      : "btn-primary shadow-glow"
+                  )}
+                  disabled={rec.disabled}
+                  onClick={handleSmartAttack}
                 >
                   <Swords className="w-4 h-4" />
-                  Quick Attack (Auto)
+                  {rec.actionLabel}
                 </button>
-                
-                <div className="grid grid-cols-2 gap-sm">
+
+                <div className="grid grid-cols-3 gap-sm">
+                  {/* Always show a PMKID button for manual override */}
+                  <button
+                    className="btn-secondary w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs"
+                    onClick={handleForcePmkid}
+                    title="Force PMKID capture regardless of recommendation"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    PMKID
+                  </button>
                   <button
                     className="btn-secondary w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs border-accent-purple/20 hover:border-accent-purple/40 text-accent-purple"
                     onClick={handleAutopilot}
@@ -424,7 +560,8 @@ export function Recon({
               </div>
             </div>
           </motion.div>
-        )}
+          );
+        })()}
       </div>
     </motion.div>
   );
