@@ -37,7 +37,7 @@ from PyQt5.QtWidgets import (
     QPlainTextEdit,
     QApplication,
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QKeyEvent
 
 from james.gui.theme import PALETTE, SURFACE_CARD_STYLE
@@ -465,7 +465,12 @@ class ChatPanel(QWidget):
 
     def _scroll_to_bottom(self):
         sb = self._scroll.verticalScrollBar()
-        sb.setValue(sb.maximum())
+        self._scroll_anim = QPropertyAnimation(sb, b"value")
+        self._scroll_anim.setDuration(250)
+        self._scroll_anim.setStartValue(sb.value())
+        self._scroll_anim.setEndValue(sb.maximum())
+        self._scroll_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._scroll_anim.start()
 
     def _show_welcome(self):
         self._add_bubble(
@@ -535,6 +540,7 @@ class _HistoryLineEdit(QLineEdit):
                     ),
                 )
                 self.setText(self._history[self._idx])
+                self.setCursorPosition(len(self.text()))
         elif event.key() == Qt.Key_Down:
             if self._history:
                 self._idx = min(len(self._history) - 1, self._idx + 1)
@@ -543,6 +549,7 @@ class _HistoryLineEdit(QLineEdit):
                     if self._idx < len(self._history)
                     else ""
                 )
+                self.setCursorPosition(len(self.text()))
         else:
             self._idx = len(self._history)
             super().keyPressEvent(event)

@@ -94,6 +94,37 @@ class TestMainWindowShortcuts(unittest.TestCase):
         # Verify text is cleared
         self.assertEqual(line_edit.text(), "")
 
+    def test_history_cursor_position(self):
+        from james.gui.chat_panel import _HistoryLineEdit
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QKeyEvent
+
+        history = ["cmd1", "cmd2"]
+        line_edit = _HistoryLineEdit(history)
+
+        # Ensure the widget receives focus and is somewhat active for cursor positioning
+        line_edit.show()
+
+        # Up arrow -> loads "cmd2"
+        event_up = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Up, Qt.NoModifier)
+        line_edit.keyPressEvent(event_up)
+
+        self.assertEqual(line_edit.text(), "cmd2")
+        self.assertEqual(line_edit.cursorPosition(), len("cmd2"))
+
+        # Up arrow -> loads "cmd1"
+        line_edit.keyPressEvent(event_up)
+        self.assertEqual(line_edit.text(), "cmd1")
+        self.assertEqual(line_edit.cursorPosition(), len("cmd1"))
+
+        # Down arrow -> loads "cmd2" again
+        event_down = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Down, Qt.NoModifier)
+        line_edit.keyPressEvent(event_down)
+        self.assertEqual(line_edit.text(), "cmd2")
+        self.assertEqual(line_edit.cursorPosition(), len("cmd2"))
+
+        line_edit.close()
+
     def test_wifi_tab_shortcuts(self):
         # The WiFi tab is a child of the window. Let's find shortcuts defined directly in the tab.
         shortcuts = self.window.wifi_tab.findChildren(QShortcut)
