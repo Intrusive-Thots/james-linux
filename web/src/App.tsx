@@ -231,6 +231,8 @@ export default function App() {
             onStartScan={handleStartScan}
             onStopScan={handleStopScan}
             onNavigate={setPage}
+            send={send}
+            addLog={addLog}
           />
         );
       case "attacks":

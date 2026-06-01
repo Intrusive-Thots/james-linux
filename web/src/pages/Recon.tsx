@@ -10,9 +10,14 @@ import {
   Unlock,
   Users,
   Radio,
+  List,
+  Swords,
+  Bot,
+  XCircle,
 } from "lucide-react";
 import type { AP, AppState, PageId } from "../hooks/useAppState";
 import { SignalBars } from "../components/ui/SignalBars";
+import { AirspaceHeatmap } from "../components/ui/AirspaceHeatmap";
 import { cn, downloadFile, toCSV } from "../lib/utils";
 
 interface ReconProps {
@@ -21,6 +26,8 @@ interface ReconProps {
   onStartScan: () => void;
   onStopScan: () => void;
   onNavigate: (page: PageId) => void;
+  send?: (action: string, params?: Record<string, unknown>) => void;
+  addLog?: (level: "info" | "warn" | "error" | "success", msg: string) => void;
 }
 
 const container = {
@@ -41,10 +48,60 @@ export function Recon({
   onStartScan,
   onStopScan,
   onNavigate,
+  send,
+  addLog,
 }: ReconProps) {
   const [sortKey, setSortKey] = useState<SortKey>("power");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filter, setFilter] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "map">("map");
+
+  const handleQuickAttack = useCallback(() => {
+    if (!state.selectedAP) return;
+    if (!state.adapter) {
+      addLog?.("error", "No wireless adapter detected. Configure one in Settings.");
+      return;
+    }
+    if (!send) {
+      addLog?.("error", "Backend offline. Reconnect or restart the API server.");
+      return;
+    }
+
+    addLog?.(
+      "info",
+      `Quick Attack: Starting automated capture/crack pipeline targeting ${
+        state.selectedAP.essid || "[Hidden]"
+      } (${state.selectedAP.bssid})`
+    );
+
+    send("capture_handshake", {
+      interface: state.adapter,
+      bssid: state.selectedAP.bssid,
+      channel: state.selectedAP.channel,
+      essid: state.selectedAP.essid,
+    });
+
+    onNavigate("attacks");
+  }, [state.selectedAP, state.adapter, send, addLog, onNavigate]);
+
+  const handleAutopilot = useCallback(() => {
+    if (!state.adapter) {
+      addLog?.("error", "No wireless adapter detected. Configure one in Settings.");
+      return;
+    }
+    if (!send) {
+      addLog?.("error", "Backend offline. Reconnect or restart the API server.");
+      return;
+    }
+
+    addLog?.("info", "Quick Attack: Engaging Auto-Pilot router scan...");
+    
+    send("auto_pilot", {
+      interface: state.adapter,
+    });
+
+    onNavigate("attacks");
+  }, [state.adapter, send, addLog, onNavigate]);
 
   const handleSort = useCallback(
     (key: SortKey) => {
@@ -172,12 +229,42 @@ export function Recon({
               )}
             </div>
             <div className="flex items-center gap-sm">
+              {/* View Toggle */}
+              <div className="flex bg-bg-elevated border border-border p-[3px] rounded-tag mr-xs">
+                <button
+                  type="button"
+                  className={cn(
+                    "px-sm py-1 text-xs font-semibold rounded-btn transition-all duration-200 flex items-center gap-xs",
+                    viewMode === "map"
+                      ? "bg-accent-cyan text-black shadow-glow"
+                      : "text-text-muted hover:text-text-primary"
+                  )}
+                  onClick={() => setViewMode("map")}
+                >
+                  <Radar className="w-3.5 h-3.5" />
+                  Map View
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "px-sm py-1 text-xs font-semibold rounded-btn transition-all duration-200 flex items-center gap-xs",
+                    viewMode === "list"
+                      ? "bg-accent-cyan text-black shadow-glow"
+                      : "text-text-muted hover:text-text-primary"
+                  )}
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  List View
+                </button>
+              </div>
+
               <div className="relative">
                 <Filter className="w-4 h-4 text-text-muted absolute left-[10px] top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Filter by SSID, BSSID, vendor…"
-                  className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[260px] transition-colors"
+                  className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[200px] transition-colors"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 />
@@ -185,93 +272,155 @@ export function Recon({
             </div>
           </div>
 
-          {/* Table */}
-          <div className="max-h-[420px] overflow-auto -mx-lg -mb-lg">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <SortHeader label="SSID" sortKey="essid" current={sortKey} dir={sortDir} onClick={handleSort} />
-                  <th className="w-[160px]">BSSID</th>
-                  <SortHeader label="Signal" sortKey="power" current={sortKey} dir={sortDir} onClick={handleSort} />
-                  <SortHeader label="CH" sortKey="channel" current={sortKey} dir={sortDir} onClick={handleSort} />
-                  <SortHeader label="Security" sortKey="privacy" current={sortKey} dir={sortDir} onClick={handleSort} />
-                  <SortHeader label="Clients" sortKey="clients" current={sortKey} dir={sortDir} onClick={handleSort} />
-                  <th>Vendor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
+          {/* Conditional view rendering */}
+          {viewMode === "list" ? (
+            <div className="max-h-[420px] overflow-auto -mx-lg -mb-lg">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="text-center py-xl text-text-muted">
-                      {state.scanning
-                        ? "Scanning… networks will appear here."
-                        : "No networks. Start a scan to discover APs."}
-                    </td>
+                    <SortHeader label="SSID" sortKey="essid" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <th className="w-[160px]">BSSID</th>
+                    <SortHeader label="Signal" sortKey="power" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <SortHeader label="CH" sortKey="channel" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <SortHeader label="Security" sortKey="privacy" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <SortHeader label="Clients" sortKey="clients" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <th>Vendor</th>
                   </tr>
-                ) : (
-                  filtered.map((ap) => (
-                    <ApRow
-                      key={ap.bssid}
-                      ap={ap}
-                      isSelected={state.selectedAP?.bssid === ap.bssid}
-                      onSelectAP={onSelectAP}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-xl text-text-muted">
+                        {state.scanning
+                          ? "Scanning… networks will appear here."
+                          : "No networks. Start a scan to discover APs."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((ap) => (
+                      <ApRow
+                        key={ap.bssid}
+                        ap={ap}
+                        isSelected={state.selectedAP?.bssid === ap.bssid}
+                        onSelectAP={onSelectAP}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex justify-center items-center py-sm">
+              <AirspaceHeatmap
+                aps={filtered}
+                selectedAP={state.selectedAP}
+                onSelectAP={onSelectAP}
+                scanning={state.scanning}
+                standalone={false}
+              />
+            </div>
+          )}
         </motion.div>
 
         {/* Selected AP Detail Panel */}
         {state.selectedAP && (
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card border-accent-cyan/20"
+            className="card border-accent-cyan/30 bg-bg-panel/95 backdrop-blur-md relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]"
           >
-            <div className="card-header">
-              <div className="card-title">
-                <Radar className="w-5 h-5 text-accent-cyan" />
-                Selected Target
+            {/* Hologram scan line overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-accent-cyan/[0.02] via-transparent to-transparent pointer-events-none" />
+            
+            <div className="card-header border-b border-border/30 pb-sm mb-md flex items-center justify-between">
+              <div className="card-title text-accent-cyan font-bold tracking-wider uppercase text-body">
+                <Radar className="w-5 h-5 animate-pulse" />
+                Tactical Target Lock-On HUD
               </div>
-              <button
-                className="btn-primary btn-sm"
-                onClick={() => onNavigate("attacks")}
-              >
-                Attack This Target →
-              </button>
+              <div className="flex items-center gap-xs">
+                <span className="w-2 h-2 rounded-full bg-danger animate-ping" />
+                <span className="text-[10px] font-mono text-danger font-bold uppercase tracking-wider">Locked onto Target</span>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-md text-body">
-              <div>
-                <div className="text-text-muted text-small mb-[2px]">SSID</div>
-                <div className="font-medium">
-                  {state.selectedAP.essid || "[Hidden]"}
+
+            <div className="grid grid-cols-12 gap-lg items-center">
+              {/* Target Data Console */}
+              <div className="col-span-8 grid grid-cols-3 gap-md border-r border-border/40 pr-lg">
+                <div className="space-y-[4px]">
+                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Target ESSID</span>
+                  <span className="text-body font-bold text-text-primary block truncate">
+                    {state.selectedAP.essid || (
+                      <span className="text-text-muted italic">&lt;Hidden SSID&gt;</span>
+                    )}
+                  </span>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">MAC / BSSID</span>
+                  <span className="text-xs font-mono text-text-secondary block">
+                    {state.selectedAP.bssid}
+                  </span>
                 </div>
-              </div>
-              <div>
-                <div className="text-text-muted text-small mb-[2px]">BSSID</div>
-                <div className="font-mono text-small">
-                  {state.selectedAP.bssid}
+
+                <div className="space-y-[4px]">
+                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Signal Metrics</span>
+                  <div className="flex items-center gap-xs py-[2px]">
+                    <SignalBars power={state.selectedAP.power} />
+                    <span className={cn(
+                      "text-xs font-bold font-mono",
+                      state.selectedAP.power >= -55 ? "text-success" : state.selectedAP.power >= -75 ? "text-warning" : "text-danger"
+                    )}>
+                      {state.selectedAP.power} dBm
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">Channel & Bandwidth</span>
+                  <span className="text-xs font-mono text-accent-cyan block">
+                    CH {state.selectedAP.channel} <span className="text-[10px] text-text-muted">(2.4 GHz)</span>
+                  </span>
                 </div>
-              </div>
-              <div>
-                <div className="text-text-muted text-small mb-[2px]">
-                  Channel / Signal
-                </div>
-                <div className="flex items-center gap-sm">
-                  <span>CH {state.selectedAP.channel}</span>
-                  <SignalBars power={state.selectedAP.power} />
-                  <span className="text-text-muted font-mono text-small">
-                    {state.selectedAP.power} dBm
+
+                <div className="space-y-[4px]">
+                  <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Vulnerability Vector</span>
+                  <div className="py-[2px]">
+                    <SecurityBadge privacy={state.selectedAP.privacy} />
+                  </div>
+                  <span className="text-[10px] text-text-muted font-mono font-semibold block uppercase">Connected Clients</span>
+                  <span className="text-xs font-mono text-accent-purple block font-bold">
+                    {state.selectedAP.clients > 0 ? (
+                      <span className="flex items-center gap-xs">
+                        <Users className="w-3 h-3" />
+                        {state.selectedAP.clients} client{state.selectedAP.clients > 1 ? "s" : ""} active
+                      </span>
+                    ) : (
+                      "0 clients detected"
+                    )}
                   </span>
                 </div>
               </div>
-              <div>
-                <div className="text-text-muted text-small mb-[2px]">
-                  Security
+
+              {/* Action Deck */}
+              <div className="col-span-4 space-y-sm pl-sm">
+                <button
+                  className="btn-primary w-full justify-center text-xs font-bold tracking-wider uppercase py-md h-10 shadow-glow flex items-center gap-sm"
+                  onClick={handleQuickAttack}
+                >
+                  <Swords className="w-4 h-4" />
+                  Quick Attack (Auto)
+                </button>
+                
+                <div className="grid grid-cols-2 gap-sm">
+                  <button
+                    className="btn-secondary w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs border-accent-purple/20 hover:border-accent-purple/40 text-accent-purple"
+                    onClick={handleAutopilot}
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    Autopilot
+                  </button>
+                  <button
+                    className="btn-ghost w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs"
+                    onClick={() => onSelectAP(null)}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Deselect
+                  </button>
                 </div>
-                <SecurityBadge privacy={state.selectedAP.privacy} />
               </div>
             </div>
           </motion.div>
