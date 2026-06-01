@@ -57,6 +57,9 @@ class Node:
     state_type: str  # "scan", "analysis", "action"
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def __repr__(self) -> str:
+        return f"Node(id={self.id!r}, type={self.state_type!r})"
+
 
 @dataclass
 class Edge:
@@ -88,6 +91,9 @@ class Edge:
     success_weight: float = 1.0
     failure_weight: float = 1.0
     visits: int = 0
+
+    def __repr__(self) -> str:
+        return f"Edge({self.from_node} -> {self.to_node}, visits={self.visits}, score={self.score():.2f})"
 
     def score(self) -> float:
         """
@@ -166,6 +172,34 @@ class DecisionGraph:
             list[Edge]: The list of edges originating from the node.
         """
         return self.edges.get(node_id, [])
+
+    def get_all_nodes(self) -> list[Node]:
+        """
+        Returns a list of all nodes in the graph.
+
+        Returns:
+            list[Node]: List of all Node objects.
+        """
+        return list(self.nodes.values())
+
+    def get_all_edges(self) -> list[Edge]:
+        """
+        Returns a list of all edges in the graph.
+
+        Returns:
+            list[Edge]: List of all Edge objects.
+        """
+        all_edges = []
+        for edges in self.edges.values():
+            all_edges.extend(edges)
+        return all_edges
+
+    def clear(self) -> None:
+        """
+        Clears all nodes and edges from the graph.
+        """
+        self.nodes.clear()
+        self.edges.clear()
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
