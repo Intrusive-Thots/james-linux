@@ -643,7 +643,7 @@ class WPA3Tools:
             time.sleep(timeout - 2)
 
             # Kill airodump-ng
-            self.layer.run(f"kill {dump_result.pid}", sudo=True)
+            self.layer.kill_background(dump_result)
             time.sleep(1)
 
             # Look for PCAP and check for handshakes (via aircrack-ng)
