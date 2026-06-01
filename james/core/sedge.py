@@ -47,6 +47,9 @@ class Node:
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
 
+    Over time, successful paths become stronger, failed paths decay,
+    and optimal strategies emerge automatically.
+
     Attributes:
         id (str): The unique identifier for the node.
         state_type (str): Type of state (e.g., "scan", "analysis", "action").
@@ -67,6 +70,7 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
     Edges store experience weight.
+    They represent paths in the directed graph.
     Edges = transitions between decisions
     Weights = learned success utility scores
 
@@ -113,6 +117,7 @@ class DecisionGraph:
     # Core SEDGE class
     """
     DECISION GRAPH CORE
+    The decision ecosystem.
     The system builds a directed weighted decision graph where:
     Nodes = system states or actions
     Edges = transitions between decisions
@@ -256,6 +261,7 @@ class LearningEngine:
     # Core SEDGE class
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
+    Evolves the graph.
     Updates edge weights across the graph based on execution feedback.
     This is what makes it 'self-evolving'.
     Over time: successful paths become stronger, failed paths decay, optimal strategies emerge automatically
@@ -300,6 +306,7 @@ class DecisionEngine:
     # Core SEDGE class
     """
     DECISION ENGINE (POLICY LAYER)
+    Makes selections based on utilities.
     Policy layer for making stochastic weighted selections.
     This replaces static 'AI decisions'.
     System naturally balances: exploration (trying weak paths occasionally) exploitation (using strong known paths)
@@ -353,6 +360,7 @@ class SelfEvolvingAgent:
     # Core SEDGE class
     """
     SELF-EVOLUTION LOOP
+    The main agent loop.
     Agent that learns optimal paths through a self-evolution loop.
     This is where learning actually happens.
     Over time, successful paths become stronger, failed paths decay,
@@ -422,6 +430,7 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     # Factory function for Parrot WiFi
     """
     HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
+    Maps to Parrot WiFi domain.
     Factory function to build and configure the Parrot WiFi SEDGE graph
     with specific states, actions, and string outcomes.
 
