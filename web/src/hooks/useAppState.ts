@@ -23,6 +23,9 @@ export interface AttackState {
   progress: number;
   status: string;
   result?: { found: boolean; key?: string };
+  sub_stage?: number;
+  total_stages?: number;
+  stage_name?: string;
 }
 
 export type PageId =

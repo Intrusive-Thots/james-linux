@@ -99,7 +99,6 @@ class AirgeddonTab(QWidget):
         iface_layout.addWidget(QLabel("Select Interface:"))
         self.iface_combo = QComboBox()
         self.iface_combo.setMinimumWidth(200)
-        self.iface_combo.setStyleSheet("background: #2d2d3d; color: white;")
         iface_layout.addWidget(self.iface_combo)
 
         self.btn_refresh = QPushButton("↻ Refresh")
@@ -125,7 +124,7 @@ class AirgeddonTab(QWidget):
         self.btn_scan_stop.setMinimumHeight(40)
         self.btn_scan_stop.setEnabled(False)
         self.lbl_stats = QLabel("APs: 0")
-        self.lbl_stats.setStyleSheet("color: #00e676; font-weight: bold;")
+        self.lbl_stats.setObjectName("statusOk")
 
         btn_bar.addWidget(self.btn_scan_start)
         btn_bar.addWidget(self.btn_scan_stop)

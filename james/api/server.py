@@ -100,7 +100,8 @@ async def _log(level: str, message: str):
 
 
 async def _attack_status(
-    stage: str, status: str, progress: int, result: dict | None = None
+    stage: str, status: str, progress: int, result: dict | None = None,
+    sub_stage: int | None = None, total_stages: int | None = None, stage_name: str | None = None
 ):
     """Broadcast attack status to all connected clients."""
     msg: dict = {
@@ -111,6 +112,12 @@ async def _attack_status(
     }
     if result is not None:
         msg["result"] = result
+    if sub_stage is not None:
+        msg["sub_stage"] = sub_stage
+    if total_stages is not None:
+        msg["total_stages"] = total_stages
+    if stage_name is not None:
+        msg["stage_name"] = stage_name
     await manager.broadcast(msg)
 
 
@@ -136,6 +143,44 @@ async def lifespan(app: FastAPI):
         )
 
     orch.on_print = on_print
+
+    # Wire progress callback to broadcast WPA crack progress
+    original_progress = orch.on_progress
+
+    def on_progress(phase_name: str, phase_num: int, total_phases: int):
+        if original_progress:
+            try:
+                original_progress(phase_name, phase_num, total_phases)
+            except Exception:
+                pass
+        percent = int((phase_num / max(total_phases, 1)) * 100)
+        
+        # Determine the attack stage from the phase_name
+        lower_phase = phase_name.lower()
+        if any(x in lower_phase for x in ["killing", "restore", "restore", "iptables", "networkmanager", "temp files"]):
+            manager.broadcast_sync(
+                {
+                    "type": "cleanup_status",
+                    "status": f"{phase_name} ({phase_num}/{total_phases})",
+                    "progress": percent,
+                }
+            )
+            return
+
+        manager.broadcast_sync(
+            {
+                "type": "attack_status",
+                "stage": "cracking" if any(x in lower_phase for x in ["crack", "john", "hashcat", "wordlist", "pin", "numeric", "pattern"]) else "capturing",
+                "status": f"Phase {phase_num}/{total_phases}: {phase_name}",
+                "progress": percent,
+                "sub_stage": phase_num,
+                "total_stages": total_phases,
+                "stage_name": phase_name,
+            }
+        )
+
+    orch.on_progress = on_progress
+
     yield
     logger.info("JAMES API server shutting down…")
 
@@ -373,7 +418,7 @@ async def _action_capture(orch, params: dict):
     essid = params.get("essid", "")
 
     _abort_flag.clear()
-    await _attack_status("capturing", "Initializing capture…", 0)
+    await _attack_status("capturing", "Initializing capture…", 0, sub_stage=1, total_stages=5, stage_name="Initializing Monitor Mode")
 
     # 1. Ensure monitor mode
     try:
@@ -387,7 +432,7 @@ async def _action_capture(orch, params: dict):
     prefix = "/tmp/james_hscap"
     try:
         await asyncio.to_thread(orch.layer.run, f"rm -f {prefix}*")
-        await _attack_status("capturing", "Starting packet capture…", 10)
+        await _attack_status("capturing", "Starting packet capture…", 10, sub_stage=2, total_stages=5, stage_name="Sniffing Airspace & Target")
         proc = await asyncio.to_thread(
             orch.aircrack.start_airodump,
             mon_iface,
@@ -409,7 +454,7 @@ async def _action_capture(orch, params: dict):
             return {"success": False, "error": "Aborted"}
 
         pct = 20 + (burst + 1) * 20  # 40, 60, 80
-        await _attack_status("capturing", f"Deauth burst {burst+1}/3…", pct)
+        await _attack_status("capturing", f"Deauth burst {burst+1}/3…", pct, sub_stage=3, total_stages=5, stage_name=f"Sending Client Deauth Burst {burst+1}/3")
         try:
             await asyncio.to_thread(orch.aircrack.deauth, mon_iface, bssid, count=5)
         except Exception as e:
@@ -417,7 +462,7 @@ async def _action_capture(orch, params: dict):
         await asyncio.sleep(3)
 
     # 4. Wait and collect
-    await _attack_status("capturing", "Waiting for handshake…", 90)
+    await _attack_status("capturing", "Waiting for handshake…", 90, sub_stage=4, total_stages=5, stage_name="Sniffing Handshake Packets")
     await asyncio.sleep(5)
     await _safe_kill(orch, proc)
 
@@ -426,7 +471,7 @@ async def _action_capture(orch, params: dict):
 
     if cap_files:
         cap_file = cap_files[0]
-        await _attack_status("capturing", "Handshake captured!", 100)
+        await _attack_status("capturing", "Handshake captured!", 100, sub_stage=5, total_stages=5, stage_name="Verifying WPA Handshake")
         await _log("success", f"Handshake captured: {cap_file}")
 
         # Broadcast handshake to the vault

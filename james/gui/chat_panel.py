@@ -128,7 +128,11 @@ class _Bubble(QFrame):
         v.setContentsMargins(12, 8, 12, 8)
         v.setSpacing(4)
 
-        # Sender label
+        # Header row (sender + copy button)
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
+
         ts = datetime.now().strftime("%H:%M")
         sender = "You" if self._is_user else "JAMES"
         sender_lbl = QLabel(f"{sender}  ·  {ts}")
@@ -136,7 +140,27 @@ class _Bubble(QFrame):
             f"color: {'#0078D4' if self._is_user else '#6E7681'};"
             f" font-size: 12px; font-weight: 700; letter-spacing: 0.5px;"
         )
-        v.addWidget(sender_lbl)
+        header_layout.addWidget(sender_lbl)
+        header_layout.addStretch()
+
+        # Tiny copy button
+        copy_btn = QPushButton("Copy")
+        copy_btn.setCursor(Qt.PointingHandCursor)
+        copy_btn.setToolTip("Copy message text to clipboard")
+        copy_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent; color: #6E7681;"
+            "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
+            "  min-height: 0px;"
+            "}"
+            "QPushButton:hover {"
+            "  color: #4daafc;"
+            "}"
+        )
+        copy_btn.clicked.connect(lambda: self._copy_to_clipboard(text, copy_btn))
+        header_layout.addWidget(copy_btn)
+
+        v.addLayout(header_layout)
 
         # Message content
         body = QLabel(text)
@@ -145,23 +169,23 @@ class _Bubble(QFrame):
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         if self._is_user:
-            # User bubble — dark gold tint
+            # User bubble - deep navy/slate blue tint
             inner.setStyleSheet(
-                "background: #001830; border: 1px solid #0078D430;"
+                "background: #16233b; border: 1px solid #0078D4;"
                 " border-radius: 10px 10px 2px 10px;"
             )
             body.setStyleSheet(
-                "color: #026EC1; font-size: 14px;"
+                "color: #e6f2ff; font-size: 14px;"
                 " font-family: 'JetBrains Mono', monospace;"
             )
         else:
-            # JAMES bubble — surface2
+            # JAMES bubble - deep dark forest green tint
             inner.setStyleSheet(
-                "background: #202020; border: 1px solid #2B2B2B;"
+                "background: #17261d; border: 1px solid #2EA043;"
                 " border-radius: 10px 10px 10px 2px;"
             )
             body.setStyleSheet(
-                "color: #CCCCCC; font-size: 14px; line-height: 1.5;"
+                "color: #CCCCCC; font-size: 14px; line-height: 1.4;"
                 " font-family: 'JetBrains Mono', monospace;"
             )
 
@@ -174,6 +198,36 @@ class _Bubble(QFrame):
         else:
             outer.addWidget(inner)
             outer.addStretch()
+
+    def _copy_to_clipboard(self, text: str, button: QPushButton):
+        from PyQt5.QtGui import QGuiApplication
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setText(text)
+        button.setText("Copied!")
+        button.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent; color: #2EA043;"
+            "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
+            "  min-height: 0px;"
+            "}"
+        )
+        QTimer.singleShot(2000, lambda: self._reset_copy_button(button))
+
+    def _reset_copy_button(self, button: QPushButton):
+        try:
+            button.setText("Copy")
+            button.setStyleSheet(
+                "QPushButton {"
+                "  background: transparent; color: #6E7681;"
+                "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
+                "  min-height: 0px;"
+                "}"
+                "QPushButton:hover {"
+                "  color: #4daafc;"
+                "}"
+            )
+        except Exception:
+            pass
 
 
 # ── Loot banner ────────────────────────────────────────────────────────────
@@ -317,13 +371,13 @@ class ChatPanel(QWidget):
             btn.setFixedHeight(26)
             btn.setStyleSheet(
                 "QPushButton {"
-                "  background: #202020; color: #6E7681;"
-                "  border: 1px solid #2B2B2B; border-radius: 12px;"
-                "  padding: 0 10px; font-size: 13px; font-weight: 600;"
+                "  background: #1e1e1e; color: #94A3B8;"
+                "  border: 1px solid #2B2B2B; border-radius: 13px;"
+                "  padding: 0 12px; font-size: 12px; font-weight: 600;"
                 "}"
                 "QPushButton:hover {"
-                "  background: #2B2B2B; color: #CCCCCC;"
-                "  border-color: #3C3C3C;"
+                "  background: #2B2B2B; color: #4daafc;"
+                "  border-color: #4daafc33;"
                 "}"
             )
             btn.clicked.connect(lambda checked, c=cmd: self._send(c))
@@ -364,10 +418,13 @@ class ChatPanel(QWidget):
             "QLineEdit {"
             "  background: #202020; color: #CCCCCC;"
             "  border: 1px solid #2B2B2B; border-radius: 6px;"
-            "  padding: 6px 12px; font-size: 14px;"
+            "  padding: 8px 12px; font-size: 14px;"
             "  font-family: 'JetBrains Mono', monospace;"
             "}"
-            "QLineEdit:focus { border-color: #0078D455; }"
+            "QLineEdit:focus {"
+            "  border: 1px solid #4daafc;"
+            "  background-color: #1A2333;"
+            "}"
         )
 
         self._btn_send = QPushButton("Send")

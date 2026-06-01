@@ -137,8 +137,23 @@ class Orchestrator:
         # PineAP — WiFi Pineapple-style attack engine
         self.pineap = PineAP(self.layer)
 
+        # Initialize Agent brain (with local import to avoid circular dependencies)
+        try:
+            from james.core.agent import Agent
+            self.agent = Agent(self)
+        except Exception as e:
+            logger.error("Failed to load agent brain: %s", e)
+            self.agent = None
+
         # Auto-load sudo password from saved settings
         self._load_sudo_from_settings()
+
+    def handle_command(self, command: str) -> str:
+        """Process a natural language command via the agent brain."""
+        if not hasattr(self, "agent") or not self.agent:
+            from james.core.agent import Agent
+            self.agent = Agent(self)
+        return self.agent.process(command)
 
     def _load_sudo_from_settings(self):
         """Load saved sudo password from keyring into NativeLayer."""
@@ -1167,6 +1182,7 @@ class Orchestrator:
                 logger.debug("SSID extraction failed: %s", e)
 
         # Stage 1: SSID-targeted wordlist
+        self._emit_progress("SSID-targeted wordlist search", 1, 6)
         if ssid:
             self._print(f"\n[1/6] SSID-targeted wordlist for '{ssid}'...")
             try:
@@ -1197,6 +1213,7 @@ class Orchestrator:
             self._print("\n[1/6] SSID-targeted — skipped (SSID unknown)")
 
         # Stage 2: aircrack-ng straight wordlist (fastest engine)
+        self._emit_progress("Aircrack-ng straight wordlist crack", 2, 6)
         self._print("\n[2/6] aircrack-ng (straight wordlist)...")
         ac_result = self.aircrack.crack_wpa(capture, wordlist, bssid=bssid)
         if ac_result.get("found"):
@@ -1208,6 +1225,7 @@ class Orchestrator:
             return ac_result
 
         # Stage 3: Hashcat WiFi-enhanced (JAMES rules → mask → cascading)
+        self._emit_progress("Hashcat WPA-enhanced mutation crack", 3, 6)
         self._print("\n[3/6] Hashcat WiFi-enhanced pipeline...")
         hc_file = "/tmp/james_smart_wpa.hc22000"
         self.layer.run(f"rm -f {shlex.quote(hc_file)}")
@@ -1234,6 +1252,7 @@ class Orchestrator:
             )
 
         # Stage 4: John the Ripper
+        self._emit_progress("John the Ripper CPU fallback crack", 4, 6)
         self._print("\n[4/6] John the Ripper...")
         john_result = self.john.crack(
             capture, wordlist=wordlist, fmt="wpapsk", timeout=300
@@ -1257,6 +1276,7 @@ class Orchestrator:
                         return result
 
         # Stage 5: JAMES generated wifi-common wordlist
+        self._emit_progress("JAMES common Wi-Fi patterns crack", 5, 6)
         self._print("\n[5/6] JAMES Wi-Fi common wordlist...")
         try:
             from james.wordlists.generator import WifiWordlistGenerator
@@ -1280,6 +1300,7 @@ class Orchestrator:
             self._print(f"  ⚠️ {e}")
 
         # Stage 6: Numeric-only wordlist
+        self._emit_progress("Numeric PIN patterns crack", 6, 6)
         self._print("\n[6/6] Numeric PIN patterns...")
         try:
             from james.wordlists.generator import WifiWordlistGenerator

@@ -81,6 +81,9 @@ export default function App() {
             stage: msg.stage as any,
             status: msg.status,
             progress: msg.progress,
+            sub_stage: msg.sub_stage,
+            total_stages: msg.total_stages,
+            stage_name: msg.stage_name,
             ...(msg.result ? { result: msg.result } : {}),
           });
           break;
@@ -212,7 +215,14 @@ export default function App() {
   const renderPage = () => {
     switch (state.currentPage) {
       case "dashboard":
-        return <Dashboard state={state} onNavigate={setPage} />;
+        return (
+          <Dashboard
+            state={state}
+            onNavigate={setPage}
+            send={send}
+            onSelectAP={selectAP}
+          />
+        );
       case "recon":
         return (
           <Recon
@@ -250,7 +260,14 @@ export default function App() {
       case "settings":
         return <SettingsPage />;
       default:
-        return <Dashboard state={state} onNavigate={setPage} />;
+        return (
+          <Dashboard
+            state={state}
+            onNavigate={setPage}
+            send={send}
+            onSelectAP={selectAP}
+          />
+        );
     }
   };
 
