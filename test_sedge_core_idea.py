@@ -195,5 +195,90 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.assertGreater(counts["C"], 100)
 
 
+
+    def test_learning_optimal_paths(self):
+        """Test HOW IT LEARNS OPTIMAL PATHS - Over time successful sequences gain higher success_weight, failed gain higher failure_weight"""
+        graph = DecisionGraph()
+        agent = SelfEvolvingAgent(graph)
+
+        node_a = Node(id="SCAN", state_type="state")
+        node_b = Node(id="ANALYZE", state_type="state")
+        node_c = Node(id="CAPTURE", state_type="action")
+        node_d = Node(id="VALIDATE", state_type="action")
+        node_e = Node(id="ATTACK", state_type="action")
+        node_f = Node(id="FAIL", state_type="action")
+
+        graph.add_node(node_a)
+        graph.add_node(node_b)
+        graph.add_node(node_c)
+        graph.add_node(node_d)
+        graph.add_node(node_e)
+        graph.add_node(node_f)
+
+        # Successful path edges
+        graph.add_edge(Edge(from_node="SCAN", to_node="ANALYZE"))
+        graph.add_edge(Edge(from_node="ANALYZE", to_node="CAPTURE"))
+        graph.add_edge(Edge(from_node="CAPTURE", to_node="VALIDATE"))
+
+        # Failed path edges
+        graph.add_edge(Edge(from_node="SCAN", to_node="ATTACK"))
+        graph.add_edge(Edge(from_node="ATTACK", to_node="FAIL"))
+
+        # Train successful sequence
+        for _ in range(10):
+            agent.current_path = ["SCAN", "ANALYZE", "CAPTURE", "VALIDATE"]
+            agent.feedback(OUTCOME_SUCCESS)
+
+        # Train failed sequence
+        for _ in range(10):
+            agent.current_path = ["SCAN", "ATTACK", "FAIL"]
+            agent.feedback(OUTCOME_FAILURE)
+
+        scan_edges = graph.edges.get("SCAN", [])
+        analyze_edge = next((e for e in scan_edges if e.to_node == "ANALYZE"), None)
+        attack_edge = next((e for e in scan_edges if e.to_node == "ATTACK"), None)
+
+        self.assertIsNotNone(analyze_edge)
+        self.assertIsNotNone(attack_edge)
+
+        # Successful path becomes stronger
+        self.assertGreater(analyze_edge.success_weight, attack_edge.success_weight)
+        # Failed path gains higher failure weight
+        self.assertGreater(attack_edge.failure_weight, analyze_edge.failure_weight)
+        # Higher score (stronger traversal probability) for successful path
+        self.assertGreater(analyze_edge.score(), attack_edge.score())
+
+    def test_exploration_exploitation_balance(self):
+        """Test EXPLORATION vs EXPLOITATION - System naturally balances trying weak paths occasionally and using strong known paths"""
+        graph = DecisionGraph()
+        decision_engine = DecisionEngine(graph)
+
+        node_a = Node(id="START", state_type="state")
+        node_strong = Node(id="STRONG", state_type="action")
+        node_weak = Node(id="WEAK", state_type="action")
+
+        graph.add_node(node_a)
+        graph.add_node(node_strong)
+        graph.add_node(node_weak)
+
+        # Strong path (exploitation candidate)
+        edge_strong = Edge(from_node="START", to_node="STRONG", success_weight=90.0, failure_weight=1.0)
+        # Weak path (exploration candidate)
+        edge_weak = Edge(from_node="START", to_node="WEAK", success_weight=1.0, failure_weight=10.0)
+
+        graph.add_edge(edge_strong)
+        graph.add_edge(edge_weak)
+
+        counts = {"STRONG": 0, "WEAK": 0}
+        iterations = 10000
+        for _ in range(iterations):
+            choice = decision_engine.decide("START")
+            counts[choice] += 1
+
+        # Exploitation: Strong path should be chosen much more often
+        self.assertGreater(counts["STRONG"], counts["WEAK"] * 5)
+        # Exploration: Weak path should still be chosen occasionally (not zero)
+        self.assertGreater(counts["WEAK"], 0)
+
 if __name__ == "__main__":
     unittest.main()
