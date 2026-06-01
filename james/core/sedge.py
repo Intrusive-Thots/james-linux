@@ -38,7 +38,7 @@ class Node:
     # Core SEDGE class
     """
     STATE NODE MODEL
-    Represents a system situation or decision point in the decision graph.
+    Each node represents a system situation or decision point.
     Nodes = system states or actions
 
     Implements the SEDGE CORE IDEA state/action node model.
@@ -63,7 +63,7 @@ class Edge:
     # Core SEDGE class
     """
     EDGE MODEL (LEARNING PATHS)
-    Represents a transition between decisions, storing experience weight.
+    Edges store experience weight.
     Edges = transitions between decisions
     Weights = learned success utility scores
 
@@ -106,7 +106,6 @@ class DecisionGraph:
     # Core SEDGE class
     """
     DECISION GRAPH CORE
-    Directed weighted decision graph storing nodes and edges.
     The system builds a directed weighted decision graph where:
     Nodes = system states or actions
     Edges = transitions between decisions
@@ -222,10 +221,7 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
     Updates edge weights across the graph based on execution feedback.
     This is what makes it 'self-evolving'.
-    Over time:
-    successful paths become stronger
-    failed paths decay
-    optimal strategies emerge automatically
+    Over time: successful paths become stronger, failed paths decay, optimal strategies emerge automatically
 
     Implements the SEDGE CORE IDEA execution feedback learning layer.
     This is what makes it 'self-evolving'.
@@ -267,9 +263,7 @@ class DecisionEngine:
     DECISION ENGINE (POLICY LAYER)
     Policy layer for making stochastic weighted selections.
     This replaces static 'AI decisions'.
-    System naturally balances EXPLORATION vs EXPLOITATION:
-    exploration (trying weak paths occasionally)
-    exploitation (using strong known paths)
+    System naturally balances: exploration (trying weak paths occasionally) exploitation (using strong known paths)
 
     Implements the SEDGE CORE IDEA decision engine policy layer.
     This replaces static 'AI decisions'.
@@ -393,8 +387,7 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     This implements the domain-specific mapping for the Parrot WiFi
     System, where:
       - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST,
-        EVIL_TWIN_SIMULATION
+      - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
     After enough runs:
