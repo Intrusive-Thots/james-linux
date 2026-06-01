@@ -25,6 +25,7 @@ import type { AppState, AttackState } from "../hooks/useAppState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { SignalBars } from "../components/ui/SignalBars";
 import { SignalScope } from "../components/ui/SignalScope";
+import { PasswordCrackedOverlay } from "../components/ui/PasswordCrackedOverlay";
 import { cn } from "../lib/utils";
 
 interface AttacksProps {
@@ -706,6 +707,13 @@ export function Attacks({
           </motion.div>
         </div>
       </div>
+      
+      <PasswordCrackedOverlay
+        show={state.attack.stage === "complete" && !!state.attack.result?.found}
+        password={state.attack.result?.key}
+        essid={state.selectedAP?.essid}
+        onClose={handleReset}
+      />
     </motion.div>
   );
 }
