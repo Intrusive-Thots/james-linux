@@ -42,7 +42,7 @@ class Node:
     Nodes = system states or actions
 
     Implements the SEDGE CORE IDEA state/action node model.
-    Nodes act as system states or actions. Nodes = system states or actions.
+    Nodes represent distinct system states or actions within the SEDGE ecosystem.
 
     Nodes define the state the system is currently in, mapped to various
     network discovery, analysis, or action phases.
@@ -78,9 +78,7 @@ class Edge:
 
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
-    Edges act as transitions between decisions and weights are learned success
-    utility scores. Edges = transitions between decisions,
-    Weights = learned success utility scores.
+    Edges represent transitions between decision nodes, with weights acting as learned success utility scores.
 
     Attributes:
         from_node (str): The starting node of the transition.
@@ -124,9 +122,7 @@ class DecisionGraph:
     Weights = learned success utility scores
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
-    The system builds a directed weighted decision graph where Nodes = system
-    states or actions, Edges = transitions between decisions, Weights =
-    learned success utility scores.
+    The engine constructs a directed weighted graph composed of state/action nodes and learned transition edges.
 
     This forms the core structure of the Self-Evolving Decision Graph Engine.
     """
@@ -269,8 +265,7 @@ class LearningEngine:
     Implements the SEDGE CORE IDEA execution feedback learning layer.
     This is what makes it 'self-evolving'.
 
-    This implements the learning mechanism that allows optimal
-    strategies to emerge over time automatically.
+    This implements the core learning mechanism enabling optimal strategies to naturally emerge over time.
     Over time: successful paths become stronger, failed paths decay,
     optimal strategies emerge automatically.
     """
@@ -316,8 +311,7 @@ class DecisionEngine:
     Stochastic weighted selection naturally balances exploration
     (trying weak paths occasionally) and exploitation
     (using strong known paths).
-    System naturally balances: exploration (trying weak paths occasionally)
-    exploitation (using strong known paths).
+    The policy naturally balances exploration (trying weak paths occasionally) and exploitation (using strongly weighted known paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -371,8 +365,7 @@ class SelfEvolvingAgent:
     It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
     traversal probability), while failed paths gain higher failure_weight
-    (reduced probability). SELF-EVOLUTION LOOP - This is where learning
-    actually happens.
+    (reduced probability). The self-evolution loop manages the core learning cycle of the agent.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -445,7 +438,7 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     After enough runs:
     graph converges toward optimal attack/analysis pipelines, unstable
     techniques decay automatically, high-yield workflows become dominant paths.
-    This creates: a living decision ecosystem instead of static scripts.
+    This creates a dynamic, living decision ecosystem rather than relying on static execution scripts.
 
     Returns:
         DecisionGraph: The configured decision graph.
