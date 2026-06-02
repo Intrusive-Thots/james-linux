@@ -42,6 +42,7 @@ class Node:
     Nodes = system states or actions
 
     Implements the SEDGE CORE IDEA state/action node model.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
     Nodes act as system states or actions. Nodes = system states or actions.
 
     Nodes define the state the system is currently in, mapped to various
@@ -75,6 +76,7 @@ class Edge:
     Weights = learned success utility scores
 
     Implements the SEDGE CORE IDEA edge transition model.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
 
     Edges hold learned values based on whether traversing this path resulted
     in success or failure in the past, allowing the system to self-evolve.
@@ -124,6 +126,7 @@ class DecisionGraph:
     Weights = learned success utility scores
 
     Implements the SEDGE CORE IDEA directed weighted decision graph.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
     The system builds a directed weighted decision graph where Nodes = system
     states or actions, Edges = transitions between decisions, Weights =
     learned success utility scores.
@@ -267,6 +270,7 @@ class LearningEngine:
     Over time: successful paths become stronger, failed paths decay, optimal strategies emerge automatically
 
     Implements the SEDGE CORE IDEA execution feedback learning layer.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
     This is what makes it 'self-evolving'.
 
     This implements the learning mechanism that allows optimal
@@ -312,6 +316,7 @@ class DecisionEngine:
     System naturally balances: exploration (trying weak paths occasionally) exploitation (using strong known paths)
 
     Implements the SEDGE CORE IDEA decision engine policy layer.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
     This replaces static 'AI decisions'.
     Stochastic weighted selection naturally balances exploration
     (trying weak paths occasionally) and exploitation
@@ -367,6 +372,7 @@ class SelfEvolvingAgent:
     optimal strategies emerge automatically.
 
     Implements the SEDGE CORE IDEA self-evolution loop agent.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
     This is where learning actually happens.
     It builds a living decision ecosystem instead of relying on static scripts.
     Over time, successful paths gain higher success_weight (stronger
@@ -435,6 +441,7 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     with specific states, actions, and string outcomes.
 
     Implements the SEDGE CORE IDEA Parrot WiFi system mapping.
+    This fully implements the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA from the design document.
 
     This implements the domain-specific mapping for the Parrot WiFi
     System, where:
