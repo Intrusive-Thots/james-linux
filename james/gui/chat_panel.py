@@ -381,6 +381,13 @@ class ChatPanel(QWidget):
         self._input.returnPressed.connect(
             lambda: self._send(self._input.text())
         )
+        # Also bind Ctrl+Enter for the input
+        from PyQt5.QtWidgets import QShortcut
+        from PyQt5.QtGui import QKeySequence
+        shortcut = QShortcut(QKeySequence("Ctrl+Return"), self._input)
+        shortcut.setContext(Qt.WidgetShortcut)
+        shortcut.activated.connect(lambda: self._send(self._input.text()))
+
         self._btn_clear.clicked.connect(self._clear_chat)
 
     # ── Actions ────────────────────────────────────────────────────
