@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
     QShortcut,
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QKeySequence
 import logging
 
@@ -461,9 +461,15 @@ class MainWindow(QMainWindow):
         sev = _SEV.get(severity.upper(), "INFO ")
         formatted = f"[{ts}]  {sev}  {text}"
         self.terminal.appendPlainText(formatted)
-        self.terminal.verticalScrollBar().setValue(
-            self.terminal.verticalScrollBar().maximum()
-        )
+
+        sb = self.terminal.verticalScrollBar()
+        self._log_scroll_anim = QPropertyAnimation(sb, b"value")
+        self._log_scroll_anim.setDuration(250)
+        self._log_scroll_anim.setStartValue(sb.value())
+        self._log_scroll_anim.setEndValue(sb.maximum())
+        self._log_scroll_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._log_scroll_anim.start()
+
         self._log_count += 1
         self._lbl_log_count.setText(f"{self._log_count} lines")
         self._last_action = text[:48] + ("…" if len(text) > 48 else "")

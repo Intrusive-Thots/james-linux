@@ -164,6 +164,29 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+I shortcut not found in TroubleshootTab"
         )
 
+    def test_chat_ctrl_enter(self):
+        from james.gui.chat_panel import ChatPanel
+
+        chat_panel = self.window.chat_panel
+        shortcuts = chat_panel.findChildren(QShortcut)
+
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+Return") for s in shortcuts),
+            "Ctrl+Return shortcut not found in ChatPanel input"
+        )
+
+    def test_log_scroll_anim(self):
+        from PyQt5.QtCore import QPropertyAnimation
+
+        self.window._on_log_received("test log", "INFO")
+
+        # Verify that the animation object was created and is running
+        self.assertTrue(hasattr(self.window, "_log_scroll_anim"))
+        anim = self.window._log_scroll_anim
+        self.assertIsInstance(anim, QPropertyAnimation)
+        self.assertEqual(anim.targetObject(), self.window.terminal.verticalScrollBar())
+        self.assertEqual(anim.propertyName(), b"value")
+
 
 if __name__ == "__main__":
     unittest.main()
