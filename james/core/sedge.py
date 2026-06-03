@@ -35,7 +35,6 @@ from james.tools.constants import (
 
 @dataclass
 class Node:
-    # Core SEDGE class
     """
     STATE NODE MODEL
     Each node represents a system situation or decision point.
@@ -60,7 +59,6 @@ class Node:
 
 @dataclass
 class Edge:
-    # Core SEDGE class
     """
     EDGE MODEL (LEARNING PATHS)
     Edges store experience weight, representing paths in the directed graph.
@@ -100,7 +98,6 @@ class Edge:
 
 
 class DecisionGraph:
-    # Core SEDGE class
     """
     DECISION GRAPH CORE
     The decision ecosystem representing the Self-Evolving Decision Graph Engine.
@@ -240,7 +237,6 @@ class DecisionGraph:
 
 
 class LearningEngine:
-    # Core SEDGE class
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
     Evolves the graph by updating edge weights based on execution feedback.
@@ -278,7 +274,6 @@ class LearningEngine:
 
 
 class DecisionEngine:
-    # Core SEDGE class
     """
     DECISION ENGINE (POLICY LAYER)
     Makes selections based on utilities, providing a policy layer for
@@ -325,7 +320,6 @@ class DecisionEngine:
 
 
 class SelfEvolvingAgent:
-    # Core SEDGE class
     """
     SELF-EVOLUTION LOOP
     The main agent loop that learns optimal paths through self-evolution.
@@ -388,7 +382,6 @@ class SelfEvolvingAgent:
 
 
 def build_parrot_wifi_graph() -> DecisionGraph:
-    # Factory function for Parrot WiFi
     """
     HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
     Factory function to build and configure the Parrot WiFi SEDGE graph
@@ -471,7 +464,4 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     return graph
 
 
-# Core implementation of the SEDGE ecosystem
-# Verified SEDGE feature logic
-# Verified SEDGE core idea and logic mapped to Parrot system
-# Verified SEDGE feature implementation
+# Core implementation of the SEDGE ecosystem initialized
