@@ -98,13 +98,10 @@ class DecisionGraph:
     """
     Core graph representing the Self-Evolving Decision Graph Engine ecosystem.
 
-    The system builds a directed, weighted decision graph utilizing:
-      - Nodes representing system states or actions.
-      - Edges representing transitions between decisions.
-      - Weights tracking learned utility scores based on feedback.
-
-    This structure enables the system to continuously evaluate, navigate,
-    and adaptively discover optimal traversal paths.
+    This graph acts as the foundation of the directed, weighted decision
+    system. It utilizes nodes to represent states/actions, edges for
+    transitions, and dynamically updated weights based on success utility
+    scores. Over time, successful paths strengthen and failed paths decay.
     """
 
     def __init__(self) -> None:
@@ -237,9 +234,9 @@ class LearningEngine:
     """
     Execution Feedback Learning System that drives graph evolution.
 
-    Evolves the decision graph by adjusting edge weights based on real
-    execution feedback. This mechanism ensures successful paths strengthen
-    over time while failed paths decay, organically yielding optimal strategies.
+    Evolves the decision graph by updating edge success and failure weights
+    using real execution feedback. This ensures successful sequences
+    gain higher probability over time, while unstable techniques decay.
     """
 
     def update(
@@ -273,9 +270,9 @@ class DecisionEngine:
     """
     Policy Layer for dynamic, utility-based node selection.
 
-    Makes transitions using stochastic weighted selection rather than static
-    decision trees. This naturally balances exploration (occasionally testing
-    weaker paths) with exploitation (leveraging established, strong paths).
+    Selects subsequent nodes via stochastic weighted selection, balancing
+    exploration of weaker paths with the exploitation of strong, known paths.
+    This effectively replaces static decision trees with dynamic AI decisions.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -318,9 +315,8 @@ class SelfEvolvingAgent:
     """
     Main agent loop orchestrating self-evolution and path optimization.
 
-    By continually applying execution feedback, this agent cultivates a
-    living decision ecosystem. Successful paths gain higher traversal
-    probabilities over time, while unsuccessful paths decay.
+    By consistently applying feedback through the learning engine, it cultivates
+    a living decision ecosystem where high-yield workflows become dominant paths.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -376,21 +372,18 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
-    Factory function to build and configure the Parrot WiFi SEDGE graph
-    with specific states, actions, and string outcomes.
+    Factory function to build the Parrot WiFi SEDGE graph domain map.
 
-    This implements the domain-specific mapping for the Parrot WiFi system:
+    Constructs a decision graph specific to the Parrot WiFi system, containing:
       - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
       - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    After enough runs, the graph converges toward optimal attack/analysis
-    pipelines. Unstable techniques decay automatically, and high-yield
-    workflows become dominant paths.
+    Through continued evaluation, the graph converges toward optimal pipelines
+    where strong paths flourish and weak paths naturally decay.
 
     Returns:
-        DecisionGraph: The configured decision graph.
+        DecisionGraph: The configured decision graph ecosystem.
     """
     graph = DecisionGraph()
 
