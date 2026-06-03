@@ -36,15 +36,16 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    State Node Model representing a system situation or decision point.
+    State node model representing a decision point or system situation.
 
-    Nodes define the current system state, mapping to network discovery,
-    analysis, or action phases within the SEDGE graph.
+    Nodes define the current status of the system, effectively mapping to
+    network discovery, analysis, or actionable phases within the self-evolving
+    decision graph.
 
     Attributes:
-        id (str): The unique identifier for the node.
-        state_type (str): Type of state (e.g., 'scan', 'analysis', 'action').
-        metadata (dict[str, Any]): Optional metadata describing the state.
+        id (str): The unique identifier.
+        state_type (str): The type of state (e.g., 'scan', 'action').
+        metadata (dict[str, Any]): Arbitrary metadata contextualizing the state.
     """
 
     id: str
@@ -58,17 +59,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Edge Model representing transitions and learning paths in the graph.
+    Edge model representing transitions and learning paths within the graph.
 
-    Edges store experience weights based on whether traversing the path
-    resulted in success or failure, allowing the graph to self-evolve.
+    Edges encapsulate experience weights based on the historical success or
+    failure resulting from traversal. This feedback mechanism facilitates the
+    self-evolution of optimal strategies over time.
 
     Attributes:
-        from_node (str): The starting node of the transition.
-        to_node (str): The target node of the transition.
-        success_weight (float): Accumulated success weight. Defaults to 1.0.
-        failure_weight (float): Accumulated failure weight. Defaults to 1.0.
-        visits (int): Total times this edge was traversed. Defaults to 0.
+        from_node (str): The source node identifier.
+        to_node (str): The destination node identifier.
+        success_weight (float): The accumulated success utility score.
+        failure_weight (float): The accumulated failure penalty score.
+        visits (int): The total number of traversals across this edge.
     """
 
     from_node: str
@@ -82,11 +84,11 @@ class Edge:
 
     def score(self) -> float:
         """
-        Calculates the overall utility score for this edge.
+        Computes the overall utility score for this transition.
 
-        The score is computed as the ratio of success weight to failure
-        weight, favoring successful paths. A small epsilon prevents
-        zero division errors.
+        The utility score is the ratio of the success weight to the failure
+        weight. A minimal epsilon is added to the denominator to prevent
+        zero division.
 
         Returns:
             float: The computed utility score.
@@ -96,76 +98,76 @@ class Edge:
 
 class DecisionGraph:
     """
-    Core graph representing the Self-Evolving Decision Graph Engine ecosystem.
+    Core representation of the Self-Evolving Decision Graph Engine (SEDGE).
 
-    This graph acts as the foundation of the directed, weighted decision
-    system. It utilizes nodes to represent states/actions, edges for
-    transitions, and dynamically updated weights based on success utility
-    scores. Over time, successful paths strengthen and failed paths decay.
+    This structure is the foundation of the directed, weighted decision
+    system. Nodes represent states or actions, and edges represent transitions.
+    Over time, successful paths organically strengthen while failed paths decay,
+    enabling dynamic AI optimization.
     """
 
     def __init__(self) -> None:
-        """Initializes an empty DecisionGraph."""
+        """Initializes a new, empty decision graph."""
         self.nodes: dict[str, Node] = {}
         self.edges: dict[str, list[Edge]] = {}
 
     def add_node(self, node: Node) -> None:
         """
-        Adds a single node to the decision graph.
+        Incorporates a discrete node into the decision ecosystem.
 
         Args:
-            node (Node): The node object representing a decision state.
+            node (Node): The state or action node to integrate.
         """
         self.nodes[node.id] = node
 
     def add_edge(self, edge: Edge) -> None:
         """
-        Adds an edge representing a valid transition between nodes.
+        Establishes a directed transition between two nodes in the graph.
 
         Args:
-            edge (Edge): The directed edge connecting two states.
+            edge (Edge): The relational edge mapping the transition.
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
 
     def get_node(self, node_id: str) -> Node | None:
         """
-        Returns the node by its identifier.
+        Retrieves a specific node by its unique identifier.
 
         Args:
-            node_id (str): The identifier of the node.
+            node_id (str): The target node's identifier.
 
         Returns:
-            Node | None: The node if it exists, None otherwise.
+            Node | None: The requested node, or None if it does not exist.
         """
         return self.nodes.get(node_id)
 
     def get_edges(self, node_id: str) -> list[Edge]:
         """
-        Returns all edges originating from a node.
+        Extracts all outbound edges originating from a specified node.
 
         Args:
             node_id (str): The identifier of the origin node.
 
         Returns:
-            list[Edge]: The list of edges originating from the node.
+            list[Edge]: A collection of all connecting outbound edges.
         """
         return self.edges.get(node_id, [])
 
     def get_all_nodes(self) -> list[Node]:
         """
-        Returns a list of all nodes in the graph.
+        Aggregates all registered nodes within the graph.
 
         Returns:
-            list[Node]: List of all Node objects.
+            list[Node]: A comprehensive list of existing nodes.
         """
         return list(self.nodes.values())
 
     def get_all_edges(self) -> list[Edge]:
         """
-        Returns a list of all edges in the graph.
+        Aggregates all registered edges within the graph.
 
         Returns:
-            list[Edge]: List of all Edge objects.
+            list[Edge]: A comprehensive list of existing edges.
         """
         all_edges = []
         for edges in self.edges.values():
@@ -174,20 +176,20 @@ class DecisionGraph:
 
     def clear(self) -> None:
         """
-        Clears all nodes and edges from the graph.
+        Flushes the graph, removing all nodes and relational edges.
         """
         self.nodes.clear()
         self.edges.clear()
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
-        Returns the best next edge based on the highest utility score.
+        Identifies the optimal subsequent transition from a given node.
 
         Args:
-            node_id (str): The identifier of the current node.
+            node_id (str): The current node identifier.
 
         Returns:
-            Edge | None: The best edge to traverse, or None.
+            Edge | None: The highest-scoring outbound edge, or None.
         """
         edges = self.edges.get(node_id, [])
         if not edges:
@@ -196,15 +198,14 @@ class DecisionGraph:
 
     def get_path_score(self, path: list[str]) -> float:
         """
-        Calculates the average utility score of a given traversal path.
+        Evaluates the mean utility score across a complete traversal path.
 
         Args:
-            path (list[str]): The sequence of node IDs traversed.
+            path (list[str]): The sequential sequence of node identifiers.
 
         Returns:
-            float: The average utility score of the edges in the path.
-                   Returns 0.0 if the path has less than 2 nodes or
-                   if any edge is missing.
+            float: The average utility score. Returns 0.0 if the path is
+                   invalid or contains fewer than two nodes.
         """
         if len(path) < 2:
             return 0.0
@@ -232,24 +233,23 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    Execution Feedback Learning System that drives graph evolution.
+    Execution feedback learning system driving continuous graph evolution.
 
-    Evolves the decision graph by updating edge success and failure weights
-    using real execution feedback. This ensures successful sequences
-    gain higher probability over time, while unstable techniques decay.
+    This engine is responsible for retrospectively updating the utility weights
+    of traversed edges based on real-world outcomes. This backpropagation of
+    success guarantees that reliable strategies gain prominence.
     """
 
     def update(
         self, graph: DecisionGraph, path: list[str], outcome: str
     ) -> None:
         """
-        Updates the success and failure weights of edges in a given path.
-        Handles string outcomes like OUTCOME_SUCCESS.
+        Adjusts the experiential weights of all edges in a completed path.
 
         Args:
-            graph (DecisionGraph): The current decision graph.
-            path (list[str]): The sequence of node IDs traversed.
-            outcome (str): Final outcome (e.g., "SUCCESS", "FAILURE").
+            graph (DecisionGraph): The decision graph undergoing updates.
+            path (list[str]): The sequential path of node identifiers traversed.
+            outcome (str): The final result (e.g., 'SUCCESS', 'FAILURE').
         """
         for frm, to in zip(path[:-1], path[1:]):
             edges = graph.edges.get(frm, [])
@@ -268,31 +268,31 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    Policy Layer for dynamic, utility-based node selection.
+    Policy layer facilitating dynamic, stochastic node selection.
 
-    Selects subsequent nodes via stochastic weighted selection, balancing
-    exploration of weaker paths with the exploitation of strong, known paths.
-    This effectively replaces static decision trees with dynamic AI decisions.
+    By employing weighted stochastic selection, this engine balances the
+    exploration of novel or underdeveloped paths with the exploitation of
+    established, high-yield trajectories.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
         """
-        Initializes the decision engine with a target graph.
+        Constructs the decision engine mapped to a specific graph.
 
         Args:
-            graph (DecisionGraph): The graph used for making decisions.
+            graph (DecisionGraph): The foundational decision ecosystem.
         """
         self.graph = graph
 
     def decide(self, current_node: str) -> str | None:
         """
-        Selects the next node using weighted stochastic selection.
+        Determines the optimal subsequent transition stochastically.
 
         Args:
-            current_node (str): The ID of the node currently occupied.
+            current_node (str): The identifier of the active node.
 
         Returns:
-            str | None: The ID of the next node to transition to.
+            str | None: The identifier of the selected node, or None if halted.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
@@ -313,18 +313,19 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    Main agent loop orchestrating self-evolution and path optimization.
+    Orchestrator driving the core autonomous evolution loop.
 
-    By consistently applying feedback through the learning engine, it cultivates
-    a living decision ecosystem where high-yield workflows become dominant paths.
+    This agent continuously navigates the graph, executes decisions, and
+    applies real-world feedback to cultivate an organically optimizing
+    intelligence ecosystem.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
         """
-        Initializes the self-evolving agent around the given decision graph.
+        Initializes the autonomous agent within the provided decision graph.
 
         Args:
-            graph (DecisionGraph): The environment graph to navigate.
+            graph (DecisionGraph): The environment map to traverse and optimize.
         """
         self.graph = graph
         self.decision_engine = DecisionEngine(graph)
@@ -334,13 +335,13 @@ class SelfEvolvingAgent:
 
     def step(self, outcome_signal: str | None = None) -> str:
         """
-        Executes a single step in the decision graph.
+        Advances the agent one step forward along the decision graph.
 
         Args:
-            outcome_signal (str | None): Optional signal affecting the step.
+            outcome_signal (str | None): Optional signal influencing traversal.
 
         Returns:
-            str: The next node ID or "halt" if no transition is possible.
+            str: The target node identifier, or 'halt' if traversal terminates.
         """
         next_node = self.decision_engine.decide(self.current_node)
         if not next_node:
@@ -353,18 +354,17 @@ class SelfEvolvingAgent:
 
     def feedback(self, outcome: str) -> None:
         """
-        Applies feedback to the learning engine and resets the episode.
+        Submits traversal outcomes to the learning engine and resets state.
 
         Args:
-            outcome (str): The outcome of the episode (e.g., "SUCCESS").
+            outcome (str): The final execution state (e.g., 'SUCCESS').
         """
         self.learner.update(self.graph, self.current_path, outcome)
         self.reset()
 
     def reset(self) -> None:
         """
-        Resets the agent's current path and node to the start state,
-        beginning a new episode.
+        Restores the agent to the starting node to begin a new epoch.
         """
         self.current_node = STATE_START
         self.current_path = [STATE_START]
