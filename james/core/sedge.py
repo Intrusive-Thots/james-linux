@@ -37,16 +37,14 @@ from james.tools.constants import (
 class Node:
     # Core SEDGE class
     """
-    STATE NODE MODEL
-    Each node represents a system situation or decision point.
+    State Node Model representing a system situation or decision point.
 
-    Nodes define the state the system is currently in, mapped to various
-    network discovery, analysis, or action phases. Over time, successful
-    paths become stronger, failed paths decay, and optimal strategies emerge.
+    Nodes define the current system state, mapping to network discovery,
+    analysis, or action phases within the SEDGE graph.
 
     Attributes:
         id (str): The unique identifier for the node.
-        state_type (str): Type of state (e.g., "scan", "analysis", "action").
+        state_type (str): Type of state (e.g., 'scan', 'analysis', 'action').
         metadata (dict[str, Any]): Optional metadata describing the state.
     """
 
@@ -62,18 +60,17 @@ class Node:
 class Edge:
     # Core SEDGE class
     """
-    EDGE MODEL (LEARNING PATHS)
-    Edges store experience weight, representing paths in the directed graph.
+    Edge Model representing transitions and learning paths in the graph.
 
-    Edges hold learned values based on whether traversing this path resulted
-    in success or failure in the past, allowing the system to self-evolve.
+    Edges store experience weights based on whether traversing the path
+    resulted in success or failure, allowing the graph to self-evolve.
 
     Attributes:
         from_node (str): The starting node of the transition.
         to_node (str): The target node of the transition.
-        success_weight (float): Weight from successful outcomes. Defaults 1.0.
-        failure_weight (float): Weight from failed outcomes. Defaults 1.0.
-        visits (int): Number of times edge has been traversed. Defaults 0.
+        success_weight (float): Accumulated success weight. Defaults to 1.0.
+        failure_weight (float): Accumulated failure weight. Defaults to 1.0.
+        visits (int): Total times this edge was traversed. Defaults to 0.
     """
 
     from_node: str
@@ -87,11 +84,11 @@ class Edge:
 
     def score(self) -> float:
         """
-        Calculates the overall utility score of this edge.
+        Calculates the overall utility score for this edge.
 
-        The utility score is computed as the ratio of the success weight
-        to the failure weight, heavily favoring successful paths. A small
-        epsilon is added to the denominator to prevent zero division.
+        The score is computed as the ratio of success weight to failure
+        weight, favoring successful paths. A small epsilon prevents
+        zero division errors.
 
         Returns:
             float: The computed utility score.
@@ -102,15 +99,15 @@ class Edge:
 class DecisionGraph:
     # Core SEDGE class
     """
-    DECISION GRAPH CORE
-    The decision ecosystem representing the Self-Evolving Decision Graph Engine.
+    Core graph representing the Self-Evolving Decision Graph Engine ecosystem.
 
-    The system builds a directed weighted decision graph where:
-      - Nodes = system states or actions
-      - Edges = transitions between decisions
-      - Weights = learned success utility scores
+    The system builds a directed, weighted decision graph utilizing:
+      - Nodes representing system states or actions.
+      - Edges representing transitions between decisions.
+      - Weights tracking learned utility scores based on feedback.
 
-    This structure allows the system to evaluate and navigate optimal paths.
+    This structure enables the system to continuously evaluate, navigate,
+    and adaptively discover optimal traversal paths.
     """
 
     def __init__(self) -> None:
@@ -242,12 +239,11 @@ class DecisionGraph:
 class LearningEngine:
     # Core SEDGE class
     """
-    EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
-    Evolves the graph by updating edge weights based on execution feedback.
+    Execution Feedback Learning System that drives graph evolution.
 
-    This self-evolving mechanism ensures that over time, successful paths
-    become stronger while failed paths decay, allowing optimal strategies
-    to emerge automatically.
+    Evolves the decision graph by adjusting edge weights based on real
+    execution feedback. This mechanism ensures successful paths strengthen
+    over time while failed paths decay, organically yielding optimal strategies.
     """
 
     def update(
@@ -280,12 +276,11 @@ class LearningEngine:
 class DecisionEngine:
     # Core SEDGE class
     """
-    DECISION ENGINE (POLICY LAYER)
-    Makes selections based on utilities, providing a policy layer for
-    making stochastic weighted selections instead of static AI decisions.
+    Policy Layer for dynamic, utility-based node selection.
 
-    This approach naturally balances exploration (trying weak paths occasionally)
-    and exploitation (using strong known paths).
+    Makes transitions using stochastic weighted selection rather than static
+    decision trees. This naturally balances exploration (occasionally testing
+    weaker paths) with exploitation (leveraging established, strong paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -327,13 +322,11 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     # Core SEDGE class
     """
-    SELF-EVOLUTION LOOP
-    The main agent loop that learns optimal paths through self-evolution.
+    Main agent loop orchestrating self-evolution and path optimization.
 
-    By continually applying feedback, this agent builds a living decision
-    ecosystem instead of relying on static scripts. Over time, successful
-    paths gain a stronger traversal probability, while failed paths
-    reduce in probability.
+    By continually applying execution feedback, this agent cultivates a
+    living decision ecosystem. Successful paths gain higher traversal
+    probabilities over time, while unsuccessful paths decay.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
