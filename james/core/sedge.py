@@ -96,12 +96,12 @@ class Edge:
 
 class DecisionGraph:
     """
-    Core graph representing the Self-Evolving Decision Graph Engine ecosystem.
+    Core graph representing the Self-Evolving Decision Graph Engine (SEDGE) ecosystem.
 
     This graph acts as the foundation of the directed, weighted decision
-    system. It utilizes nodes to represent states/actions, edges for
+    system. It utilizes nodes to represent states and actions, edges for
     transitions, and dynamically updated weights based on success utility
-    scores. Over time, successful paths strengthen and failed paths decay.
+    scores. Over time, successful paths strengthen while failed paths decay.
     """
 
     def __init__(self) -> None:
@@ -271,7 +271,7 @@ class DecisionEngine:
     Policy Layer for dynamic, utility-based node selection.
 
     Selects subsequent nodes via stochastic weighted selection, balancing
-    exploration of weaker paths with the exploitation of strong, known paths.
+    the exploration of weaker paths with the exploitation of strong, known paths.
     This effectively replaces static decision trees with dynamic AI decisions.
     """
 
@@ -316,7 +316,7 @@ class SelfEvolvingAgent:
     Main agent loop orchestrating self-evolution and path optimization.
 
     By consistently applying feedback through the learning engine, it cultivates
-    a living decision ecosystem where high-yield workflows become dominant paths.
+    a living decision ecosystem where high-yield workflows naturally become dominant paths.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
