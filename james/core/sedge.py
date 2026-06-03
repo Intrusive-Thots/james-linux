@@ -38,11 +38,10 @@ class Node:
     # Core SEDGE class
     """
     STATE NODE MODEL
-    Each node represents a system situation or decision point.
+    Represents a discrete system situation or decision point.
 
-    Nodes define the state the system is currently in, mapped to various
-    network discovery, analysis, or action phases. Over time, successful
-    paths become stronger, failed paths decay, and optimal strategies emerge.
+    Nodes define the current state of the system, which can be mapped to various
+    network discovery, analysis, or action phases.
 
     Attributes:
         id (str): The unique identifier for the node.
@@ -63,10 +62,10 @@ class Edge:
     # Core SEDGE class
     """
     EDGE MODEL (LEARNING PATHS)
-    Edges store experience weight, representing paths in the directed graph.
+    Represents directed paths storing traversal experience weights.
 
-    Edges hold learned values based on whether traversing this path resulted
-    in success or failure in the past, allowing the system to self-evolve.
+    Edges hold learned values based on historical success or failure,
+    enabling the graph to self-evolve its optimal paths over time.
 
     Attributes:
         from_node (str): The starting node of the transition.
@@ -105,12 +104,9 @@ class DecisionGraph:
     DECISION GRAPH CORE
     The decision ecosystem representing the Self-Evolving Decision Graph Engine.
 
-    The system builds a directed weighted decision graph where:
-      - Nodes = system states or actions
-      - Edges = transitions between decisions
-      - Weights = learned success utility scores
-
-    This structure allows the system to evaluate and navigate optimal paths.
+    Constructs a directed weighted decision graph where nodes act as states
+    or actions, edges define transitions, and weights signify learned utility,
+    allowing the system to navigate toward optimal decision paths.
     """
 
     def __init__(self) -> None:
@@ -243,11 +239,11 @@ class LearningEngine:
     # Core SEDGE class
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
-    Evolves the graph by updating edge weights based on execution feedback.
+    Evolves the graph by updating edge weights based on real execution feedback.
 
-    This self-evolving mechanism ensures that over time, successful paths
-    become stronger while failed paths decay, allowing optimal strategies
-    to emerge automatically.
+    This self-evolving mechanism ensures successful paths become progressively
+    stronger while failed paths decay, facilitating the automatic emergence
+    of optimal strategies.
     """
 
     def update(
@@ -281,11 +277,11 @@ class DecisionEngine:
     # Core SEDGE class
     """
     DECISION ENGINE (POLICY LAYER)
-    Makes selections based on utilities, providing a policy layer for
-    making stochastic weighted selections instead of static AI decisions.
+    Serves as the policy layer making stochastic weighted selections based
+    on learned utility scores rather than static AI logic.
 
-    This approach naturally balances exploration (trying weak paths occasionally)
-    and exploitation (using strong known paths).
+    Naturally balances exploration (occasionally testing weak paths) with
+    exploitation (leveraging strong, known paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -328,12 +324,11 @@ class SelfEvolvingAgent:
     # Core SEDGE class
     """
     SELF-EVOLUTION LOOP
-    The main agent loop that learns optimal paths through self-evolution.
+    The primary agent loop that continuously learns optimal paths.
 
-    By continually applying feedback, this agent builds a living decision
-    ecosystem instead of relying on static scripts. Over time, successful
-    paths gain a stronger traversal probability, while failed paths
-    reduce in probability.
+    By continually applying execution feedback, this agent builds a living,
+    dynamic decision ecosystem where successful paths gain stronger traversal
+    probability over time.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
