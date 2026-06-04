@@ -59,18 +59,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Edge model representing transitions and learning paths within the graph.
+    Model representing transitions and learning paths within the decision graph.
 
-    Edges encapsulate experience weights based on the historical success or
-    failure resulting from traversal. This feedback mechanism facilitates the
-    self-evolution of optimal strategies over time.
+    Edges encapsulate experiential utility weights derived from historical
+    success or failure rates. This feedback mechanism powers the self-evolution
+    of optimal strategies over time.
 
     Attributes:
         from_node (str): The source node identifier.
         to_node (str): The destination node identifier.
         success_weight (float): The accumulated success utility score.
         failure_weight (float): The accumulated failure penalty score.
-        visits (int): The total number of traversals across this edge.
+        visits (int): The total traversals across this edge.
     """
 
     from_node: str
@@ -268,11 +268,11 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    Policy layer facilitating dynamic, stochastic node selection.
+    Policy layer facilitating dynamic and stochastic node selection.
 
-    By employing weighted stochastic selection, this engine balances the
+    By employing stochastic weighted selection, this engine balances the
     exploration of novel or underdeveloped paths with the exploitation of
-    established, high-yield trajectories.
+    established, high-yield trajectories in the graph ecosystem.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
