@@ -106,6 +106,9 @@ class MainWindow(QMainWindow):
         self.orchestrator.on_print = lambda t: self._append_log(t, "INFO")
         self.orchestrator.on_progress = self._on_orchestrator_progress
 
+        # Explicitly initialize persistent animation reference to avoid premature garbage collection
+        self._log_scroll_anim = None
+
         self._append_log("JAMES initialized", "OK")
 
         self._timer = QTimer(self)
@@ -463,7 +466,8 @@ class MainWindow(QMainWindow):
         self.terminal.appendPlainText(formatted)
 
         sb = self.terminal.verticalScrollBar()
-        self._log_scroll_anim = QPropertyAnimation(sb, b"value")
+        # Keep animation instance persistently alive on `self` to prevent GC and enable smooth scrolling
+        self._log_scroll_anim = QPropertyAnimation(sb, b"value", self)
         self._log_scroll_anim.setDuration(250)
         self._log_scroll_anim.setStartValue(sb.value())
         self._log_scroll_anim.setEndValue(sb.maximum())

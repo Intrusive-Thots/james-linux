@@ -255,6 +255,7 @@ class ChatPanel(QWidget):
         self._history: list[str] = []
         self._history_idx = -1
         self._bubble_count = 0
+        self._scroll_anim = None
 
         self._build_ui()
         self._connect_signals()
@@ -472,7 +473,7 @@ class ChatPanel(QWidget):
 
     def _scroll_to_bottom(self):
         sb = self._scroll.verticalScrollBar()
-        self._scroll_anim = QPropertyAnimation(sb, b"value")
+        self._scroll_anim = QPropertyAnimation(sb, b"value", self)
         self._scroll_anim.setDuration(250)
         self._scroll_anim.setStartValue(sb.value())
         self._scroll_anim.setEndValue(sb.maximum())
