@@ -472,6 +472,7 @@ class ChatPanel(QWidget):
         QTimer.singleShot(50, self._scroll_to_bottom)
 
     def _scroll_to_bottom(self):
+        """Smoothly animate the scrollbar to the bottom of the chat panel."""
         sb = self._scroll.verticalScrollBar()
         self._scroll_anim = QPropertyAnimation(sb, b"value", self)
         self._scroll_anim.setDuration(250)

@@ -187,6 +187,19 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertEqual(anim.targetObject(), self.window.terminal.verticalScrollBar())
         self.assertEqual(anim.propertyName(), b"value")
 
+    def test_chat_scroll_anim(self):
+        from PyQt5.QtCore import QPropertyAnimation
+
+        chat_panel = self.window.chat_panel
+        chat_panel._scroll_to_bottom()
+
+        self.assertTrue(hasattr(chat_panel, "_scroll_anim"))
+        anim = chat_panel._scroll_anim
+        self.assertIsNotNone(anim)
+        self.assertIsInstance(anim, QPropertyAnimation)
+        self.assertEqual(anim.targetObject(), chat_panel._scroll.verticalScrollBar())
+        self.assertEqual(anim.propertyName(), b"value")
+
 
 if __name__ == "__main__":
     unittest.main()
