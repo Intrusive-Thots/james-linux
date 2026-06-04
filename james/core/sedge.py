@@ -36,17 +36,16 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    Represents a discrete decision point or systemic state within the graph.
+    Represents a decision point or systemic state within the decision graph.
 
-    Nodes articulate the current situational context of the system, acting as
-    representational waypoints for distinct phases such as network discovery,
-    analysis, or actionable operations within the broader self-evolving
-    decision architecture.
+    Nodes denote the situational context, serving as states for discrete
+    operational phases such as discovery or actionable execution in the
+    self-evolving decision architecture.
 
     Attributes:
-        id (str): The unique string identifier.
-        state_type (str): The categorical type of state (e.g., 'scan', 'action').
-        metadata (dict[str, Any]): Extensible metadata providing contextual state nuances.
+        id (str): Unique string identifier.
+        state_type (str): The categorical state classification ('scan', 'action', etc.).
+        metadata (dict[str, Any]): Metadata for extensible situational tracking.
     """
 
     id: str
@@ -60,18 +59,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Represents directed transitions and cumulative learning trajectories in the graph.
+    Represents directed transitions and cumulative learning trajectories in the decision graph.
 
-    Edges synthesize experiential knowledge by accumulating weighted success or
-    failure metrics derived from historical traversals. This retrospective feedback
-    loop actively drives the self-evolution and refinement of emergent optimal strategies.
+    Edges synthesize experiential knowledge by aggregating success and
+    failure utility metrics derived from historical traversal. This structural
+    feedback loop drives the self-evolution of optimal strategy pipelines.
 
     Attributes:
-        from_node (str): The unique identifier of the origin node.
-        to_node (str): The unique identifier of the destination node.
-        success_weight (float): The progressively aggregated success utility metric.
-        failure_weight (float): The progressively aggregated failure penalty metric.
-        visits (int): The absolute count of executions traversing this specific edge.
+        from_node (str): Unique identifier of the origin node.
+        to_node (str): Unique identifier of the destination node.
+        success_weight (float): Progressively aggregated success metric.
+        failure_weight (float): Progressively aggregated failure penalty metric.
+        visits (int): Count of path traversals over this specific edge.
     """
 
     from_node: str
@@ -99,12 +98,11 @@ class Edge:
 
 class DecisionGraph:
     """
-    The foundational blueprint for the Self-Evolving Decision Graph Engine (SEDGE).
+    The core structural blueprint for the Self-Evolving Decision Graph Engine (SEDGE).
 
-    This pivotal class constructs the underlying directed, weighted decision network.
-    It seamlessly integrates state/action nodes with connective transitional edges.
-    Through continuous execution and feedback iteration, high-yield paths organically
-    fortify while sub-optimal strategies naturally atrophy, driving autonomous optimization.
+    Constructs the directed, weighted decision network, mapping state/action
+    nodes with connective transitional edges. Through execution and feedback iteration,
+    high-yield paths incrementally strengthen while sub-optimal strategies decay.
     """
 
     def __init__(self) -> None:
@@ -234,11 +232,11 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    Execution feedback learning system driving continuous graph evolution.
+    Execution feedback learning system responsible for continuous graph evolution.
 
-    This engine is responsible for retrospectively updating the utility weights
-    of traversed edges based on real-world outcomes. This backpropagation of
-    success guarantees that reliable strategies gain prominence.
+    Updates the utility weights of traversed edges retrospectively based on
+    real-world outcomes, ensuring that successful operational strategies gain
+    prominence through experiential reinforcement.
     """
 
     def update(
@@ -269,11 +267,11 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    Policy layer facilitating dynamic, stochastic node selection.
+    Policy layer facilitating dynamic, stochastic evaluation for node selection.
 
-    By employing weighted stochastic selection, this engine balances the
-    exploration of novel or underdeveloped paths with the exploitation of
-    established, high-yield trajectories.
+    Utilizes weighted stochastic selection to structurally balance the
+    exploration of underdeveloped sub-paths with the systemic exploitation of
+    proven, high-yield trajectories.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -314,11 +312,11 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    Orchestrator driving the core autonomous evolution loop.
+    Orchestrator enabling the core autonomous evolution loop.
 
-    This agent continuously navigates the graph, executes decisions, and
-    applies real-world feedback to cultivate an organically optimizing
-    intelligence ecosystem.
+    Navigates the decision graph continuously, executes state transitions, and
+    applies feedback to systematically cultivate an organically optimizing
+    cybernetic intelligence ecosystem.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -373,18 +371,18 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    Factory function to build the Parrot WiFi SEDGE graph domain map.
+    Factory function establishing the Parrot WiFi SEDGE graph domain map.
 
-    Constructs a decision graph specific to the Parrot WiFi system, containing:
+    Constructs a domain-specific decision graph mapping:
       - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
       - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
       - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    Through continued evaluation, the graph converges toward optimal pipelines
-    where strong paths flourish and weak paths naturally decay.
+    The initialized graph framework ensures convergence toward optimal operation pipelines,
+    fortifying effective pathways while systematically deprecating weak trajectories.
 
     Returns:
-        DecisionGraph: The configured decision graph ecosystem.
+        DecisionGraph: The fully initialized decision graph ecosystem.
     """
     graph = DecisionGraph()
 
