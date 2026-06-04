@@ -36,16 +36,16 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    Represents a decision point or systemic state within the decision graph.
+    Represents a decision point or state in the decision graph.
 
     Nodes denote the situational context, serving as states for discrete
     operational phases such as discovery or actionable execution in the
-    self-evolving decision architecture.
+    decision architecture.
 
     Attributes:
         id (str): Unique string identifier.
-        state_type (str): The categorical state classification ('scan', 'action', etc.).
-        metadata (dict[str, Any]): Metadata for extensible situational tracking.
+        state_type (str): Categorical state classification (e.g., 'scan', 'action').
+        metadata (dict[str, Any]): Metadata for situational tracking.
     """
 
     id: str
@@ -59,18 +59,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Represents directed transitions and cumulative learning trajectories in the decision graph.
+    Represents directed transitions in the decision graph.
 
-    Edges synthesize experiential knowledge by aggregating success and
-    failure utility metrics derived from historical traversal. This structural
-    feedback loop drives the self-evolution of optimal strategy pipelines.
+    Edges store experiential knowledge by aggregating success and failure
+    metrics from historical traversals. This structural feedback loop drives
+    the evolution of strategy pipelines.
 
     Attributes:
-        from_node (str): Unique identifier of the origin node.
-        to_node (str): Unique identifier of the destination node.
-        success_weight (float): Progressively aggregated success metric.
-        failure_weight (float): Progressively aggregated failure penalty metric.
-        visits (int): Count of path traversals over this specific edge.
+        from_node (str): Identifier of the origin node.
+        to_node (str): Identifier of the destination node.
+        success_weight (float): Aggregated success metric.
+        failure_weight (float): Aggregated failure penalty metric.
+        visits (int): Count of path traversals over this edge.
     """
 
     from_node: str
@@ -84,25 +84,25 @@ class Edge:
 
     def score(self) -> float:
         """
-        Computes the proportional utility score for the associated transition.
+        Computes the proportional utility score for the transition.
 
-        The utility score evaluates the relative ratio of the success weight to the
-        failure weight. A small computational epsilon is integrated into the
-        denominator to safely mitigate zero-division anomalies.
+        Evaluates the relative ratio of the success weight to the failure weight.
+        A small epsilon is integrated into the denominator to mitigate
+        zero-division anomalies.
 
         Returns:
-            float: The definitively computed utility score.
+            float: The computed utility score.
         """
         return self.success_weight / (self.failure_weight + SEDGE_EPSILON)
 
 
 class DecisionGraph:
     """
-    The core structural blueprint for the Self-Evolving Decision Graph Engine (SEDGE).
+    Core structural blueprint for the Decision Graph Engine.
 
-    Constructs the directed, weighted decision network, mapping state/action
-    nodes with connective transitional edges. Through execution and feedback iteration,
-    high-yield paths incrementally strengthen while sub-optimal strategies decay.
+    Constructs a directed, weighted decision network mapping states and actions
+    with transitional edges. Through execution feedback, high-yield paths
+    strengthen while sub-optimal strategies decay.
     """
 
     def __init__(self) -> None:
@@ -232,11 +232,10 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    Execution feedback learning system responsible for continuous graph evolution.
+    Execution feedback learning system for graph evolution.
 
-    Updates the utility weights of traversed edges retrospectively based on
-    real-world outcomes, ensuring that successful operational strategies gain
-    prominence through experiential reinforcement.
+    Updates utility weights of traversed edges based on real-world outcomes,
+    ensuring successful strategies gain prominence via experiential reinforcement.
     """
 
     def update(
@@ -267,11 +266,10 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    Policy layer facilitating dynamic, stochastic evaluation for node selection.
+    Policy layer for dynamic, stochastic evaluation in node selection.
 
-    Utilizes weighted stochastic selection to structurally balance the
-    exploration of underdeveloped sub-paths with the systemic exploitation of
-    proven, high-yield trajectories.
+    Uses weighted stochastic selection to balance the exploration of
+    underdeveloped paths with the exploitation of proven, high-yield trajectories.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -312,11 +310,10 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    Orchestrator enabling the core autonomous evolution loop.
+    Orchestrator enabling the autonomous evolution loop.
 
-    Navigates the decision graph continuously, executes state transitions, and
-    applies feedback to systematically cultivate an organically optimizing
-    cybernetic intelligence ecosystem.
+    Navigates the decision graph, executes state transitions, and applies
+    feedback to cultivate an optimizing intelligence ecosystem.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
