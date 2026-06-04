@@ -36,16 +36,17 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    State node model representing a decision point or system situation.
+    Represents a discrete decision point or systemic state within the graph.
 
-    Nodes define the current status of the system, effectively mapping to
-    network discovery, analysis, or actionable phases within the self-evolving
-    decision graph.
+    Nodes articulate the current situational context of the system, acting as
+    representational waypoints for distinct phases such as network discovery,
+    analysis, or actionable operations within the broader self-evolving
+    decision architecture.
 
     Attributes:
-        id (str): The unique identifier.
-        state_type (str): The type of state (e.g., 'scan', 'action').
-        metadata (dict[str, Any]): Arbitrary metadata contextualizing the state.
+        id (str): The unique string identifier.
+        state_type (str): The categorical type of state (e.g., 'scan', 'action').
+        metadata (dict[str, Any]): Extensible metadata providing contextual state nuances.
     """
 
     id: str
@@ -59,18 +60,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Edge model representing transitions and learning paths within the graph.
+    Represents directed transitions and cumulative learning trajectories in the graph.
 
-    Edges encapsulate experience weights based on the historical success or
-    failure resulting from traversal. This feedback mechanism facilitates the
-    self-evolution of optimal strategies over time.
+    Edges synthesize experiential knowledge by accumulating weighted success or
+    failure metrics derived from historical traversals. This retrospective feedback
+    loop actively drives the self-evolution and refinement of emergent optimal strategies.
 
     Attributes:
-        from_node (str): The source node identifier.
-        to_node (str): The destination node identifier.
-        success_weight (float): The accumulated success utility score.
-        failure_weight (float): The accumulated failure penalty score.
-        visits (int): The total number of traversals across this edge.
+        from_node (str): The unique identifier of the origin node.
+        to_node (str): The unique identifier of the destination node.
+        success_weight (float): The progressively aggregated success utility metric.
+        failure_weight (float): The progressively aggregated failure penalty metric.
+        visits (int): The absolute count of executions traversing this specific edge.
     """
 
     from_node: str
@@ -84,26 +85,26 @@ class Edge:
 
     def score(self) -> float:
         """
-        Computes the overall utility score for this transition.
+        Computes the proportional utility score for the associated transition.
 
-        The utility score is the ratio of the success weight to the failure
-        weight. A minimal epsilon is added to the denominator to prevent
-        zero division.
+        The utility score evaluates the relative ratio of the success weight to the
+        failure weight. A small computational epsilon is integrated into the
+        denominator to safely mitigate zero-division anomalies.
 
         Returns:
-            float: The computed utility score.
+            float: The definitively computed utility score.
         """
         return self.success_weight / (self.failure_weight + SEDGE_EPSILON)
 
 
 class DecisionGraph:
     """
-    Core representation of the Self-Evolving Decision Graph Engine (SEDGE).
+    The foundational blueprint for the Self-Evolving Decision Graph Engine (SEDGE).
 
-    This structure is the foundation of the directed, weighted decision
-    system. Nodes represent states or actions, and edges represent transitions.
-    Over time, successful paths organically strengthen while failed paths decay,
-    enabling dynamic AI optimization.
+    This pivotal class constructs the underlying directed, weighted decision network.
+    It seamlessly integrates state/action nodes with connective transitional edges.
+    Through continuous execution and feedback iteration, high-yield paths organically
+    fortify while sub-optimal strategies naturally atrophy, driving autonomous optimization.
     """
 
     def __init__(self) -> None:
