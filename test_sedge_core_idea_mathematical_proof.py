@@ -155,5 +155,36 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         # Verify edge score mathematical dominance
         self.assertGreater(handshake_edge.score(), deauth_edge.score() * 10)
 
+    def test_zero_utility_fallback_distribution(self):
+        """
+        Proof of uniform random selection fallback when total weight is <= 0.0.
+        """
+        decision_engine = DecisionEngine(self.graph)
+
+        edge_x = Edge(from_node="A", to_node="X", success_weight=0.0, failure_weight=1.0)
+        edge_y = Edge(from_node="A", to_node="Y", success_weight=0.0, failure_weight=1.0)
+        edge_z = Edge(from_node="A", to_node="Z", success_weight=0.0, failure_weight=1.0)
+
+        self.graph.add_edge(edge_x)
+        self.graph.add_edge(edge_y)
+        self.graph.add_edge(edge_z)
+
+        counts = {"X": 0, "Y": 0, "Z": 0}
+        iterations = 20000
+
+        for _ in range(iterations):
+            choice = decision_engine.decide("A")
+            counts[choice] += 1
+
+        ratio_x = counts["X"] / iterations
+        ratio_y = counts["Y"] / iterations
+        ratio_z = counts["Z"] / iterations
+
+        # Expected ratio: ~0.333 each
+        self.assertAlmostEqual(ratio_x, 1/3, delta=0.05)
+        self.assertAlmostEqual(ratio_y, 1/3, delta=0.05)
+        self.assertAlmostEqual(ratio_z, 1/3, delta=0.05)
+
+
 if __name__ == '__main__':
     unittest.main()
