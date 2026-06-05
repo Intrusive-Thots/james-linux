@@ -185,6 +185,55 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.assertAlmostEqual(ratio_y, 1/3, delta=0.05)
         self.assertAlmostEqual(ratio_z, 1/3, delta=0.05)
 
+    def test_exploration_vs_exploitation_decay(self):
+        """
+        Mathematical proof that failing paths naturally decay over time to balance
+        exploration vs exploitation. Simulates repeated paths with failures for one edge
+        to explicitly test its failure weight increasing and selection probability decaying.
+        """
+        decision_engine = DecisionEngine(self.graph)
+
+        edge_exploit = Edge(from_node="A", to_node="Exploit", success_weight=10.0, failure_weight=1.0)
+        edge_explore = Edge(from_node="A", to_node="Explore", success_weight=2.0, failure_weight=1.0)
+
+        self.graph.add_edge(edge_exploit)
+        self.graph.add_edge(edge_explore)
+
+        initial_score_exploit = edge_exploit.score()
+        initial_score_explore = edge_explore.score()
+
+        self.assertEqual(initial_score_explore, 2.0 / (1.0 + 1e-6))
+
+        # Simulate failures on the exploration path to decay it
+        learner = LearningEngine()
+        for _ in range(5):
+            learner.update(self.graph, ["A", "Explore"], OUTCOME_FAILURE)
+
+        final_score_explore = edge_explore.score()
+
+        self.assertGreater(initial_score_explore, final_score_explore)
+        self.assertEqual(edge_explore.failure_weight, 6.0)
+        self.assertEqual(edge_explore.success_weight, 2.0)
+
+        # Verify probability decay
+        counts = {"Exploit": 0, "Explore": 0}
+        iterations = 5000
+
+        for _ in range(iterations):
+            choice = decision_engine.decide("A")
+            counts[choice] += 1
+
+        ratio_exploit = counts["Exploit"] / iterations
+        ratio_explore = counts["Explore"] / iterations
+
+        # Exploit score ~ 10, Explore score ~ 0.333
+        # Total score ~ 10.333
+        # Prob Explore ~ 0.333 / 10.333 ~ 0.032
+        # Prob Exploit ~ 10 / 10.333 ~ 0.967
+
+        self.assertAlmostEqual(ratio_exploit, 0.967, delta=0.03)
+        self.assertAlmostEqual(ratio_explore, 0.032, delta=0.03)
+
 
 if __name__ == '__main__':
     unittest.main()
