@@ -273,9 +273,10 @@ class DecisionEngine:
     """
     Strategic policy layer for dynamic, stochastic node evaluation and selection.
 
-    Leverages sophisticated weighted stochastic selection methodologies to naturally
-    balance the explorative testing of underdeveloped paths with the direct
-    exploitation of mathematically proven, high-yield tactical trajectories.
+    It replaces static AI decisions by employing a weighted stochastic selection
+    mechanism. This naturally balances:
+      - Exploration: Occasional testing of weaker, underdeveloped paths.
+      - Exploitation: Dominant reliance on mathematically proven, high-yield strategies.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -317,11 +318,13 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    Central orchestrator driving the fully autonomous evolution loop.
+    Central orchestrator driving the fully autonomous self-evolution loop.
 
     Actively navigates the underlying decision graph, executes strategic state
-    transitions, and applies outcome feedback to continuously cultivate and
-    refine an optimizing intelligence ecosystem.
+    transitions, and applies outcome feedback. Over time, successful sequences
+    gain higher success weights and stronger traversal probabilities, while failed
+    sequences gain higher failure weights and decaying probability, ultimately
+    leading to the emergence of optimal operational pathways.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
