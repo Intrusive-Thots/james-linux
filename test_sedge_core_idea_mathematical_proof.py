@@ -67,7 +67,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 10000
+        iterations = 20000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -81,6 +81,32 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         # Prob B ~ 0.8, Prob C ~ 0.2
         self.assertAlmostEqual(ratio_b, 0.8, delta=0.05)
         self.assertAlmostEqual(ratio_c, 0.2, delta=0.05)
+
+    def test_mathematical_uniform_fallback(self):
+        """
+        Proves that zero-utility scores correctly trigger a mathematical uniform fallback distribution.
+        """
+        decision_engine = DecisionEngine(self.graph)
+
+        edge_b = Edge(from_node="A", to_node="B", success_weight=0.0, failure_weight=0.0)
+        edge_c = Edge(from_node="A", to_node="C", success_weight=0.0, failure_weight=0.0)
+
+        self.graph.add_edge(edge_b)
+        self.graph.add_edge(edge_c)
+
+        counts = {"B": 0, "C": 0}
+        iterations = 20000
+
+        for _ in range(iterations):
+            choice = decision_engine.decide("A")
+            counts[choice] += 1
+
+        ratio_b = counts["B"] / iterations
+        ratio_c = counts["C"] / iterations
+
+        # Expected uniform distribution for two choices is ~0.5 each
+        self.assertAlmostEqual(ratio_b, 0.5, delta=0.05)
+        self.assertAlmostEqual(ratio_c, 0.5, delta=0.05)
 
     def test_learning_engine_backpropagation(self):
         """
@@ -109,7 +135,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
-        Simulates 2000 runs to guarantee mathematical dominance of the successful path.
+        Simulates 20000 runs to guarantee mathematical dominance of the successful path.
         """
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
@@ -117,7 +143,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         handshake_selections = 0
         deauth_selections = 0
 
-        for _ in range(2000):
+        for _ in range(20000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
             # ACTION_DEAUTH_TEST has 10% success probability

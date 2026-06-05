@@ -1,13 +1,9 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
 
-# SEDGE CORE IDEA implementation
-
 Core Idea:
-The system builds a directed weighted decision graph where:
-  - Nodes = system states or actions
-  - Edges = transitions between decisions
-  - Weights = learned success utility scores
+The system builds a directed weighted decision graph where nodes represent system states or actions, and edges represent transitions between decisions.
+Weights on edges are learned success utility scores.
 
 Over time, successful paths become stronger and failed paths decay,
 allowing optimal strategies to emerge automatically.
