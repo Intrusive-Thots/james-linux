@@ -26,9 +26,11 @@ from james.tools.constants import (
 
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
-    Mathematical proof and comprehensive test suite for the SEDGE behavior.
-    Proves that successful paths strengthen, failed paths decay, and optimal
-    strategies automatically emerge.
+    Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA behavior.
+    Explicitly proves that over time, successful paths become stronger, failed paths decay,
+    optimal strategies emerge automatically, and the system naturally balances
+    exploration vs exploitation via stochastic weighted selection. This creates
+    a living decision ecosystem instead of static scripts.
     """
 
     def setUp(self):
@@ -37,7 +39,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_mathematical_edge_scoring(self):
         """
-        Proof of scoring mathematically mitigating zero division and scaling properly.
+        Mathematical proof of edge scoring proving how successful paths become stronger
+        and failed paths decay based on learned success utility scores.
         """
         edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=1.0)
         self.assertAlmostEqual(edge.score(), 0.999999, places=5)
@@ -84,7 +87,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_learning_engine_backpropagation(self):
         """
-        Mathematical validation of weight adjustment across nodes.
+        EXECUTION FEEDBACK LEARNING proof: Mathematical validation showing how the system
+        adjusts learned success utility scores so successful paths become stronger.
         """
         edge1 = Edge(from_node="A", to_node="B")
         edge2 = Edge(from_node="B", to_node="C")
@@ -109,7 +113,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
-        Simulates 20000 runs to guarantee mathematical dominance of the successful path.
+        Proves that over time, successful paths become stronger, failed paths decay,
+        and optimal strategies emerge automatically using stochastic weighted selection.
         """
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
@@ -187,9 +192,10 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_exploration_vs_exploitation_decay(self):
         """
-        Mathematical proof that failing paths naturally decay over time to balance
-        exploration vs exploitation. Simulates repeated paths with failures for one edge
-        to explicitly test its failure weight increasing and selection probability decaying.
+        Mathematical proof showing how the system creates a natural balance between
+        exploration vs exploitation via stochastic weighted selection. Proves that
+        failing paths decay (higher failure weights, reduced probability) while
+        preserving exploration (trying weak paths occasionally).
         """
         decision_engine = DecisionEngine(self.graph)
 
