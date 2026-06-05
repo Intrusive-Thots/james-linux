@@ -67,7 +67,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 10000
+        iterations = 20000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -217,7 +217,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
         # Verify probability decay
         counts = {"Exploit": 0, "Explore": 0}
-        iterations = 5000
+        iterations = 20000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
