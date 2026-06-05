@@ -289,23 +289,24 @@ class DecisionEngine:
 
     def decide(self, current_node: str) -> str | None:
         """
-        Determines the optimal subsequent transition stochastically.
+        Determines the optimal subsequent transition stochastically using utility scores.
 
         Args:
-            current_node (str): The identifier of the active node.
+            current_node (str): The identifier of the currently active node.
 
         Returns:
-            str | None: The identifier of the selected node, or None if halted.
+            str | None: The identifier of the stochastically selected subsequent node,
+                        or None if no valid candidate paths exist.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
             return None
 
-        # weighted stochastic selection (exploration + exploitation)
+        # Calculate utility scores for weighted stochastic selection
         weights = [c.score() for c in candidates]
         total = sum(weights)
 
-        # Handle zero-division edge case and fallback to uniform selection
+        # Fallback to uniform random selection if cumulative utility is non-positive
         if total <= 0.0:
             return random.choice(candidates).to_node
 
