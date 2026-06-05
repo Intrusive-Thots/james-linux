@@ -1,16 +1,18 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
 
-# SEDGE CORE IDEA implementation
+# SEDGE CORE IDEA Implementation
 
-Core Idea:
-The system builds a directed weighted decision graph where:
-  - Nodes = system states or actions
-  - Edges = transitions between decisions
-  - Weights = learned success utility scores
+This module provides the complete and fully functional implementation of the
+Self-Evolving Decision Graph Engine (SEDGE). The system constructs a directed,
+weighted decision graph where:
+  - Nodes: System states or actionable decision points.
+  - Edges: Directed transitions mapping decisions.
+  - Weights: Empirically learned utility scores reflecting success rates.
 
-Over time, successful paths become stronger and failed paths decay,
-allowing optimal strategies to emerge automatically.
+Through iterative execution feedback, successful operational pathways naturally
+strengthen while suboptimal trajectories decay, enabling the autonomous
+emergence of optimal strategy pipelines.
 """
 
 import random
@@ -36,16 +38,16 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    Represents a decision point or state in the decision graph.
+    Represents a discrete decision point or operational state within the SEDGE graph.
 
-    Nodes denote the situational context, serving as states for discrete
-    operational phases such as discovery or actionable execution in the
-    decision architecture.
+    Nodes encapsulate the situational context of the system, defining either
+    navigational phases (e.g., 'discovery', 'analysis') or concrete execution
+    actions within the autonomous decision architecture.
 
     Attributes:
-        id (str): Unique string identifier.
-        state_type (str): Categorical state classification (e.g., 'scan', 'action').
-        metadata (dict[str, Any]): Metadata for situational tracking.
+        id (str): Unique string identifier for the node.
+        state_type (str): Categorical classification of the state (e.g., 'scan', 'action').
+        metadata (dict[str, Any]): Optional contextual tracking metadata.
     """
 
     id: str
@@ -59,18 +61,18 @@ class Node:
 @dataclass
 class Edge:
     """
-    Represents directed transitions in the decision graph.
+    Represents a directed transitional vector within the decision graph.
 
-    Edges store experiential knowledge by aggregating success and failure
-    metrics from historical traversals. This structural feedback loop drives
-    the evolution of strategy pipelines.
+    Edges persist experiential learning by aggregating probabilistic success and
+    failure metrics derived from historical traversals. This continuous structural
+    feedback mechanism natively drives the optimization of the strategy pipeline.
 
     Attributes:
         from_node (str): Identifier of the origin node.
         to_node (str): Identifier of the destination node.
-        success_weight (float): Aggregated success metric.
-        failure_weight (float): Aggregated failure penalty metric.
-        visits (int): Count of path traversals over this edge.
+        success_weight (float): Accumulated success utility metric.
+        failure_weight (float): Accumulated failure penalty metric.
+        visits (int): Total occurrences of path traversal along this vector.
     """
 
     from_node: str
@@ -98,11 +100,12 @@ class Edge:
 
 class DecisionGraph:
     """
-    Core structural blueprint for the Decision Graph Engine.
+    Core structural blueprint establishing the Decision Graph Engine.
 
-    Constructs a directed, weighted decision network mapping states and actions
-    with transitional edges. Through execution feedback, high-yield paths
-    strengthen while sub-optimal strategies decay.
+    Constructs and maintains a robust directed, weighted decision network that
+    maps operational states and actions via transitional edges. Empowered by
+    execution feedback, this complete implementation ensures high-yield pathways
+    naturally compound in priority while suboptimal techniques gracefully decay.
     """
 
     def __init__(self) -> None:
@@ -232,10 +235,12 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    Execution feedback learning system for graph evolution.
+    Experiential feedback integration system enabling autonomous graph evolution.
 
-    Updates utility weights of traversed edges based on real-world outcomes,
-    ensuring successful strategies gain prominence via experiential reinforcement.
+    Dynamically adjusts the utility weights of historically traversed edges
+    based on verifiable real-world execution outcomes. This engine guarantees
+    that successful, high-value strategies predictably gain mathematical
+    prominence through experiential reinforcement.
     """
 
     def update(
@@ -266,10 +271,11 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    Policy layer for dynamic, stochastic evaluation in node selection.
+    Strategic policy layer for dynamic, stochastic node evaluation and selection.
 
-    Uses weighted stochastic selection to balance the exploration of
-    underdeveloped paths with the exploitation of proven, high-yield trajectories.
+    Leverages sophisticated weighted stochastic selection methodologies to naturally
+    balance the explorative testing of underdeveloped paths with the direct
+    exploitation of mathematically proven, high-yield tactical trajectories.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -310,10 +316,11 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    Orchestrator enabling the autonomous evolution loop.
+    Central orchestrator driving the fully autonomous evolution loop.
 
-    Navigates the decision graph, executes state transitions, and applies
-    feedback to cultivate an optimizing intelligence ecosystem.
+    Actively navigates the underlying decision graph, executes strategic state
+    transitions, and applies outcome feedback to continuously cultivate and
+    refine an optimizing intelligence ecosystem.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
