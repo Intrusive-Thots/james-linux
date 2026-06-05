@@ -109,7 +109,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
-        Simulates 2000 runs to guarantee mathematical dominance of the successful path.
+        Simulates 20000 runs to guarantee mathematical dominance of the successful path.
         """
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
@@ -118,7 +118,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         deauth_selections = 0
 
         import random
-        for _ in range(2000):
+        for _ in range(20000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
             # ACTION_DEAUTH_TEST has 10% success probability

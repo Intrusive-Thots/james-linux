@@ -38,7 +38,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    Represents a discrete decision point or operational state within the SEDGE graph.
+    Represents a discrete decision point or an operational state within the SEDGE graph.
 
     Nodes encapsulate the situational context of the system, defining either
     navigational phases (e.g., 'discovery', 'analysis') or concrete execution
@@ -61,7 +61,7 @@ class Node:
 @dataclass
 class Edge:
     """
-    Represents a directed transitional vector within the decision graph.
+    Represents a directed transitional vector within the SEDGE decision graph.
 
     Edges persist experiential learning by aggregating probabilistic success and
     failure metrics derived from historical traversals. This continuous structural
