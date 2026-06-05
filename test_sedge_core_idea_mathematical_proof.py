@@ -117,6 +117,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         handshake_selections = 0
         deauth_selections = 0
 
+        import random
         for _ in range(2000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
@@ -130,12 +131,12 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
                     break
 
                 if node == ACTION_HANDSHAKE_CAPTURE:
-                    outcome = OUTCOME_SUCCESS if True else OUTCOME_FAILURE
-                    # Simplify to always succeed for faster mathematical convergence
-                    outcome = OUTCOME_SUCCESS
+                    # Simulate 90% true mathematical success rate
+                    outcome = OUTCOME_SUCCESS if random.random() < 0.90 else OUTCOME_FAILURE
                     break
                 elif node == ACTION_DEAUTH_TEST:
-                    outcome = OUTCOME_FAILURE
+                    # Simulate 10% true mathematical success rate
+                    outcome = OUTCOME_SUCCESS if random.random() < 0.10 else OUTCOME_FAILURE
                     break
 
             agent.feedback(outcome)
