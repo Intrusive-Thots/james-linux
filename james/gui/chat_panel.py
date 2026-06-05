@@ -366,6 +366,7 @@ class ChatPanel(QWidget):
         self._btn_send.setObjectName("primaryBtn")
         self._btn_send.setFixedWidth(84)
         self._btn_send.setFixedHeight(36)
+        self._btn_send.setToolTip("Send command to JAMES (Enter)")
 
         self._btn_clear = QPushButton("Clear")
         self._btn_clear.setFixedWidth(64)
