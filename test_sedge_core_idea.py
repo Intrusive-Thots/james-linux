@@ -101,7 +101,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 20000
+        iterations = 50000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
@@ -124,7 +124,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
 
-        iterations = 20000
+        iterations = 50000
         handshake_selections = 0
         deauth_selections = 0
 
@@ -197,7 +197,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         # When utility is zero for all, it should fallback to uniform random selection
         counts = {"B": 0, "C": 0}
-        iterations = 20000
+        iterations = 50000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1

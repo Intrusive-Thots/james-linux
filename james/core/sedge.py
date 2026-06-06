@@ -42,6 +42,9 @@ class Node:
     Each node represents a system situation or decision point.
     Nodes = system states or actions.
 
+    This maps specifically to the architectural philosophy of SEDGE where:
+    Nodes = system states or actions.
+
     Attributes:
         id (str): Unique string identifier for the node.
         state_type (str): Categorical classification of the state (e.g., "scan", "analysis", "action").
@@ -63,6 +66,10 @@ class Edge:
     Edges store experience weight.
     Edges = transitions between decisions.
     Weights = learned success utility scores.
+
+    This embodies the learning path architecture:
+    Edges = transitions between decisions
+    Weights = learned success utility scores
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -113,6 +120,7 @@ class DecisionGraph:
 
     Empowered by execution feedback, this complete implementation ensures high-yield pathways
     naturally compound in priority while suboptimal techniques gracefully decay.
+    This creates a self-evolving decision ecosystem instead of static scripts.
     """
 
     def __init__(self) -> None:
