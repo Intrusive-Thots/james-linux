@@ -42,6 +42,7 @@ class Node:
     """
     STATE NODE MODEL
     Each node represents a system situation or decision point.
+    Nodes = system states or actions.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -62,6 +63,8 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
     Edges store experience weight.
+    Edges = transitions between decisions.
+    Weights = learned success utility scores.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -99,8 +102,18 @@ class DecisionGraph:
     DECISION GRAPH CORE
 
     Constructs and maintains a robust directed, weighted decision network that
-    maps operational states and actions via transitional edges. Empowered by
-    execution feedback, this complete implementation ensures high-yield pathways
+    maps operational states and actions via transitional edges.
+    The system builds a directed weighted decision graph where:
+    Nodes = system states or actions
+    Edges = transitions between decisions
+    Weights = learned success utility scores
+
+    Over time:
+    - successful paths become stronger
+    - failed paths decay
+    - optimal strategies emerge automatically
+
+    Empowered by execution feedback, this complete implementation ensures high-yield pathways
     naturally compound in priority while suboptimal techniques gracefully decay.
     """
 
@@ -325,6 +338,10 @@ class SelfEvolvingAgent:
     HOW IT LEARNS OPTIMAL PATHS
 
     Over time:
+    - successful paths become stronger
+    - failed paths decay
+    - optimal strategies emerge automatically
+
     Successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
     - higher success_weight

@@ -106,7 +106,19 @@ class TestSedgeCoreIdea(unittest.TestCase):
             choice = decision_engine.decide("A")
             counts[choice] += 1
 
-        self.assertGreater(counts["B"], counts["C"] * 10)
+        # Check probability ratios matching mathematical expectations
+        ratio_b = counts["B"] / iterations
+        ratio_c = counts["C"] / iterations
+
+        score_b = edge_b.score()
+        score_c = edge_c.score()
+        total_score = score_b + score_c
+
+        expected_b = score_b / total_score
+        expected_c = score_c / total_score
+
+        self.assertAlmostEqual(ratio_b, expected_b, delta=0.05)
+        self.assertAlmostEqual(ratio_c, expected_c, delta=0.05)
 
     def test_self_evolving_loop_and_convergence(self):
         graph = build_parrot_wifi_graph()
@@ -191,8 +203,10 @@ class TestSedgeCoreIdea(unittest.TestCase):
             counts[choice] += 1
 
         # Check that it falls back to uniform distribution roughly
-        self.assertGreater(counts["B"], 100)
-        self.assertGreater(counts["C"], 100)
+        ratio_b = counts["B"] / iterations
+        ratio_c = counts["C"] / iterations
+        self.assertAlmostEqual(ratio_b, 0.5, delta=0.05)
+        self.assertAlmostEqual(ratio_c, 0.5, delta=0.05)
 
 
 if __name__ == "__main__":
