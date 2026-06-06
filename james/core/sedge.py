@@ -40,7 +40,6 @@ class Node:
     """
     STATE NODE MODEL
     Each node represents a system situation or decision point.
-    Nodes = system states or actions.
 
     This maps specifically to the architectural philosophy of SEDGE where:
     Nodes = system states or actions.
@@ -64,8 +63,6 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
     Edges store experience weight.
-    Edges = transitions between decisions.
-    Weights = learned success utility scores.
 
     This embodies the learning path architecture:
     Edges = transitions between decisions
@@ -292,8 +289,8 @@ class DecisionEngine:
 
     EXPLORATION vs EXPLOITATION
     System naturally balances:
-    exploration (trying weak paths occasionally)
-    exploitation (using strong known paths)
+    - exploration (trying weak paths occasionally)
+    - exploitation (using strong known paths)
 
     This is achieved via:
     stochastic weighted selection
@@ -346,13 +343,13 @@ class SelfEvolvingAgent:
     Over time:
     successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
-    higher success_weight
-    stronger traversal probability
+    - higher success_weight
+    - stronger traversal probability
 
     Failed sequences: scan -> aggressive_attack -> fail
     gain:
-    higher failure_weight
-    reduced probability
+    - higher failure_weight
+    - reduced probability
     """
 
     def __init__(self, graph: DecisionGraph) -> None:

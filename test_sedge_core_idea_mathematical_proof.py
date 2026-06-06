@@ -54,6 +54,29 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         edge.failure_weight = 0.0
         self.assertGreater(edge.score(), 999999)
 
+    def test_mathematical_path_scoring(self):
+        """
+        Mathematical proof of average utility score across traversal paths.
+        """
+        edge1 = Edge(from_node="A", to_node="B", success_weight=3.0, failure_weight=1.0) # score ~ 3.0
+        edge2 = Edge(from_node="B", to_node="C", success_weight=5.0, failure_weight=1.0) # score ~ 5.0
+
+        self.graph.add_edge(edge1)
+        self.graph.add_edge(edge2)
+
+        path = ["A", "B", "C"]
+        score = self.graph.get_path_score(path)
+
+        # Expected score: (3.0 + 5.0) / 2 = 4.0
+        self.assertAlmostEqual(score, 4.0, delta=0.01)
+
+        # Invalid path (broken link)
+        path = ["A", "C"]
+        self.assertEqual(self.graph.get_path_score(path), 0.0)
+
+        # Path with fewer than 2 nodes
+        self.assertEqual(self.graph.get_path_score(["A"]), 0.0)
+
     def test_mathematical_probability_convergence(self):
         """
         Proves that stochastic selection converges optimally with law of large numbers.
