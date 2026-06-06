@@ -290,10 +290,10 @@ class DecisionEngine:
     DECISION ENGINE (POLICY LAYER)
     This replaces static "AI decisions".
 
-    It replaces static AI decisions by employing a weighted stochastic selection
-    mechanism. System naturally balances:
-      - exploration (trying weak paths occasionally)
-      - exploitation (using strong known paths)
+    EXPLORATION vs EXPLOITATION
+    System naturally balances:
+    exploration (trying weak paths occasionally)
+    exploitation (using strong known paths)
 
     This is achieved via:
     stochastic weighted selection
@@ -341,22 +341,18 @@ class SelfEvolvingAgent:
     SELF-EVOLUTION LOOP
     This is where learning actually happens.
 
-    HOW IT "LEARNS OPTIMAL PATHS"
+    HOW IT LEARNS OPTIMAL PATHS
 
     Over time:
-    - successful paths become stronger
-    - failed paths decay
-    - optimal strategies emerge automatically
-
-    Successful sequences: scan -> analyze -> handshake_capture -> validate
+    successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
-    - higher success_weight
-    - stronger traversal probability
+    higher success_weight
+    stronger traversal probability
 
     Failed sequences: scan -> aggressive_attack -> fail
     gain:
-    - higher failure_weight
-    - reduced probability
+    higher failure_weight
+    reduced probability
     """
 
     def __init__(self, graph: DecisionGraph) -> None:

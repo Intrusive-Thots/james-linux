@@ -67,7 +67,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 100000
+        iterations = 200000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -79,8 +79,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         # Expected ratios based on scores:
         # B score ~ 80, C score ~ 20. Total ~ 100
         # Prob B ~ 0.8, Prob C ~ 0.2
-        self.assertAlmostEqual(ratio_b, 0.8, delta=0.05)
-        self.assertAlmostEqual(ratio_c, 0.2, delta=0.05)
+        self.assertAlmostEqual(ratio_b, 0.8, delta=0.02)
+        self.assertAlmostEqual(ratio_c, 0.2, delta=0.02)
 
     def test_learning_engine_backpropagation(self):
         """
@@ -109,7 +109,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
-        Simulates 100000 runs to guarantee mathematical dominance of the successful path.
+        Simulates 200000 runs to guarantee mathematical dominance of the successful path.
         This verifies the core architectural principles from the design.
         """
         graph = build_parrot_wifi_graph()
@@ -119,7 +119,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         deauth_selections = 0
 
         import random
-        for _ in range(100000):
+        for _ in range(200000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
             # ACTION_DEAUTH_TEST has 10% success probability
@@ -171,7 +171,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_z)
 
         counts = {"X": 0, "Y": 0, "Z": 0}
-        iterations = 100000
+        iterations = 200000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -182,9 +182,9 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_z = counts["Z"] / iterations
 
         # Expected ratio: ~0.333 each
-        self.assertAlmostEqual(ratio_x, 1/3, delta=0.05)
-        self.assertAlmostEqual(ratio_y, 1/3, delta=0.05)
-        self.assertAlmostEqual(ratio_z, 1/3, delta=0.05)
+        self.assertAlmostEqual(ratio_x, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_y, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_z, 1/3, delta=0.02)
 
     def test_exploration_vs_exploitation_decay(self):
         """
@@ -218,7 +218,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
         # Verify probability decay
         counts = {"Exploit": 0, "Explore": 0}
-        iterations = 100000
+        iterations = 200000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -232,8 +232,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         # Prob Explore ~ 0.333 / 10.333 ~ 0.032
         # Prob Exploit ~ 10 / 10.333 ~ 0.967
 
-        self.assertAlmostEqual(ratio_exploit, 0.967, delta=0.03)
-        self.assertAlmostEqual(ratio_explore, 0.032, delta=0.03)
+        self.assertAlmostEqual(ratio_exploit, 0.967, delta=0.02)
+        self.assertAlmostEqual(ratio_explore, 0.032, delta=0.02)
 
 
 if __name__ == '__main__':
