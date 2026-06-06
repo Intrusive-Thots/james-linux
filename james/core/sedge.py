@@ -341,7 +341,7 @@ class SelfEvolvingAgent:
     HOW IT LEARNS OPTIMAL PATHS
 
     Over time:
-    successful sequences: scan -> analyze -> handshake_capture -> validate
+    Successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
     - higher success_weight
     - stronger traversal probability
