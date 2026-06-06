@@ -98,10 +98,15 @@ class DecisionGraph:
     """
     DECISION GRAPH CORE
 
-    Constructs and maintains a robust directed, weighted decision network that
-    maps operational states and actions via transitional edges. Empowered by
-    execution feedback, this complete implementation ensures high-yield pathways
-    naturally compound in priority while suboptimal techniques gracefully decay.
+    The system builds a directed weighted decision graph where:
+    Nodes = system states or actions
+    Edges = transitions between decisions
+    Weights = learned success utility scores
+
+    Over time:
+    successful paths become stronger
+    failed paths decay
+    optimal strategies emerge automatically
     """
 
     def __init__(self) -> None:
@@ -271,8 +276,7 @@ class DecisionEngine:
     DECISION ENGINE (POLICY LAYER)
     This replaces static "AI decisions".
 
-    It replaces static AI decisions by employing a weighted stochastic selection
-    mechanism. This naturally balances:
+    System naturally balances:
       - exploration (trying weak paths occasionally)
       - exploitation (using strong known paths)
 
