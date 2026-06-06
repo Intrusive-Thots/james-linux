@@ -67,7 +67,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 20000
+        iterations = 50000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -118,7 +118,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         deauth_selections = 0
 
         import random
-        for _ in range(20000):
+        for _ in range(50000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
             # ACTION_DEAUTH_TEST has 10% success probability
@@ -170,7 +170,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.graph.add_edge(edge_z)
 
         counts = {"X": 0, "Y": 0, "Z": 0}
-        iterations = 20000
+        iterations = 50000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
@@ -217,7 +217,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
         # Verify probability decay
         counts = {"Exploit": 0, "Explore": 0}
-        iterations = 20000
+        iterations = 50000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")

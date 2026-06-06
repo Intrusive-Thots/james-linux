@@ -1,20 +1,13 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
 
-# SEDGE CORE IDEA
+The SEDGE system builds a directed weighted decision graph where nodes represent system states or actions,
+and edges define the transitions between decisions. Transition weights correspond to learned success utility scores.
 
-The system builds a directed weighted decision graph where:
-
-Nodes = system states or actions
-Edges = transitions between decisions
-Weights = learned success utility scores
-
-Over time:
-- successful paths become stronger
-- failed paths decay
-- optimal strategies emerge automatically
-
-ARCHITECTURE
+Through continuous execution feedback, the system exhibits self-evolving capabilities:
+- Successful paths predictably gain mathematical prominence.
+- Suboptimal or failed paths naturally decay.
+- Optimal strategies emerge autonomously, shifting the paradigm from static scripts to a living decision ecosystem.
 """
 
 import random
@@ -41,12 +34,14 @@ from james.tools.constants import (
 class Node:
     """
     STATE NODE MODEL
-    Each node represents a system situation or decision point.
+
+    Each node in the decision graph encapsulates a distinct system situation or decision point,
+    acting as either a state representation or an actionable transition mechanism.
 
     Attributes:
-        id (str): Unique string identifier for the node.
-        state_type (str): Categorical classification of the state (e.g., "scan", "analysis", "action").
-        metadata (dict[str, Any]): Optional contextual tracking metadata.
+        id (str): A unique string identifier for the node.
+        state_type (str): The categorical classification of the node (e.g., "scan", "analysis", "action").
+        metadata (dict[str, Any]): Optional contextual tracking metadata associated with the node.
     """
 
     id: str
@@ -61,14 +56,16 @@ class Node:
 class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
-    Edges store experience weight.
+
+    Edges represent traversable decision vectors, fundamentally driving the learning process by storing experiential weights
+    that adjust in response to real-world execution outcomes.
 
     Attributes:
-        from_node (str): Identifier of the origin node.
-        to_node (str): Identifier of the destination node.
-        success_weight (float): Accumulated success utility metric.
-        failure_weight (float): Accumulated failure penalty metric.
-        visits (int): Total occurrences of path traversal along this vector.
+        from_node (str): The unique identifier of the origin node.
+        to_node (str): The unique identifier of the destination node.
+        success_weight (float): The accumulated utility metric for successful traversal outcomes.
+        failure_weight (float): The accumulated penalty metric for failed traversal outcomes.
+        visits (int): The total frequency of traversals across this specific vector.
     """
 
     from_node: str
@@ -233,11 +230,10 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This is what makes it "self-evolving".
-    Dynamically adjusts the utility weights of historically traversed edges
-    based on verifiable real-world execution outcomes. This engine guarantees
-    that successful, high-value strategies predictably gain mathematical
-    prominence through experiential reinforcement.
+    The primary catalyst for self-evolution within the SEDGE framework.
+    It dynamically adjusts the experiential weights of historically traversed edges based on verifiable real-world execution feedback.
+    By propagating state outcomes backward through the traversal path, this engine mathematically guarantees that successful,
+    high-yield strategies compound in structural prominence, while ineffective pathways naturally decay.
     """
 
     def update(
@@ -269,15 +265,12 @@ class LearningEngine:
 class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
-    This replaces static "AI decisions".
 
-    It replaces static AI decisions by employing a weighted stochastic selection
-    mechanism. This naturally balances:
-      - exploration (trying weak paths occasionally)
-      - exploitation (using strong known paths)
-
-    This is achieved via:
-    stochastic weighted selection
+    Replaces static decision trees by functioning as the foundational policy layer for the SEDGE ecosystem.
+    It leverages weighted stochastic selection to dynamically determine transitional actions based on experiential utility scores.
+    This continuous re-evaluation fundamentally balances:
+      - exploration (periodically testing weaker or under-utilized paths to discover new tactical vectors)
+      - exploitation (prioritizing robust, high-value known paths to maximize execution efficacy)
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -320,20 +313,13 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
-    This is where learning actually happens.
 
-    HOW IT LEARNS OPTIMAL PATHS
+    An autonomous operational agent deeply integrated within the SEDGE ecosystem.
+    It synthesizes decision logic from the `DecisionEngine` and learning feedback via the `LearningEngine`
+    to continually refine its internal state-action mapping across successive epochs.
 
-    Over time:
-    Successful sequences: scan -> analyze -> handshake_capture -> validate
-    gain:
-    - higher success_weight
-    - stronger traversal probability
-
-    Failed sequences: scan -> aggressive_attack -> fail
-    gain:
-    - higher failure_weight
-    - reduced probability
+    Through stochastic exploration and experiential reinforcement, optimal execution paths emerge automatically,
+    empowering the agent to adaptively discard failing strategies and favor mathematically verified workflows.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -388,24 +374,19 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
+    DOMAIN-SPECIFIC GRAPH INITIALIZATION (PARROT WIFI SYSTEM)
 
-    You can map nodes like:
-    States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
-    Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
+    Instantiates a concrete decision network mapped explicitly to the Parrot Wi-Fi operational domain.
+    This factory constructs a functional execution space defining fundamental system states
+    (e.g., `STATE_NETWORK_DISCOVERY`, `STATE_TARGET_ANALYSIS`) and permitted functional actions
+    (e.g., `ACTION_PASSIVE_SCAN`, `ACTION_HANDSHAKE_CAPTURE`).
 
-    REAL EVOLUTION BEHAVIOR
-    After enough runs:
-    - graph converges toward optimal attack/analysis pipelines
-    - unstable techniques decay automatically
-    - high-yield workflows become dominant paths
-
-    This creates:
-    a living decision ecosystem instead of static scripts.
+    As the Self-Evolving Decision Graph Engine (SEDGE) operates on this construct, the initial generic transitions
+    stochastically converge into dominant, optimal analytical pipelines based on real-world execution success,
+    thereby replacing static procedural scripts with a fluid, continuously adapting decision ecosystem.
 
     Returns:
-        DecisionGraph: The fully initialized decision graph ecosystem.
+        DecisionGraph: The structurally initialized Parrot Wi-Fi domain graph.
     """
     graph = DecisionGraph()
 

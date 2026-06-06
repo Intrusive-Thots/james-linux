@@ -93,7 +93,7 @@ class TestSedgeCoreIdeaAdvancedValidation(unittest.TestCase):
         self.graph.add_edge(edge_lose)
 
         selections = {"win_node": 0, "lose_node": 0}
-        iterations = 1000
+        iterations = 50000
 
         for _ in range(iterations):
             choice = decision_engine.decide("n1")
@@ -114,7 +114,7 @@ class TestSedgeCoreIdeaAdvancedValidation(unittest.TestCase):
         self.graph.add_edge(e2)
 
         selections = {"route_1": 0, "route_2": 0}
-        iterations = 1000
+        iterations = 50000
 
         for _ in range(iterations):
             choice = decision_engine.decide("start")
