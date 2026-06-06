@@ -40,7 +40,6 @@ class Node:
     """
     STATE NODE MODEL
     Each node represents a system situation or decision point.
-    Nodes = system states or actions.
 
     This maps specifically to the architectural philosophy of SEDGE where:
     Nodes = system states or actions.
@@ -344,15 +343,15 @@ class SelfEvolvingAgent:
     HOW IT LEARNS OPTIMAL PATHS
 
     Over time:
-    successful sequences: scan -> analyze -> handshake_capture -> validate
+    Successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
-    higher success_weight
-    stronger traversal probability
+    - higher success_weight
+    - stronger traversal probability
 
     Failed sequences: scan -> aggressive_attack -> fail
     gain:
-    higher failure_weight
-    reduced probability
+    - higher failure_weight
+    - reduced probability
     """
 
     def __init__(self, graph: DecisionGraph) -> None:

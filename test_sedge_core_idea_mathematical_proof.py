@@ -57,6 +57,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_mathematical_probability_convergence(self):
         """
         Proves that stochastic selection converges optimally with law of large numbers.
+        This balances exploration vs exploitation dynamically.
         """
         decision_engine = DecisionEngine(self.graph)
 
@@ -84,7 +85,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_learning_engine_backpropagation(self):
         """
-        Mathematical validation of weight adjustment across nodes.
+        Mathematical validation of weight adjustment across nodes (EXECUTION FEEDBACK LEARNING).
         """
         edge1 = Edge(from_node="A", to_node="B")
         edge2 = Edge(from_node="B", to_node="C")
