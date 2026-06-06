@@ -1,7 +1,5 @@
 """
-SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE)
-
-# SEDGE CORE IDEA
+SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
 The system builds a directed weighted decision graph where:
 
@@ -272,7 +270,7 @@ class DecisionEngine:
     This replaces static "AI decisions".
 
     It replaces static AI decisions by employing a weighted stochastic selection
-    mechanism. This naturally balances:
+    mechanism. System naturally balances:
       - exploration (trying weak paths occasionally)
       - exploitation (using strong known paths)
 
@@ -322,7 +320,7 @@ class SelfEvolvingAgent:
     SELF-EVOLUTION LOOP
     This is where learning actually happens.
 
-    HOW IT LEARNS OPTIMAL PATHS
+    HOW IT "LEARNS OPTIMAL PATHS"
 
     Over time:
     Successful sequences: scan -> analyze -> handshake_capture -> validate
