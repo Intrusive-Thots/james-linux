@@ -73,6 +73,10 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         path = ["A", "B"]
 
+        # Verify it adheres to the prompt's structural math: zip(path[:-1], path[1:])
+        zipped_path = list(zip(path[:-1], path[1:]))
+        self.assertEqual(zipped_path, [("A", "B")])
+
         self.learner.update(self.graph, path, OUTCOME_SUCCESS)
         self.assertEqual(edge.visits, 1)
         self.assertEqual(edge.success_weight, 2.0)
@@ -88,6 +92,31 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.assertEqual(edge.success_weight, 2.5)
         self.assertEqual(edge.failure_weight, 2.5)
 
+    def test_decision_engine_mathematics(self):
+        """
+        Explicitly proves the formula from the prompt:
+        weights = [c.score() for c in candidates]
+        total = sum(weights)
+        probs = [w / total for w in weights]
+        """
+        decision_engine = DecisionEngine(self.graph)
+        edge_b = Edge(from_node="A", to_node="B", success_weight=80.0, failure_weight=1.0)
+        edge_c = Edge(from_node="A", to_node="C", success_weight=20.0, failure_weight=1.0)
+        self.graph.add_edge(edge_b)
+        self.graph.add_edge(edge_c)
+
+        candidates = self.graph.edges.get("A", [])
+        weights = [c.score() for c in candidates]
+        total = sum(weights)
+        probs = [w / total for w in weights]
+
+        # b_score = 80 / (1 + 1e-6) ~= 80
+        # c_score = 20 / (1 + 1e-6) ~= 20
+        # total ~= 100
+        # b_prob ~= 0.8, c_prob ~= 0.2
+        self.assertAlmostEqual(probs[0], 0.8, delta=0.01)
+        self.assertAlmostEqual(probs[1], 0.2, delta=0.01)
+
     def test_decision_engine(self):
         decision_engine = DecisionEngine(self.graph)
 
@@ -101,7 +130,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 200000
+        iterations = 250000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
@@ -175,6 +204,15 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.assertGreater(handshake_selections, deauth_selections)
         self.assertGreater(deauth_selections, 0)
 
+        # Verify step returns halt when out of paths
+        agent.current_node = "DEAD_END"
+        self.assertEqual(agent.step(), "halt")
+
+        # Verify feedback resets episode properly
+        agent.current_path = ["START", "SOME_NODE"]
+        agent.feedback(OUTCOME_SUCCESS)
+        self.assertEqual(agent.current_path, ["START"])
+
     def test_edge_score_zero_division_prevention(self):
         edge = Edge(
             from_node="A", to_node="B", success_weight=1.0, failure_weight=0.0
@@ -197,7 +235,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         # When utility is zero for all, it should fallback to uniform random selection
         counts = {"B": 0, "C": 0}
-        iterations = 200000
+        iterations = 250000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1

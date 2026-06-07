@@ -41,8 +41,9 @@ class Node:
     STATE NODE MODEL
     Each node represents a system situation or decision point.
 
-    This maps specifically to the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA where:
-    Nodes = system states or actions.
+    This embodies the STATE NODE MODEL outlined in the architectural philosophy.
+    It maps to the core idea where Nodes represent discrete system states or actionable execution points
+    within the overarching graph matrix.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -62,11 +63,11 @@ class Node:
 class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
-    Edges store experience weight.
+    Edges store the mathematical experience weights mapped as transitions.
 
-    This embodies the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA where:
-    Edges = transitions between decisions
-    Weights = learned success utility scores
+    This embodies the EDGE MODEL (LEARNING PATHS) where edges denote the strategic
+    transitions between decisions, parameterized dynamically by learned success utility scores
+    calculated via ratio adjustments.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -103,16 +104,11 @@ class DecisionGraph:
     """
     DECISION GRAPH CORE
 
-    The system builds a directed weighted decision graph where:
-
-    Nodes = system states or actions
-    Edges = transitions between decisions
-    Weights = learned success utility scores
-
-    Over time:
-    - successful paths become stronger
-    - failed paths decay
-    - optimal strategies emerge automatically
+    This represents the foundational DECISION GRAPH CORE ecosystem. It establishes a
+    directed weighted decision graph mapping states and actions into an evolvable web.
+    Over time, successful paths organically strengthen their connective traversal
+    probability while failure routes mathematically decay, allowing optimal strategies
+    to emerge automatically without rigid external scripts.
     """
 
     def __init__(self) -> None:
@@ -244,7 +240,10 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This is what makes it "self-evolving".
+    This encompasses the EXECUTION FEEDBACK LEARNING mechanism that essentially drives
+    the architecture's capability of being "self-evolving." By propagating completion
+    outcomes retroactively down historically traversed edges, it autonomously curates path
+    viability.
     """
 
     def update(
@@ -276,16 +275,15 @@ class LearningEngine:
 class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
-    This replaces static "AI decisions".
+    This class operates as the DECISION ENGINE (POLICY LAYER), architecturally designed to
+    replace conventional static "AI decisions" logic.
 
     EXPLORATION vs EXPLOITATION
 
-    System naturally balances:
-    - exploration (trying weak paths occasionally)
-    - exploitation (using strong known paths)
-
-    This is achieved via:
-    stochastic weighted selection
+    By leveraging sophisticated stochastic weighted selection equations against
+    dynamic utility scores, the system naturally balances broad exploration
+    (trying weaker paths occasionally to test for novel successes) against
+    exploitation (ruthlessly prioritizing structurally strong, known-viable paths).
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -328,21 +326,16 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
-    This is where learning actually happens.
+    This orchestrates the SELF-EVOLUTION LOOP, serving as the central coordinator where
+    learning actually happens continuously over long periods.
 
     HOW IT LEARNS OPTIMAL PATHS
 
-    Over time:
-
-    Successful sequences: scan -> analyze -> handshake_capture -> validate
-    gain:
-    - higher success_weight
-    - stronger traversal probability
-
-    Failed sequences: scan -> aggressive_attack -> fail
-    gain:
-    - higher failure_weight
-    - reduced probability
+    By cyclically delegating step-decisions to the policy layer and processing signals
+    via the feedback system, successful structural sequences (e.g., discovery -> analysis -> capture)
+    gain exponentially higher success weights and commanding traversal probability.
+    Conversely, structurally failing sequences are penalized with heightened failure weights
+    that dynamically reduce future probabilistic visitation.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
