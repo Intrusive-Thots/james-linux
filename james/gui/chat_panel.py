@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtWidgets import (
@@ -34,13 +33,9 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QFrame,
     QSizePolicy,
-    QPlainTextEdit,
-    QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont, QKeyEvent
-
-from james.gui.theme import PALETTE, SURFACE_CARD_STYLE
+from PyQt5.QtGui import QKeyEvent
 
 logger = logging.getLogger(__name__)
 
