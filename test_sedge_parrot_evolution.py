@@ -60,7 +60,7 @@ class TestSedgeParrotEvolution(unittest.TestCase):
             self.agent.feedback(outcome)
 
         # Retrieve the edges from TARGET_ANALYSIS to compare weights
-        target_analysis_edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        target_analysis_edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next(
             e
             for e in target_analysis_edges
@@ -112,14 +112,14 @@ class TestSedgeParrotEvolution(unittest.TestCase):
         self.agent.feedback(OUTCOME_PARTIAL)
 
         # Check weights for the path
-        start_edges = self.graph.edges.get("START", [])
+        start_edges = list(self.graph.edges.get("START", {}).values())
         start_edge = next(
             (e for e in start_edges if e.to_node == "NETWORK_DISCOVERY"),
             None,
         )
 
         # We also need to check the Passive scan edge
-        discovery_edges = self.graph.edges.get("NETWORK_DISCOVERY", [])
+        discovery_edges = list(self.graph.edges.get("NETWORK_DISCOVERY", {}).values())
         passive_scan_edge = next(
             (e for e in discovery_edges if e.to_node == ACTION_PASSIVE_SCAN),
             None,

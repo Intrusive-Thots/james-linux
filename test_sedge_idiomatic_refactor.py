@@ -28,17 +28,17 @@ class TestSedgeIdiomaticRefactor(unittest.TestCase):
         """Test that the setdefault logic in add_edge correctly handles dictionary insertions."""
         self.assertIn("START", self.graph.edges)
         self.assertEqual(len(self.graph.edges["START"]), 1)
-        self.assertEqual(self.graph.edges["START"][0].to_node, "A")
+        self.assertEqual(list(self.graph.edges["START"].values())[0].to_node, "A")
 
         self.assertIn("A", self.graph.edges)
         self.assertEqual(len(self.graph.edges["A"]), 1)
-        self.assertEqual(self.graph.edges["A"][0].to_node, "B")
+        self.assertEqual(list(self.graph.edges["A"].values())[0].to_node, "B")
 
         # Test adding another edge from START
         edge_start_b = Edge(from_node="START", to_node="B")
         self.graph.add_edge(edge_start_b)
         self.assertEqual(len(self.graph.edges["START"]), 2)
-        self.assertEqual(self.graph.edges["START"][1].to_node, "B")
+        self.assertEqual(list(self.graph.edges["START"].values())[1].to_node, "B")
 
     def test_update_idiomatic_success(self):
         """Test that the zip() logic in update correctly iterates and updates edge weights on success."""

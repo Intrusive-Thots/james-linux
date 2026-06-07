@@ -41,7 +41,7 @@ class TestSedgeEngine(unittest.TestCase):
         path = ["START", "SCAN", "ATTACK"]
         self.learner.update(self.graph, path, OUTCOME_SUCCESS)
 
-        start_scan_edge = self.graph.edges["START"][0]
+        start_scan_edge = list(self.graph.edges["START"].values())[0]
         self.assertEqual(start_scan_edge.visits, 1)
         self.assertEqual(start_scan_edge.success_weight, 2.0)
         self.assertEqual(start_scan_edge.failure_weight, 1.0)
@@ -50,7 +50,7 @@ class TestSedgeEngine(unittest.TestCase):
         path = ["START", "SCAN", "ATTACK"]
         self.learner.update(self.graph, path, OUTCOME_FAILURE)
 
-        start_scan_edge = self.graph.edges["START"][0]
+        start_scan_edge = list(self.graph.edges["START"].values())[0]
         self.assertEqual(start_scan_edge.visits, 1)
         self.assertEqual(start_scan_edge.success_weight, 1.0)
         self.assertEqual(start_scan_edge.failure_weight, 2.0)
@@ -59,7 +59,7 @@ class TestSedgeEngine(unittest.TestCase):
         path = ["START", "SCAN"]
         self.learner.update(self.graph, path, OUTCOME_PARTIAL)
 
-        start_scan_edge = self.graph.edges["START"][0]
+        start_scan_edge = list(self.graph.edges["START"].values())[0]
         self.assertEqual(start_scan_edge.visits, 1)
         self.assertEqual(start_scan_edge.success_weight, 1.5)
         self.assertEqual(start_scan_edge.failure_weight, 1.5)
@@ -79,8 +79,8 @@ class TestSedgeEngine(unittest.TestCase):
         # Mock random to avoid flakiness, or just test fallback behavior.
 
         # Test zero total case
-        self.graph.edges["START"][0].success_weight = 0.0
-        self.graph.edges["START"][1].success_weight = 0.0
+        list(self.graph.edges["START"].values())[0].success_weight = 0.0
+        list(self.graph.edges["START"].values())[1].success_weight = 0.0
 
         # Now both have zero utility, fallback to random uniform selection.
         random.seed(42)
@@ -116,7 +116,7 @@ class TestSedgeEngine(unittest.TestCase):
         agent.feedback(OUTCOME_SUCCESS)
 
         # Check that learning engine updated weights
-        start_scan_edge = self.graph.edges["START"][0]
+        start_scan_edge = list(self.graph.edges["START"].values())[0]
         self.assertEqual(start_scan_edge.visits, 1)
         self.assertEqual(start_scan_edge.success_weight, 2.0)
 
@@ -139,38 +139,38 @@ class TestSedgeEngine(unittest.TestCase):
         self.assertIn(ACTION_EVIL_TWIN_SIMULATION, graph.nodes)
 
         # Verify edges from START
-        start_edges = graph.edges.get(STATE_START, [])
+        start_edges = list(graph.edges.get(STATE_START, {}).values())
         self.assertEqual(len(start_edges), 1)
         self.assertEqual(start_edges[0].to_node, STATE_NETWORK_DISCOVERY)
 
         # Verify edges from NETWORK_DISCOVERY
-        discovery_edges = graph.edges.get(STATE_NETWORK_DISCOVERY, [])
+        discovery_edges = list(graph.edges.get(STATE_NETWORK_DISCOVERY, {}).values())
         self.assertEqual(len(discovery_edges), 1)
         self.assertEqual(discovery_edges[0].to_node, ACTION_PASSIVE_SCAN)
 
         # Verify edges from PASSIVE_SCAN
-        passive_scan_edges = graph.edges.get(ACTION_PASSIVE_SCAN, [])
+        passive_scan_edges = list(graph.edges.get(ACTION_PASSIVE_SCAN, {}).values())
         self.assertEqual(len(passive_scan_edges), 1)
         self.assertEqual(passive_scan_edges[0].to_node, STATE_TARGET_ANALYSIS)
 
         # Verify edges from TARGET_ANALYSIS
-        target_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        target_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         self.assertEqual(len(target_edges), 2)
         to_nodes = [e.to_node for e in target_edges]
         self.assertIn(ACTION_HANDSHAKE_CAPTURE, to_nodes)
         self.assertIn(ACTION_DEAUTH_TEST, to_nodes)
 
         # Verify edges to SECURITY_PROFILING
-        handshake_edges = graph.edges.get(ACTION_HANDSHAKE_CAPTURE, [])
+        handshake_edges = list(graph.edges.get(ACTION_HANDSHAKE_CAPTURE, {}).values())
         self.assertEqual(len(handshake_edges), 1)
         self.assertEqual(handshake_edges[0].to_node, STATE_SECURITY_PROFILING)
 
-        deauth_edges = graph.edges.get(ACTION_DEAUTH_TEST, [])
+        deauth_edges = list(graph.edges.get(ACTION_DEAUTH_TEST, {}).values())
         self.assertEqual(len(deauth_edges), 1)
         self.assertEqual(deauth_edges[0].to_node, STATE_SECURITY_PROFILING)
 
         # Verify edge from SECURITY_PROFILING
-        sec_prof_edges = graph.edges.get(STATE_SECURITY_PROFILING, [])
+        sec_prof_edges = list(graph.edges.get(STATE_SECURITY_PROFILING, {}).values())
         self.assertEqual(len(sec_prof_edges), 1)
         self.assertEqual(
             sec_prof_edges[0].to_node, ACTION_EVIL_TWIN_SIMULATION

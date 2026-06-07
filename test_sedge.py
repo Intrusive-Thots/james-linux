@@ -127,12 +127,12 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(self.agent.current_path, [STATE_START])
 
         # Check that edges got visits and updated weights
-        edges = self.graph.edges[STATE_START]
+        edges = list(self.graph.edges[STATE_START].values())
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 2.0)
         self.assertEqual(edges[0].failure_weight, 1.0)
 
-        edges = self.graph.edges[STATE_SECURITY_PROFILING]
+        edges = list(self.graph.edges[STATE_SECURITY_PROFILING].values())
         for edge in edges:
             if edge.to_node == last_node:
                 self.assertEqual(edge.visits, 1)
@@ -151,7 +151,7 @@ class TestSEDGE(unittest.TestCase):
 
         self.agent.feedback(outcome=OUTCOME_FAILURE)
 
-        edges = self.graph.edges[STATE_START]
+        edges = list(self.graph.edges[STATE_START].values())
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 1.0)
         self.assertEqual(edges[0].failure_weight, 2.0)
@@ -164,7 +164,7 @@ class TestSEDGE(unittest.TestCase):
 
         self.agent.feedback(outcome=OUTCOME_PARTIAL)
 
-        edges = self.graph.edges[STATE_START]
+        edges = list(self.graph.edges[STATE_START].values())
         self.assertEqual(edges[0].visits, 1)
         self.assertEqual(edges[0].success_weight, 1.5)
         self.assertEqual(edges[0].failure_weight, 1.5)
@@ -180,18 +180,18 @@ class TestSEDGE(unittest.TestCase):
 
     def test_decide_zero_weights(self):
         # Reset graph edges to have zero success_weight (total score = 0)
-        self.graph.edges[STATE_SECURITY_PROFILING] = [
-            Edge(
+        self.graph.edges[STATE_SECURITY_PROFILING] = {
+            ACTION_PASSIVE_SCAN: Edge(
                 from_node=STATE_SECURITY_PROFILING,
                 to_node=ACTION_PASSIVE_SCAN,
                 success_weight=0.0,
             ),
-            Edge(
+            ACTION_HANDSHAKE_CAPTURE: Edge(
                 from_node=STATE_SECURITY_PROFILING,
                 to_node=ACTION_HANDSHAKE_CAPTURE,
                 success_weight=0.0,
             ),
-        ]
+        }
 
         # Test that decision engine can handle this gracefully
         next_node = self.agent.decision_engine.decide(STATE_SECURITY_PROFILING)
@@ -275,12 +275,12 @@ class TestSEDGE(unittest.TestCase):
         # Check that EVIL_TWIN_SIMULATION failure weight is very high compared to success
         edges_to_evil_twin = [
             e
-            for e in self.graph.edges[STATE_SECURITY_PROFILING]
+            for e in self.graph.edges[STATE_SECURITY_PROFILING].values()
             if e.to_node == ACTION_EVIL_TWIN_SIMULATION
         ]
         edges_to_passive = [
             e
-            for e in self.graph.edges[STATE_SECURITY_PROFILING]
+            for e in self.graph.edges[STATE_SECURITY_PROFILING].values()
             if e.to_node == ACTION_PASSIVE_SCAN
         ]
 

@@ -45,7 +45,7 @@ class TestSedgeEvolutionBehavior(unittest.TestCase):
         ]
 
         # Initial score of edge from TARGET_ANALYSIS to HANDSHAKE_CAPTURE
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next(e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE)
         initial_score = handshake_edge.score()
         initial_success_weight = handshake_edge.success_weight
@@ -75,7 +75,7 @@ class TestSedgeEvolutionBehavior(unittest.TestCase):
         ]
 
         # Initial score of edge from TARGET_ANALYSIS to DEAUTH_TEST
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         deauth_edge = next(e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST)
         initial_score = deauth_edge.score()
         initial_failure_weight = deauth_edge.failure_weight
@@ -146,7 +146,7 @@ class TestSedgeEvolutionBehavior(unittest.TestCase):
 
             agent.feedback(outcome)
 
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next(e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE)
         deauth_edge = next(e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST)
 

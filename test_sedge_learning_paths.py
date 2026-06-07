@@ -69,7 +69,7 @@ class TestSedgeLearningPaths(unittest.TestCase):
         agent.learner.update(self.graph, path_fail, OUTCOME_FAILURE)
 
         # Check edges out of 'scan'
-        scan_edges = self.graph.edges.get("scan", [])
+        scan_edges = list(self.graph.edges.get("scan", {}).values())
         analyze_edge = next(e for e in scan_edges if e.to_node == "analyze")
         aggressive_edge = next(
             e for e in scan_edges if e.to_node == "aggressive_attack"
@@ -92,7 +92,7 @@ class TestSedgeLearningPaths(unittest.TestCase):
         vs exploitation (using strong known paths) through stochastic weighted selection.
         """
         # Set up weights manually to simulate learned behavior
-        scan_edges = self.graph.edges.get("scan", [])
+        scan_edges = list(self.graph.edges.get("scan", {}).values())
         analyze_edge = next(e for e in scan_edges if e.to_node == "analyze")
         aggressive_edge = next(
             e for e in scan_edges if e.to_node == "aggressive_attack"

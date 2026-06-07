@@ -148,7 +148,7 @@ class TestSedgeArchitecture(unittest.TestCase):
                     break
             agent.feedback(outcome)
 
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next(
             (
                 e

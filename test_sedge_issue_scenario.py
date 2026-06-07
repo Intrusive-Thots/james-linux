@@ -39,8 +39,8 @@ class TestSedgeIssueScenario(unittest.TestCase):
 
     def test_optimal_strategies_emerge(self):
         # Initial edges
-        scan_to_analyze_edge = self.graph.edges["scan"][0] # scan -> analyze
-        scan_to_aggressive_edge = self.graph.edges["scan"][1] # scan -> aggressive_attack
+        scan_to_analyze_edge = list(self.graph.edges["scan"].values())[0] # scan -> analyze
+        scan_to_aggressive_edge = list(self.graph.edges["scan"].values())[1] # scan -> aggressive_attack
 
         self.assertEqual(scan_to_analyze_edge.to_node, "analyze")
         self.assertEqual(scan_to_aggressive_edge.to_node, "aggressive_attack")

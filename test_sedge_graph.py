@@ -35,12 +35,12 @@ class TestSedgeGraph(unittest.TestCase):
         self.assertEqual(graph.nodes[ACTION_PASSIVE_SCAN].state_type, "action")
 
         # Check some edges
-        start_edges = graph.edges.get(STATE_START, [])
+        start_edges = list(graph.edges.get(STATE_START, {}).values())
         self.assertTrue(
             any(e.to_node == STATE_NETWORK_DISCOVERY for e in start_edges)
         )
 
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         self.assertTrue(
             any(e.to_node == ACTION_HANDSHAKE_CAPTURE for e in analysis_edges)
         )
@@ -48,7 +48,7 @@ class TestSedgeGraph(unittest.TestCase):
             any(e.to_node == ACTION_DEAUTH_TEST for e in analysis_edges)
         )
 
-        profiling_edges = graph.edges.get(STATE_SECURITY_PROFILING, [])
+        profiling_edges = list(graph.edges.get(STATE_SECURITY_PROFILING, {}).values())
         self.assertTrue(
             any(
                 e.to_node == ACTION_EVIL_TWIN_SIMULATION

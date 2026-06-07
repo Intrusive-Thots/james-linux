@@ -69,7 +69,7 @@ class TestSedgeCoreIdeaComprehensive(unittest.TestCase):
         self.assertLess(decayed_score, initial_score)
 
         # Verify the specific edge
-        edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         deauth_edge = next((e for e in edges if e.to_node == ACTION_DEAUTH_TEST), None)
         self.assertIsNotNone(deauth_edge)
         self.assertEqual(deauth_edge.failure_weight, 6.0) # 1.0 init + 5.0 updates
@@ -95,7 +95,7 @@ class TestSedgeCoreIdeaComprehensive(unittest.TestCase):
         self.assertGreater(stronger_score, initial_score)
 
         # Verify the specific edge
-        edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next((e for e in edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
         self.assertIsNotNone(handshake_edge)
         self.assertEqual(handshake_edge.success_weight, 6.0) # 1.0 init + 5.0 updates
@@ -106,7 +106,7 @@ class TestSedgeCoreIdeaComprehensive(unittest.TestCase):
 
         # Make Handshake Capture strong (Exploitation target)
         # Make Deauth Test weak (Exploration target)
-        edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         for e in edges:
             if e.to_node == ACTION_HANDSHAKE_CAPTURE:
                 e.success_weight = 10.0

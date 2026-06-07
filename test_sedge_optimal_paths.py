@@ -54,7 +54,7 @@ class TestSedgeOptimalPaths(unittest.TestCase):
 
         # Verify success weights increased
         # TARGET_ANALYSIS -> HANDSHAKE_CAPTURE edge
-        analysis_edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
 
         self.assertIsNotNone(handshake_edge)
@@ -86,7 +86,7 @@ class TestSedgeOptimalPaths(unittest.TestCase):
 
         # Verify failure weights increased
         # TARGET_ANALYSIS -> DEAUTH_TEST edge
-        analysis_edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
 
         self.assertIsNotNone(deauth_edge)
@@ -123,7 +123,7 @@ class TestSedgeOptimalPaths(unittest.TestCase):
             self.agent.feedback(outcome)
 
         # Verify that optimal paths became dominant
-        analysis_edges = self.graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(self.graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
         deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
 

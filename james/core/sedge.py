@@ -109,7 +109,7 @@ class DecisionGraph:
     def __init__(self) -> None:
         """Initializes a new, empty decision graph."""
         self.nodes: dict[str, Node] = {}
-        self.edges: dict[str, list[Edge]] = {}
+        self.edges: dict[str, dict[str, Edge]] = {}
 
     def add_node(self, node: Node) -> None:
         """
@@ -127,7 +127,7 @@ class DecisionGraph:
         Args:
             edge (Edge): The relational edge mapping the transition.
         """
-        self.edges.setdefault(edge.from_node, []).append(edge)
+        self.edges.setdefault(edge.from_node, {})[edge.to_node] = edge
 
     def get_node(self, node_id: str) -> Node | None:
         """
@@ -151,7 +151,7 @@ class DecisionGraph:
         Returns:
             list[Edge]: A collection of all connecting outbound edges.
         """
-        return self.edges.get(node_id, [])
+        return list(self.edges.get(node_id, {}).values())
 
     def get_all_nodes(self) -> list[Node]:
         """
@@ -171,7 +171,7 @@ class DecisionGraph:
         """
         all_edges = []
         for edges in self.edges.values():
-            all_edges.extend(edges)
+            all_edges.extend(edges.values())
         return all_edges
 
     def clear(self) -> None:
@@ -191,10 +191,10 @@ class DecisionGraph:
         Returns:
             Edge | None: The highest-scoring outbound edge, or None.
         """
-        edges = self.edges.get(node_id, [])
+        edges = self.edges.get(node_id, {})
         if not edges:
             return None
-        return max(edges, key=lambda e: e.score())
+        return max(edges.values(), key=lambda e: e.score())
 
     def get_path_score(self, path: list[str]) -> float:
         """
@@ -214,15 +214,11 @@ class DecisionGraph:
         edge_count = 0
 
         for frm, to in zip(path[:-1], path[1:]):
-            edges = self.edges.get(frm, [])
-            found = False
-            for e in edges:
-                if e.to_node == to:
-                    total_score += e.score()
-                    edge_count += 1
-                    found = True
-                    break
-            if not found:
+            edge = self.edges.get(frm, {}).get(to)
+            if edge:
+                total_score += edge.score()
+                edge_count += 1
+            else:
                 return 0.0  # Path is broken
 
         if edge_count == 0:
@@ -254,18 +250,16 @@ class LearningEngine:
             outcome (str): The final result (e.g., 'SUCCESS', 'FAILURE').
         """
         for frm, to in zip(path[:-1], path[1:]):
-            edges = graph.edges.get(frm, [])
-            for e in edges:
-                if e.to_node == to:
-                    e.visits += 1
-                    if outcome == OUTCOME_SUCCESS:
-                        e.success_weight += 1.0
-                    elif outcome == OUTCOME_FAILURE:
-                        e.failure_weight += 1.0
-                    elif outcome == OUTCOME_PARTIAL:
-                        e.success_weight += 0.5
-                        e.failure_weight += 0.5
-                    break
+            edge = graph.edges.get(frm, {}).get(to)
+            if edge:
+                edge.visits += 1
+                if outcome == OUTCOME_SUCCESS:
+                    edge.success_weight += 1.0
+                elif outcome == OUTCOME_FAILURE:
+                    edge.failure_weight += 1.0
+                elif outcome == OUTCOME_PARTIAL:
+                    edge.success_weight += 0.5
+                    edge.failure_weight += 0.5
 
 
 class DecisionEngine:
@@ -298,9 +292,11 @@ class DecisionEngine:
             str | None: The identifier of the stochastically selected subsequent node,
                         or None if no valid candidate paths exist.
         """
-        candidates = self.graph.edges.get(current_node, [])
-        if not candidates:
+        candidates_dict = self.graph.edges.get(current_node, {})
+        if not candidates_dict:
             return None
+
+        candidates = list(candidates_dict.values())
 
         # Calculate utility scores for weighted stochastic selection
         weights = [c.score() for c in candidates]

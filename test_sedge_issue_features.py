@@ -58,7 +58,7 @@ class TestSedgeIssueFeatures(unittest.TestCase):
 
         self.assertIn("A", self.graph.nodes)
         self.assertIn("B", self.graph.nodes)
-        self.assertEqual(len(self.graph.edges.get("A", [])), 1)
+        self.assertEqual(len(list(self.graph.edges.get("A", {}).values())), 1)
 
         best_next = self.graph.get_best_next("A")
         self.assertIsNotNone(best_next)
@@ -133,7 +133,7 @@ class TestSedgeIssueFeatures(unittest.TestCase):
 
             agent.feedback(outcome)
 
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next(
             (
                 e

@@ -127,7 +127,7 @@ class TestSedgeCoreIdeaFinalVerification(unittest.TestCase):
                     break
 
         # Extract the target analysis edges
-        analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
+        analysis_edges = list(graph.edges.get(STATE_TARGET_ANALYSIS, {}).values())
         handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
         deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
 

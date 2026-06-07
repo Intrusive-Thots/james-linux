@@ -67,49 +67,49 @@ class TestSedgeDesignDocument(unittest.TestCase):
         self.assertTrue(
             any(
                 e.to_node == STATE_NETWORK_DISCOVERY
-                for e in graph.edges[STATE_START]
+                for e in graph.edges[STATE_START].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == ACTION_PASSIVE_SCAN
-                for e in graph.edges[STATE_NETWORK_DISCOVERY]
+                for e in graph.edges[STATE_NETWORK_DISCOVERY].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == STATE_TARGET_ANALYSIS
-                for e in graph.edges[ACTION_PASSIVE_SCAN]
+                for e in graph.edges[ACTION_PASSIVE_SCAN].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == ACTION_HANDSHAKE_CAPTURE
-                for e in graph.edges[STATE_TARGET_ANALYSIS]
+                for e in graph.edges[STATE_TARGET_ANALYSIS].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == ACTION_DEAUTH_TEST
-                for e in graph.edges[STATE_TARGET_ANALYSIS]
+                for e in graph.edges[STATE_TARGET_ANALYSIS].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == STATE_SECURITY_PROFILING
-                for e in graph.edges[ACTION_HANDSHAKE_CAPTURE]
+                for e in graph.edges[ACTION_HANDSHAKE_CAPTURE].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == STATE_SECURITY_PROFILING
-                for e in graph.edges[ACTION_DEAUTH_TEST]
+                for e in graph.edges[ACTION_DEAUTH_TEST].values()
             )
         )
         self.assertTrue(
             any(
                 e.to_node == ACTION_EVIL_TWIN_SIMULATION
-                for e in graph.edges[STATE_SECURITY_PROFILING]
+                for e in graph.edges[STATE_SECURITY_PROFILING].values()
             )
         )
 
