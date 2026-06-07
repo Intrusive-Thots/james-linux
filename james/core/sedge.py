@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 import random
 from james.tools.constants import (
-
+    SEDGE_EPSILON,
     OUTCOME_SUCCESS,
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
@@ -39,8 +39,19 @@ class Edge:
     failure_weight: float = 1.0
     visits: int = 0
 
-    def score(self):
-        return self.success_weight / (self.failure_weight + 1e-6)
+    def score(self) -> float:
+        """
+        Computes the proportional utility score for the transition.
+
+        Evaluates the relative ratio of the success weight to the failure weight.
+        A small epsilon is integrated into the denominator to mitigate
+        zero-division anomalies.
+
+        Returns:
+            float: The computed utility score.
+        """
+        raw_score = self.success_weight / (self.failure_weight + SEDGE_EPSILON)
+        return max(0.0, raw_score)
 
     def __repr__(self) -> str:
         return (
