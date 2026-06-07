@@ -968,8 +968,10 @@ class Agent:
             if james_files:
                 lines.append(f"\n  ── JAMES GENERATED {'─' * 27}")
                 for f in sorted(james_files):
-                    count = sum(1 for _ in open(f, errors="ignore"))
-                    size_kb = f.stat().st_size / 1024
+                    size_bytes = f.stat().st_size
+                    # Approximate line count assuming ~10 bytes per line to avoid blocking I/O
+                    count = max(1, size_bytes // 10) if size_bytes > 0 else 0
+                    size_kb = size_bytes / 1024
                     lines.append(
                         f"    {f.name:<35} {count:>12,} entries  ({size_kb:.0f}KB)"
                     )
