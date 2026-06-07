@@ -40,7 +40,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QKeyEvent
 
-from james.gui.theme import PALETTE, SURFACE_CARD_STYLE
+from james.gui.theme import PALETTE
 
 logger = logging.getLogger(__name__)
 
