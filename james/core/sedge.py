@@ -41,7 +41,7 @@ class Node:
     STATE NODE MODEL
     Each node represents a system situation or decision point.
 
-    This maps specifically to the architectural philosophy of SEDGE where:
+    This maps specifically to the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA where:
     Nodes = system states or actions.
 
     Attributes:
@@ -64,7 +64,7 @@ class Edge:
     EDGE MODEL (LEARNING PATHS)
     Edges store experience weight.
 
-    This embodies the learning path architecture:
+    This embodies the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA where:
     Edges = transitions between decisions
     Weights = learned success utility scores
 
@@ -103,9 +103,8 @@ class DecisionGraph:
     """
     DECISION GRAPH CORE
 
-    Constructs and maintains a robust directed, weighted decision network that
-    maps operational states and actions via transitional edges.
     The system builds a directed weighted decision graph where:
+
     Nodes = system states or actions
     Edges = transitions between decisions
     Weights = learned success utility scores
@@ -114,10 +113,6 @@ class DecisionGraph:
     - successful paths become stronger
     - failed paths decay
     - optimal strategies emerge automatically
-
-    Empowered by execution feedback, this complete implementation ensures high-yield pathways
-    naturally compound in priority while suboptimal techniques gracefully decay.
-    This creates a self-evolving decision ecosystem instead of static scripts.
     """
 
     def __init__(self) -> None:
@@ -250,10 +245,6 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
     This is what makes it "self-evolving".
-    Dynamically adjusts the utility weights of historically traversed edges
-    based on verifiable real-world execution outcomes. This engine guarantees
-    that successful, high-value strategies predictably gain mathematical
-    prominence through experiential reinforcement.
     """
 
     def update(
@@ -288,6 +279,7 @@ class DecisionEngine:
     This replaces static "AI decisions".
 
     EXPLORATION vs EXPLOITATION
+
     System naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
@@ -341,6 +333,7 @@ class SelfEvolvingAgent:
     HOW IT LEARNS OPTIMAL PATHS
 
     Over time:
+
     Successful sequences: scan -> analyze -> handshake_capture -> validate
     gain:
     - higher success_weight
@@ -407,11 +400,13 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
 
     You can map nodes like:
+
     States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
     Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
     Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
     REAL EVOLUTION BEHAVIOR
+
     After enough runs:
     - graph converges toward optimal attack/analysis pipelines
     - unstable techniques decay automatically

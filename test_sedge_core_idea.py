@@ -25,7 +25,7 @@ from james.tools.constants import (
 
 class TestSedgeCoreIdea(unittest.TestCase):
     """
-    Tests for the SEDGE components to verify self-evolving behavior.
+    Tests for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA components to verify self-evolving behavior.
     """
 
     def setUp(self):
@@ -101,7 +101,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 50000
+        iterations = 200000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
@@ -117,8 +117,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
         expected_b = score_b / total_score
         expected_c = score_c / total_score
 
-        self.assertAlmostEqual(ratio_b, expected_b, delta=0.05)
-        self.assertAlmostEqual(ratio_c, expected_c, delta=0.05)
+        self.assertAlmostEqual(ratio_b, expected_b, delta=0.02)
+        self.assertAlmostEqual(ratio_c, expected_c, delta=0.02)
 
     def test_self_evolving_loop_and_convergence(self):
         graph = build_parrot_wifi_graph()
@@ -197,7 +197,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         # When utility is zero for all, it should fallback to uniform random selection
         counts = {"B": 0, "C": 0}
-        iterations = 50000
+        iterations = 200000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
@@ -205,8 +205,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
         # Check that it falls back to uniform distribution roughly
         ratio_b = counts["B"] / iterations
         ratio_c = counts["C"] / iterations
-        self.assertAlmostEqual(ratio_b, 0.5, delta=0.05)
-        self.assertAlmostEqual(ratio_c, 0.5, delta=0.05)
+        self.assertAlmostEqual(ratio_b, 0.5, delta=0.02)
+        self.assertAlmostEqual(ratio_c, 0.5, delta=0.02)
 
 
 if __name__ == "__main__":
