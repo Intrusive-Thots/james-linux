@@ -74,6 +74,20 @@ class NetworkGuard:
             if not conn.interface:
                 # Method 2: ip route + iwconfig fallback
                 conn = self._detect_via_ip_route()
+            
+            # Fallback: check /proc/net/wireless if we have an interface but not detected as wifi
+            if conn.interface and not conn.is_wifi:
+                from pathlib import Path
+                if Path("/proc/net/wireless").exists():
+                    try:
+                        with open("/proc/net/wireless", "r") as f:
+                            lines = f.readlines()
+                        for line in lines[2:]:
+                            if conn.interface in line:
+                                conn.is_wifi = True
+                                break
+                    except Exception:
+                        pass
         except Exception as e:
             logger.warning("NetworkGuard: detection failed: %s", e)
 
