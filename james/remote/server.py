@@ -18,7 +18,7 @@ Usage:
 import json
 import logging
 import secrets
-import socket
+
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
