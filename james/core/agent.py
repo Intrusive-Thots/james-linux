@@ -10,6 +10,7 @@ import os
 import re
 import json
 import logging
+import keyring
 from datetime import datetime
 import shlex
 import threading
@@ -1066,22 +1067,20 @@ class Agent:
         # Auto-configure sudo when password is set
         if key in ("sudo", "sudo_password", "sudo_pass"):
             self.orch.layer.set_sudo_password(val)
-            # Also save to settings and attempt NOPASSWD config
+            # Also save securely to keyring
             try:
-                from james.gui.setup_wizard import (
-                    save_settings,
-                    load_settings,
-                    _auto_configure_nopasswd,
-                )
+                from james.gui.setup_wizard import _auto_configure_nopasswd
+            except ImportError:
+                _auto_configure_nopasswd = None
 
-                settings = load_settings()
-                settings["sudo_password"] = val
-                save_settings(settings)
+            try:
+                keyring.set_password("james", "sudo_password", val)
                 os.environ["JAMES_SUDO_PASS"] = val
-                _auto_configure_nopasswd(val)
-                return f"🔐 Sudo password configured & NOPASSWD setup attempted.\n   All privileged commands should now work."
+                if _auto_configure_nopasswd:
+                    _auto_configure_nopasswd(val)
+                return f"🔐 Sudo password configured securely & NOPASSWD setup attempted.\n   All privileged commands should now work."
             except Exception:
-                return f"🔐 Sudo password set for this session.\n   Run install_deps.sh as root for permanent NOPASSWD."
+                return f"🔐 Sudo password set for this session.\n   Failed to save securely to keyring."
 
         return f"✅ Context updated: {key} = {val}"
 

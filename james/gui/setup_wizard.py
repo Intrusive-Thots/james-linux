@@ -3,7 +3,7 @@ JAMES — First-Run Setup Wizard (Design System v3).
 
 A multi-page dialog that guides the user through:
   Page 1 — Welcome
-  Page 2 — Sudo password (stored to ~/.config/james/settings.json)
+  Page 2 — Sudo password (stored securely via keyring)
   Page 3 — Tool dependency check
   Page 4 — Done / launch
 """
@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+import keyring
 
 from PyQt5.QtWidgets import (
     QDialog,
@@ -502,13 +503,27 @@ class SetupWizard(QDialog):
                     pass
             existing["wizard_complete"] = True
             if password:
-                existing["sudo_password"] = password
+                try:
+                    keyring.set_password("james", "sudo_password", password)
+                except Exception as e:
+                    logger.warning("Could not save sudo password to keyring: %s", e)
+                # Clean up legacy plaintext password if it exists
+                existing.pop("sudo_password", None)
+
                 # Also inject into the live orchestrator
                 if self.orchestrator:
                     try:
                         self.orchestrator.layer.set_sudo_password(password)
                     except Exception as e:
                         logger.warning("Could not set sudo password: %s", e)
+            else:
+                existing.pop("sudo_password", None)
+                try:
+                    keyring.delete_password("james", "sudo_password")
+                except keyring.errors.PasswordDeleteError:
+                    pass
+                except Exception as e:
+                    logger.warning("Could not delete sudo password from keyring: %s", e)
             SETTINGS_FILE.write_text(json.dumps(existing, indent=2))
             SETTINGS_FILE.chmod(0o600)
             logger.info("Wizard settings saved to %s", SETTINGS_FILE)
