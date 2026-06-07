@@ -1,15 +1,16 @@
 """
-SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE ARCHITECTURE
+SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
 This module implements a directed, weighted decision graph ecosystem designed to dynamically
 adapt and optimize state transitions. In this architecture:
-- Nodes represent discrete system states or executable actions.
-- Edges represent relational transitions between decisions points.
-- Weights represent the dynamically learned success utility scores.
+- Nodes = system states or actions.
+- Edges = transitions between decisions.
+- Weights = learned success utility scores.
 
-Over time, through iterative stochastic traversal and backpropagated execution feedback,
-successful pathways naturally gain traversal probability while failing paths systematically
-decay. This architecture empowers emergent, optimal strategies without relying on static scripts.
+Over time, through iterative stochastic traversal and backpropagated execution feedback:
+- successful paths become stronger
+- failed paths decay
+- optimal strategies emerge automatically
 """
 
 import random
@@ -37,7 +38,7 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a discrete system situation, decision point, or executable action.
+    Each node represents a system situation or decision point.
     They are the fundamental vertices where Nodes = system states or actions.
 
     Attributes:
