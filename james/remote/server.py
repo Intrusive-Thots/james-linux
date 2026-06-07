@@ -21,7 +21,7 @@ import secrets
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 from datetime import datetime
 
 from james.utils.net import get_local_ip
