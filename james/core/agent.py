@@ -1604,6 +1604,7 @@ class Agent:
             r = subprocess.run(
                 ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
                 capture_output=True,
+                shell=False,
                 text=True,
                 timeout=10,
             )
@@ -1621,11 +1622,13 @@ class Agent:
                         "openssh-server",
                     ],
                     capture_output=True,
+                    shell=False,
                     timeout=60,
                 )
                 subprocess.run(
                     ["sudo", "-n", "systemctl", "enable", "--now", "ssh"],
                     capture_output=True,
+                    shell=False,
                     timeout=10,
                 )
                 lines.append("  ✅ SSH installed and enabled")
@@ -1643,6 +1646,7 @@ class Agent:
                 subprocess.run(
                     ["sudo", "-n", "ufw", "allow", str(port)],
                     capture_output=True,
+                    shell=False,
                     timeout=5,
                 )
             except Exception:
@@ -1663,6 +1667,7 @@ class Agent:
                         "ACCEPT",
                     ],
                     capture_output=True,
+                    shell=False,
                     timeout=5,
                 )
             except Exception:
@@ -1674,6 +1679,7 @@ class Agent:
             r = subprocess.run(
                 ["sudo", "-n", "systemctl", "enable", "--now", "xrdp"],
                 capture_output=True,
+                shell=False,
                 timeout=10,
             )
             if r.returncode == 0:
@@ -1684,6 +1690,7 @@ class Agent:
                     subprocess.run(
                         ["sudo", "-n", "ufw", "allow", "3389"],
                         capture_output=True,
+                        shell=False,
                         timeout=5,
                     )
                     subprocess.run(
@@ -1701,6 +1708,7 @@ class Agent:
                             "ACCEPT",
                         ],
                         capture_output=True,
+                        shell=False,
                         timeout=5,
                     )
                 except Exception:
