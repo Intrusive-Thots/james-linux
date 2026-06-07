@@ -16,6 +16,7 @@ import time
 import shlex
 from datetime import datetime
 from pathlib import Path
+import keyring
 from typing import Optional
 
 from james.layers.native import NativeLayer
@@ -137,16 +138,29 @@ class Orchestrator:
         self._load_sudo_from_settings()
 
     def _load_sudo_from_settings(self):
-        """Load saved sudo password from settings.json into NativeLayer."""
+        """Load saved sudo password from keyring into NativeLayer."""
         try:
-            settings_file = Path.home() / ".config" / "james" / "settings.json"
-            if settings_file.exists():
-                settings = json.loads(settings_file.read_text())
-                sudo_pass = settings.get("sudo_password")
-                if sudo_pass:
-                    self.layer.set_sudo_password(sudo_pass)
-                    os.environ["JAMES_SUDO_PASS"] = sudo_pass
-                    logger.info("Sudo password loaded from saved settings")
+            sudo_pass = keyring.get_password("james", "sudo_password")
+
+            # Fallback for backwards compatibility
+            if not sudo_pass:
+                settings_file = Path.home() / ".config" / "james" / "settings.json"
+                if settings_file.exists():
+                    settings = json.loads(settings_file.read_text())
+                    sudo_pass = settings.get("sudo_password")
+                    if sudo_pass:
+                        try:
+                            keyring.set_password("james", "sudo_password", sudo_pass)
+                            # Remove plaintext password
+                            settings.pop("sudo_password", None)
+                            settings_file.write_text(json.dumps(settings, indent=2))
+                        except Exception as e:
+                            logger.warning("Could not migrate sudo password to keyring: %s", e)
+
+            if sudo_pass:
+                self.layer.set_sudo_password(sudo_pass)
+                os.environ["JAMES_SUDO_PASS"] = sudo_pass
+                logger.info("Sudo password loaded securely")
         except Exception as e:
             logger.warning("Could not load sudo settings: %s", e)
 
