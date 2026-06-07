@@ -98,6 +98,9 @@ class Orchestrator:
 
     LOOT_DIR = Path.home() / ".james" / "loot"
 
+    # Cache for wordlist line counts (key: "path_mtime", value: line count)
+    _wordlist_cache: dict[str, int] = {}
+
     def __init__(self):
         self.layer = NativeLayer()
         # ── Core tool wrappers ──────────────────────────────────────
@@ -172,9 +175,7 @@ class Orchestrator:
                 with open(loot_file, "r") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError) as e:
-                logger.warning(
-                    "Failed to load loot cache from %s: %s", loot_file, e
-                )
+                logger.warning("Failed to load loot cache from %s: %s", loot_file, e)
         return {"cracked_keys": {}, "scan_history": [], "captured_hashes": []}
 
     def _save_loot(self):
@@ -294,18 +295,25 @@ class Orchestrator:
             p = Path(path)
             if p.exists():
                 try:
-                    out = subprocess.check_output(
-                        ["wc", "-l", str(p)], text=True
-                    )
-                    lines = int(out.split()[0])
+                    mtime = p.stat().st_mtime
                 except Exception:
+                    mtime = 0
+                cache_key = f"{p}_{mtime}"
+
+                if cache_key in self.__class__._wordlist_cache:
+                    lines = self.__class__._wordlist_cache[cache_key]
+                else:
                     try:
-                        lines = sum(1 for _ in open(p, encoding="latin-1"))
-                    except Exception as e:
-                        logger.debug(
-                            "Could not count lines in %s: %s", path, e
-                        )
-                        lines = 0
+                        out = subprocess.check_output(["wc", "-l", str(p)], text=True)
+                        lines = int(out.split()[0])
+                    except Exception:
+                        try:
+                            lines = sum(1 for _ in open(p, encoding="latin-1"))
+                        except Exception as e:
+                            logger.debug("Could not count lines in %s: %s", path, e)
+                            lines = 0
+                    self.__class__._wordlist_cache[cache_key] = lines
+
                 inventory.append(
                     {
                         "path": str(p),
@@ -321,16 +329,26 @@ class Orchestrator:
             for f in sorted(self.WORDLIST_DIR.glob("*.txt")):
                 if f.stat().st_size < 2:
                     continue  # skip empty files
+
                 try:
-                    out = subprocess.check_output(
-                        ["wc", "-l", str(f)], text=True
-                    )
-                    lines = int(out.split()[0])
+                    mtime = f.stat().st_mtime
                 except Exception:
+                    mtime = 0
+                cache_key = f"{f}_{mtime}"
+
+                if cache_key in self.__class__._wordlist_cache:
+                    lines = self.__class__._wordlist_cache[cache_key]
+                else:
                     try:
-                        lines = sum(1 for _ in open(f, encoding="latin-1"))
+                        out = subprocess.check_output(["wc", "-l", str(f)], text=True)
+                        lines = int(out.split()[0])
                     except Exception:
-                        lines = 0
+                        try:
+                            lines = sum(1 for _ in open(f, encoding="latin-1"))
+                        except Exception:
+                            lines = 0
+                    self.__class__._wordlist_cache[cache_key] = lines
+
                 name = f.stem
                 if "wifi" in name or "wpa" in name:
                     cat = "wifi"
@@ -412,9 +430,7 @@ class Orchestrator:
             return interface
 
         # Need to enable monitor mode
-        self._print(
-            f"[PREREQ] {interface} is in Managed mode — auto-enabling Monitor…"
-        )
+        self._print(f"[PREREQ] {interface} is in Managed mode — auto-enabling Monitor…")
         result = self.start_monitor(interface)
         if result.get("error") or result.get("blocked"):
             raise RuntimeError(
@@ -455,9 +471,7 @@ class Orchestrator:
                 self._print(f"[PREREQ] Found wordlist → {f} ✓")
                 return str(f)
 
-        self._print(
-            "[PREREQ] ⚠ No wordlist found — proceeding with original path"
-        )
+        self._print("[PREREQ] ⚠ No wordlist found — proceeding with original path")
         return wordlist
 
     def ensure_wireless_interface(self, interface: str = "") -> str:
@@ -602,19 +616,14 @@ class Orchestrator:
         # First kill all tracked background processes from the registry
         registry_killed = self.layer.kill_all_background()
         if registry_killed:
-            self._print(
-                f"  ✕ Killed {registry_killed} tracked background process(es)"
-            )
+            self._print(f"  ✕ Killed {registry_killed} tracked background process(es)")
             summary["killed"].append(f"{registry_killed} tracked processes")
 
         # Then broadcast-kill any strays not in the registry
         pkill_cmd = "; ".join(
-            f"pkill -f {p} 2>/dev/null && echo KILLED:{p}"
-            for p in kill_targets
+            f"pkill -f {p} 2>/dev/null && echo KILLED:{p}" for p in kill_targets
         )
-        killall_cmd = "; ".join(
-            f"killall {p} 2>/dev/null" for p in kill_targets
-        )
+        killall_cmd = "; ".join(f"killall {p} 2>/dev/null" for p in kill_targets)
         result = self.layer.run(pkill_cmd, sudo=True, timeout=10)
         self.layer.run(killall_cmd, sudo=True, timeout=10)
 
@@ -637,9 +646,7 @@ class Orchestrator:
                 mode = iface.get("mode", "").lower()
                 if mode == "monitor" or name.endswith("mon"):
                     self._print(f"  ↩ Restoring {name} to managed mode...")
-                    self.layer.run(
-                        f"airmon-ng stop {name}", sudo=True, timeout=10
-                    )
+                    self.layer.run(f"airmon-ng stop {name}", sudo=True, timeout=10)
                     summary["interfaces_restored"].append(name)
 
             # Also brute-force stop any common monitor interfaces (batched)
@@ -687,9 +694,7 @@ class Orchestrator:
             "systemctl restart NetworkManager", sudo=True, timeout=15
         )
         if nm_result.success:
-            self._print(
-                "  ✓ NetworkManager restarted — Wi-Fi should reconnect shortly"
-            )
+            self._print("  ✓ NetworkManager restarted — Wi-Fi should reconnect shortly")
         else:
             # Fallback: try service command
             self.layer.run(
@@ -697,9 +702,7 @@ class Orchestrator:
                 sudo=True,
                 timeout=10,
             )
-            self._print(
-                "  ↻ Attempted NetworkManager restart via service command"
-            )
+            self._print("  ↻ Attempted NetworkManager restart via service command")
 
         # Also try wpa_supplicant restart
         self.layer.run(
@@ -718,9 +721,7 @@ class Orchestrator:
         self._print("\n" + "━" * 50)
         self._print(f"🛑 KILL JAMES Complete")
         self._print(f"  Processes killed:     {len(summary['killed'])}")
-        self._print(
-            f"  Interfaces restored:  {len(summary['interfaces_restored'])}"
-        )
+        self._print(f"  Interfaces restored:  {len(summary['interfaces_restored'])}")
         if summary["errors"]:
             self._print(f"  Errors:               {len(summary['errors'])}")
 
@@ -732,12 +733,8 @@ class Orchestrator:
             self._print("  ✓ Internet connectivity verified")
             summary["connectivity"] = True
         else:
-            self._print(
-                "  ⚠ No internet yet — Wi-Fi may take 10-20s to reconnect"
-            )
-            self._print(
-                "  If stuck, manually reconnect from the network tray."
-            )
+            self._print("  ⚠ No internet yet — Wi-Fi may take 10-20s to reconnect")
+            self._print("  If stuck, manually reconnect from the network tray.")
             summary["connectivity"] = False
 
         self._print("━" * 50)
@@ -772,9 +769,7 @@ class Orchestrator:
         aps = []
         if csv_files:
             try:
-                with open(
-                    csv_files[0], "r", encoding="utf-8", errors="ignore"
-                ) as f:
+                with open(csv_files[0], "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                     if content.strip():
                         parsed = self.aircrack.parse_airodump_csv(content)
@@ -786,21 +781,15 @@ class Orchestrator:
                             if ap.get("bssid", "").count(":") == 5
                             and ap.get("power", -1) != -1
                         ]
-                        aps.sort(
-                            key=lambda x: x.get("power", -100), reverse=True
-                        )
+                        aps.sort(key=lambda x: x.get("power", -100), reverse=True)
             except Exception as e:
                 self._print(f"[AP SCAN] Failed to parse CSV: {e}")
-                logger.exception(
-                    "Failed to parse airodump CSV file: %s", csv_files[0]
-                )
+                logger.exception("Failed to parse airodump CSV file: %s", csv_files[0])
         else:
             self._print(
                 "[AP SCAN] No CSV output from airodump-ng — check that the interface supports monitor mode and is not blocked."
             )
-            logger.error(
-                "No airodump-ng CSV files found matching %s*.csv", prefix
-            )
+            logger.error("No airodump-ng CSV files found matching %s*.csv", prefix)
 
         # Restore managed mode if we enabled monitor ourselves
         if not interface.endswith("mon"):
@@ -892,9 +881,7 @@ class Orchestrator:
         return result
 
     def full_scan(self, target: str, ports: str = "1-65535") -> dict:
-        entry = self._log(
-            "full_scan", "nmap", {"target": target, "ports": ports}
-        )
+        entry = self._log("full_scan", "nmap", {"target": target, "ports": ports})
         result = self.nmap.scan(
             target, ports=ports, flags="-sV -sC", sudo=True, timeout=600
         )
@@ -941,11 +928,7 @@ class Orchestrator:
                 in_modes = True
             elif in_modes and line.strip().startswith("* "):
                 phy_modes[current_phy].append(line.strip()[2:].strip())
-            elif (
-                in_modes
-                and not line.startswith("\t")
-                and not line.startswith(" ")
-            ):
+            elif in_modes and not line.startswith("\t") and not line.startswith(" "):
                 in_modes = False
 
         # 3. Compile report
@@ -1015,9 +998,7 @@ class Orchestrator:
             self._print(reason)
             return {"error": reason, "blocked": True}
 
-        entry = self._log(
-            "start_monitor", "aircrack", {"interface": interface}
-        )
+        entry = self._log("start_monitor", "aircrack", {"interface": interface})
 
         # Warn if check_kill will disrupt Wi-Fi
         _, ck_warning = self.net_guard.check_check_kill_safe()
@@ -1035,9 +1016,7 @@ class Orchestrator:
         self._finish(entry, result.as_dict())
         return result.as_dict()
 
-    def crack_handshake(
-        self, capture: str, wordlist: str, bssid: str = None
-    ) -> dict:
+    def crack_handshake(self, capture: str, wordlist: str, bssid: str = None) -> dict:
         entry = self._log(
             "crack_handshake",
             "aircrack",
@@ -1063,15 +1042,11 @@ class Orchestrator:
         )
         if result.get("found"):
             for k in result.get("cracked_keys", []):
-                self.cache_cracked_key(
-                    k["hash"][:32], k["plain"], method="hashcat"
-                )
+                self.cache_cracked_key(k["hash"][:32], k["plain"], method="hashcat")
         self._finish(entry, result)
         return result
 
-    def smart_crack(
-        self, hash_file: str, wordlist: str, mode: int = 0
-    ) -> dict:
+    def smart_crack(self, hash_file: str, wordlist: str, mode: int = 0) -> dict:
         """
         Smart cascading crack: hashcat stages → john fallback.
         Tries increasingly aggressive strategies until keys are found.
@@ -1097,9 +1072,7 @@ class Orchestrator:
             hash_file, wordlist, hash_mode=mode, timeout_per_stage=300
         )
         if hc_result.get("found"):
-            self._print(
-                f"  🔑 Hashcat cracked {hc_result['total_cracked']} key(s)!"
-            )
+            self._print(f"  🔑 Hashcat cracked {hc_result['total_cracked']} key(s)!")
             for k in hc_result.get("cracked_keys", []):
                 self._print(f"    {k['hash'][:32]}… → {k['plain']}")
                 self.cache_cracked_key(
@@ -1111,9 +1084,7 @@ class Orchestrator:
         # Stage 2: John the Ripper fallback
         self._print("\n[STAGE 2/2] John the Ripper fallback...")
         self._emit_progress("John fallback", 2, 2)
-        john_result = self.john.crack(
-            hash_file, wordlist=wordlist, timeout=300
-        )
+        john_result = self.john.crack(hash_file, wordlist=wordlist, timeout=300)
 
         # Check john --show for results
         if john_result.get("success"):
@@ -1213,9 +1184,7 @@ class Orchestrator:
                 ssid_list = gen.generate_ssid_targeted(ssid)
                 count = sum(1 for _ in open(ssid_list))
                 self._print(f"  Generated {count:,} SSID-specific candidates")
-                ac_result = self.aircrack.crack_wpa(
-                    capture, ssid_list, bssid=bssid
-                )
+                ac_result = self.aircrack.crack_wpa(capture, ssid_list, bssid=bssid)
                 if ac_result.get("found"):
                     self._print(
                         f"  🔑 Cracked via SSID-targeted list: {ac_result['key']}"
@@ -1301,9 +1270,7 @@ class Orchestrator:
             wifi_common = gen.generate_wifi_common()
             count = sum(1 for _ in open(wifi_common))
             self._print(f"  Generated {count:,} common Wi-Fi candidates")
-            ac_result = self.aircrack.crack_wpa(
-                capture, wifi_common, bssid=bssid
-            )
+            ac_result = self.aircrack.crack_wpa(capture, wifi_common, bssid=bssid)
             if ac_result.get("found"):
                 self._print(f"  🔑 Cracked: {ac_result['key']}")
                 self.cache_cracked_key(
@@ -1323,9 +1290,7 @@ class Orchestrator:
             numeric_list = gen.generate_numeric()
             count = sum(1 for _ in open(numeric_list))
             self._print(f"  Generated {count:,} numeric candidates")
-            ac_result = self.aircrack.crack_wpa(
-                capture, numeric_list, bssid=bssid
-            )
+            ac_result = self.aircrack.crack_wpa(capture, numeric_list, bssid=bssid)
             if ac_result.get("found"):
                 self._print(f"  🔑 Cracked: {ac_result['key']}")
                 self.cache_cracked_key(
@@ -1358,9 +1323,7 @@ class Orchestrator:
     def _finish(self, entry: TaskEntry, result) -> None:
         entry.result = result
         entry.status = (
-            "done"
-            if not (isinstance(result, dict) and "error" in result)
-            else "error"
+            "done" if not (isinstance(result, dict) and "error" in result) else "error"
         )
         if self.on_task_update:
             self.on_task_update(entry)
@@ -1472,10 +1435,7 @@ class Orchestrator:
             elif (
                 stripped.startswith("+ ")
                 and "OSVDB" in stripped
-                or (
-                    stripped.startswith("+")
-                    and "vulnerable" in stripped.lower()
-                )
+                or (stripped.startswith("+") and "vulnerable" in stripped.lower())
             ):
                 vulnerabilities.append(stripped.lstrip("+ "))
             elif stripped.startswith("+") and any(
@@ -1544,9 +1504,7 @@ class Orchestrator:
         records = [
             line.strip()
             for line in result.stdout.splitlines()
-            if line.strip()
-            and not line.startswith(";")
-            and not line.startswith("\t;")
+            if line.strip() and not line.startswith(";") and not line.startswith("\t;")
         ]
         res = {
             "domain": domain,
@@ -1566,17 +1524,12 @@ class Orchestrator:
         if not wl:
             # Fall back to a tiny built-in list
             wl = "/usr/share/wordlists/dirb/common.txt"
-        cmd = (
-            f"gobuster dir -u {url} -w {wl} "
-            f"-q --no-error -t 20 2>/dev/null"
-        )
+        cmd = f"gobuster dir -u {url} -w {wl} " f"-q --no-error -t 20 2>/dev/null"
         result = self.layer.run(cmd, timeout=180)
         findings: list[dict] = []
         for line in result.stdout.splitlines():
             # gobuster: "/path  (Status: 200) [Size: 1234]"
-            m = re.search(
-                r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)\]", line
-            )
+            m = re.search(r"(/\S*)\s+\(Status:\s*(\d+)\)\s*\[Size:\s*(\d+)\]", line)
             if m:
                 findings.append(
                     {
@@ -1614,11 +1567,7 @@ class Orchestrator:
                 and "injectable" in stripped.lower()
             ):
                 injectable = True
-            if (
-                "Type:" in stripped
-                or "Title:" in stripped
-                or "Payload:" in stripped
-            ):
+            if "Type:" in stripped or "Title:" in stripped or "Payload:" in stripped:
                 vulnerabilities.append(stripped)
         res = {
             "url": url,
@@ -1680,9 +1629,7 @@ class Orchestrator:
         """Return names of all available JSON skills."""
         if not SKILLS_DIR.exists():
             return []
-        return [
-            p.stem for p in sorted(SKILLS_DIR.glob("*.json")) if p.is_file()
-        ]
+        return [p.stem for p in sorted(SKILLS_DIR.glob("*.json")) if p.is_file()]
 
     def load_skill(self, name: str) -> dict:
         """Load a skill definition by name (without .json extension)."""
@@ -1735,9 +1682,7 @@ class Orchestrator:
             method = getattr(self, action, None)
             if method is None:
                 self._print(f"  ⚠️ Unknown action: {action}")
-                results.append(
-                    {"step": i, "action": action, "error": "unknown action"}
-                )
+                results.append({"step": i, "action": action, "error": "unknown action"})
                 continue
             try:
                 result = method(**params)
@@ -1813,9 +1758,7 @@ class Orchestrator:
             # Check cache first
             cached = self.get_cached_key(bssid)
             if cached:
-                self._print(
-                    f"  🔑 {essid} ({bssid}) — already cracked: {cached}"
-                )
+                self._print(f"  🔑 {essid} ({bssid}) — already cracked: {cached}")
                 cracked.append({"bssid": bssid, "essid": essid, "key": cached})
                 continue
 
@@ -1830,9 +1773,7 @@ class Orchestrator:
                 conv = self.hcxtools.extract_hashes(pcapng, hash_file)
                 if conv.get("success"):
                     self._print("    [PMKID] Hashes extracted — cracking...")
-                    hc_result = self.hashcat.crack(
-                        hash_file, wordlist, hash_mode=22000
-                    )
+                    hc_result = self.hashcat.crack(hash_file, wordlist, hash_mode=22000)
                     if hc_result.get("success") and hc_result.get("output"):
                         # Try to extract cracked key
                         for line in hc_result["output"].splitlines():
@@ -1888,9 +1829,7 @@ class Orchestrator:
             "cracked_count": len(cracked),
             "cracked": cracked,
         }
-        self._print(
-            f"\n🏁 AUTOPILOT done — {len(cracked)} network(s) cracked."
-        )
+        self._print(f"\n🏁 AUTOPILOT done — {len(cracked)} network(s) cracked.")
         return summary
 
     def auto_install_deps(self) -> dict:
@@ -1898,9 +1837,7 @@ class Orchestrator:
         self._print("━" * 50)
         self._print("🔧 Auto-installing dependencies...")
         self._print("━" * 50)
-        script = (
-            Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
-        )
+        script = Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
         if script.exists():
             cmd = f"bash {script}"
         else:
@@ -2023,9 +1960,7 @@ class Orchestrator:
         )
         return result
 
-    def oneclick_pineapple(
-        self, interface: str, portal: str = "default"
-    ) -> dict:
+    def oneclick_pineapple(self, interface: str, portal: str = "default") -> dict:
         """Full Pineapple campaign: scan → karma → portal → harvest."""
         self._print("━" * 50)
         self._print("🍍 PINEAPPLE CAMPAIGN")
