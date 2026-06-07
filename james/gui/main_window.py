@@ -21,7 +21,6 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox,
     QComboBox,
     QFrame,
-    QSizePolicy,
     QShortcut,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QPropertyAnimation, QEasingCurve
