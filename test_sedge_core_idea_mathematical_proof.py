@@ -26,7 +26,7 @@ from james.tools.constants import (
 
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
-    Mathematical proof and comprehensive test suite for the SEDGE behavior.
+    Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
     Proves that successful paths strengthen, failed paths decay, and optimal
     strategies automatically emerge.
     """
