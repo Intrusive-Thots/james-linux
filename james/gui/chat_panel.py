@@ -33,7 +33,6 @@ from PyQt5.QtWidgets import (
     QFrame,
     QSizePolicy,
     QPlainTextEdit,
-    QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QKeyEvent
