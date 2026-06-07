@@ -664,19 +664,13 @@ class WifiWordlistGenerator:
 
         for path in [common, numeric]:
             with open(path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        all_passwords.add(line)
+                all_passwords.update(filter(None, map(str.strip, f)))
 
         # SSID-targeted if SSID given
         if ssid:
             ssid_file = self.generate_ssid_targeted(ssid)
             with open(ssid_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        all_passwords.add(line)
+                all_passwords.update(filter(None, map(str.strip, f)))
 
         # Also pull from system wordlists if they exist
         for sys_file in [
@@ -686,10 +680,9 @@ class WifiWordlistGenerator:
             if os.path.exists(sys_file):
                 try:
                     with open(sys_file, "r", errors="ignore") as f:
-                        for line in f:
-                            line = line.strip()
-                            if 8 <= len(line) <= 63:
-                                all_passwords.add(line)
+                        all_passwords.update(
+                            line for line in map(str.strip, f) if 8 <= len(line) <= 63
+                        )
                 except Exception:
                     pass
 
