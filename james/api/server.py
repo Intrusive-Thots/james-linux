@@ -795,7 +795,12 @@ async def _action_abort(orch):
 
 # ── Entry point ─────────────────────────────────────────────────
 def main():
-    """Run the JAMES API server."""
+    """
+    Run the JAMES API server.
+
+    Initializes the FastAPI application via uvicorn. Resolves the port
+    from the JAMES_API_PORT environment variable (defaulting to 8745).
+    """
     port = int(os.environ.get("JAMES_API_PORT", 8745))
     uvicorn.run(
         "james.api.server:app",
