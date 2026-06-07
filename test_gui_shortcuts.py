@@ -200,6 +200,27 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertEqual(anim.targetObject(), chat_panel._scroll.verticalScrollBar())
         self.assertEqual(anim.propertyName(), b"value")
 
+    def test_chat_bubble_fade_anim(self):
+        from james.gui.chat_panel import _Bubble
+        from PyQt5.QtCore import QPropertyAnimation
+        from PyQt5.QtWidgets import QGraphicsOpacityEffect
+
+        bubble = _Bubble("Test fade animation", False)
+
+        # Verify opacity effect is applied
+        self.assertTrue(hasattr(bubble, "_opacity"))
+        self.assertIsInstance(bubble._opacity, QGraphicsOpacityEffect)
+        self.assertEqual(bubble.graphicsEffect(), bubble._opacity)
+
+        # Verify fade animation is configured correctly
+        self.assertTrue(hasattr(bubble, "_fade_anim"))
+        anim = bubble._fade_anim
+        self.assertIsInstance(anim, QPropertyAnimation)
+        self.assertEqual(anim.targetObject(), bubble._opacity)
+        self.assertEqual(anim.propertyName(), b"opacity")
+        self.assertEqual(anim.startValue(), 0.0)
+        self.assertEqual(anim.endValue(), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
