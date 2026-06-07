@@ -239,8 +239,9 @@ class NetworkGuard:
             # Can't determine — allow but warn
             return True, ""
 
-        target_upper = target_bssid.strip().upper()
-        if target_upper == conn.bssid:
+        target_normalized = target_bssid.strip().replace("-", ":").upper()
+        conn_bssid_normalized = conn.bssid.strip().replace("-", ":").upper()
+        if target_normalized == conn_bssid_normalized:
             reason = (
                 f"🛡️ BLOCKED: Target BSSID {target_bssid} is the AP JAMES is "
                 f"currently connected to ({conn.ssid or 'unknown SSID'} on {conn.interface}). "
