@@ -1286,12 +1286,14 @@ class Agent:
 
     def _do_whois(self, m, raw) -> str:
         domain = m.group(1).strip()
-        result = self.orch.layer.run(f"whois {domain} | head -40", timeout=15)
+        safe_domain = shlex.quote(domain)
+        result = self.orch.layer.run(f"whois {safe_domain} | head -40", timeout=15)
         return f"📋 WHOIS — {domain}\n\n{result.stdout[:2000]}"
 
     def _do_dns_enum(self, m, raw) -> str:
         domain = m.group(1).strip()
-        cmd = f"dig {domain} ANY +noall +answer && dig {domain} MX +noall +answer && dig {domain} NS +noall +answer"
+        safe_domain = shlex.quote(domain)
+        cmd = f"dig {safe_domain} ANY +noall +answer && dig {safe_domain} MX +noall +answer && dig {safe_domain} NS +noall +answer"
         result = self.orch.layer.run(cmd, timeout=15)
         return f"🔍 DNS — {domain}\n\n{result.stdout[:2000]}"
 
