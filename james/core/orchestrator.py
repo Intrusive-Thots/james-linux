@@ -136,6 +136,9 @@ class Orchestrator:
         # Auto-load sudo password from saved settings
         self._load_sudo_from_settings()
 
+        # Cache for wordlist line counts
+        self._line_count_cache = {}
+
     def _load_sudo_from_settings(self):
         """Load saved sudo password from settings.json into NativeLayer."""
         try:
@@ -262,6 +265,33 @@ class Orchestrator:
             return result.stdout.strip()
         return None
 
+    def _get_wordlist_lines(self, path: Path) -> int:
+        """Get line count of a wordlist file, caching the result."""
+        p_str = str(path)
+        try:
+            stat = path.stat()
+            mtime = stat.st_mtime
+            size = stat.st_size
+        except Exception:
+            return 0
+
+        cached = self._line_count_cache.get(p_str)
+        if cached and cached["mtime"] == mtime and cached["size"] == size:
+            return cached["lines"]
+
+        try:
+            out = subprocess.check_output(["wc", "-l", p_str], text=True)
+            lines = int(out.split()[0])
+        except Exception:
+            try:
+                lines = sum(1 for _ in open(path, encoding="latin-1"))
+            except Exception as e:
+                logger.debug("Could not count lines in %s: %s", path, e)
+                lines = 0
+
+        self._line_count_cache[p_str] = {"mtime": mtime, "size": size, "lines": lines}
+        return lines
+
     def list_wordlists(self) -> list[dict]:
         """Return an inventory of all available wordlists with metadata."""
         inventory = []
@@ -279,19 +309,7 @@ class Orchestrator:
         for path, cat, label in system_paths:
             p = Path(path)
             if p.exists():
-                try:
-                    out = subprocess.check_output(
-                        ["wc", "-l", str(p)], text=True
-                    )
-                    lines = int(out.split()[0])
-                except Exception:
-                    try:
-                        lines = sum(1 for _ in open(p, encoding="latin-1"))
-                    except Exception as e:
-                        logger.debug(
-                            "Could not count lines in %s: %s", path, e
-                        )
-                        lines = 0
+                lines = self._get_wordlist_lines(p)
                 inventory.append(
                     {
                         "path": str(p),
@@ -307,16 +325,7 @@ class Orchestrator:
             for f in sorted(self.WORDLIST_DIR.glob("*.txt")):
                 if f.stat().st_size < 2:
                     continue  # skip empty files
-                try:
-                    out = subprocess.check_output(
-                        ["wc", "-l", str(f)], text=True
-                    )
-                    lines = int(out.split()[0])
-                except Exception:
-                    try:
-                        lines = sum(1 for _ in open(f, encoding="latin-1"))
-                    except Exception:
-                        lines = 0
+                lines = self._get_wordlist_lines(f)
                 name = f.stem
                 if "wifi" in name or "wpa" in name:
                     cat = "wifi"

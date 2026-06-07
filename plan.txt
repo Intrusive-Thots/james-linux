@@ -1,0 +1,7 @@
+1. Read `james/core/orchestrator.py` to get the full `list_wordlists` method and the class initialization to understand how to add a line count cache.
+2. In `james/core/orchestrator.py`, add `self._line_count_cache = {}` to `__init__`.
+3. Add a helper method `_get_wordlist_lines_cached(self, path: Path) -> int` to `Orchestrator` which uses `path.stat().st_mtime` and `path.stat().st_size` to cache wordlist line counts.
+4. Update `list_wordlists` to use the new caching helper method.
+5. Write a test case in `test_orchestrator_perf.py` to ensure the logic and cache behavior work as intended.
+6. Run tests to ensure we don't break anything.
+7. Run the performance test again to measure and record the baseline and optimized execution times for the PR description.
