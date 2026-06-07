@@ -19,7 +19,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from james.core.ai_engine import GeminiEngine, ActionParams
+from james.core.ai_engine import GeminiEngine
 
 from james.core.orchestrator import Orchestrator
 
