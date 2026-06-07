@@ -1286,12 +1286,12 @@ class Agent:
 
     def _do_whois(self, m, raw) -> str:
         domain = m.group(1).strip()
-        result = self.orch.layer.run(f"whois {domain} | head -40", timeout=15)
+        result = self.orch.layer.run(f"whois {shlex.quote(domain)} | head -40", timeout=15)
         return f"📋 WHOIS — {domain}\n\n{result.stdout[:2000]}"
 
     def _do_dns_enum(self, m, raw) -> str:
         domain = m.group(1).strip()
-        cmd = f"dig {domain} ANY +noall +answer && dig {domain} MX +noall +answer && dig {domain} NS +noall +answer"
+        cmd = f"dig {shlex.quote(domain)} ANY +noall +answer && dig {shlex.quote(domain)} MX +noall +answer && dig {shlex.quote(domain)} NS +noall +answer"
         result = self.orch.layer.run(cmd, timeout=15)
         return f"🔍 DNS — {domain}\n\n{result.stdout[:2000]}"
 
@@ -1410,7 +1410,7 @@ class Agent:
         if not iface:
             return "[!] No interface specified. Use: sniff <interface>"
         result = self.orch.layer.run(
-            f"timeout 15 tcpdump -i {iface} -c 100 -nn 2>/dev/null",
+            f"timeout 15 tcpdump -i {shlex.quote(iface)} -c 100 -nn 2>/dev/null",
             sudo=True,
             timeout=20,
         )
