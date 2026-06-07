@@ -110,6 +110,7 @@ class DecisionGraph:
         """Initializes a new, empty decision graph."""
         self.nodes: dict[str, Node] = {}
         self.edges: dict[str, list[Edge]] = {}
+        self.edges_dict: dict[str, dict[str, Edge]] = {}
 
     def add_node(self, node: Node) -> None:
         """
@@ -128,6 +129,7 @@ class DecisionGraph:
             edge (Edge): The relational edge mapping the transition.
         """
         self.edges.setdefault(edge.from_node, []).append(edge)
+        self.edges_dict.setdefault(edge.from_node, {})[edge.to_node] = edge
 
     def get_node(self, node_id: str) -> Node | None:
         """
@@ -180,6 +182,7 @@ class DecisionGraph:
         """
         self.nodes.clear()
         self.edges.clear()
+        self.edges_dict.clear()
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
@@ -214,15 +217,11 @@ class DecisionGraph:
         edge_count = 0
 
         for frm, to in zip(path[:-1], path[1:]):
-            edges = self.edges.get(frm, [])
-            found = False
-            for e in edges:
-                if e.to_node == to:
-                    total_score += e.score()
-                    edge_count += 1
-                    found = True
-                    break
-            if not found:
+            edges_dict = self.edges_dict.get(frm)
+            if edges_dict and to in edges_dict:
+                total_score += edges_dict[to].score()
+                edge_count += 1
+            else:
                 return 0.0  # Path is broken
 
         if edge_count == 0:
@@ -254,18 +253,17 @@ class LearningEngine:
             outcome (str): The final result (e.g., 'SUCCESS', 'FAILURE').
         """
         for frm, to in zip(path[:-1], path[1:]):
-            edges = graph.edges.get(frm, [])
-            for e in edges:
-                if e.to_node == to:
-                    e.visits += 1
-                    if outcome == OUTCOME_SUCCESS:
-                        e.success_weight += 1.0
-                    elif outcome == OUTCOME_FAILURE:
-                        e.failure_weight += 1.0
-                    elif outcome == OUTCOME_PARTIAL:
-                        e.success_weight += 0.5
-                        e.failure_weight += 0.5
-                    break
+            edges_dict = graph.edges_dict.get(frm)
+            if edges_dict and to in edges_dict:
+                e = edges_dict[to]
+                e.visits += 1
+                if outcome == OUTCOME_SUCCESS:
+                    e.success_weight += 1.0
+                elif outcome == OUTCOME_FAILURE:
+                    e.failure_weight += 1.0
+                elif outcome == OUTCOME_PARTIAL:
+                    e.success_weight += 0.5
+                    e.failure_weight += 0.5
 
 
 class DecisionEngine:
