@@ -968,8 +968,10 @@ class Agent:
             if james_files:
                 lines.append(f"\n  ── JAMES GENERATED {'─' * 27}")
                 for f in sorted(james_files):
-                    count = sum(1 for _ in open(f, errors="ignore"))
-                    size_kb = f.stat().st_size / 1024
+                    size_bytes = f.stat().st_size
+                    # Approximate line count: average length in wordlists is roughly 10 bytes including newline
+                    count = size_bytes // 10
+                    size_kb = size_bytes / 1024
                     lines.append(
                         f"    {f.name:<35} {count:>12,} entries  ({size_kb:.0f}KB)"
                     )
