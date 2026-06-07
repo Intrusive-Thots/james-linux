@@ -11,7 +11,6 @@ import re
 import json
 import logging
 from datetime import datetime
-import shlex
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
