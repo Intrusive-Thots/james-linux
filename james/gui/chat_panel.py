@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QSizePolicy,
     QPlainTextEdit,
+    QGraphicsOpacityEffect,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QKeyEvent
@@ -105,6 +106,17 @@ class _Bubble(QFrame):
 
     def _build(self, text: str):
         self.setFrameShape(QFrame.NoFrame)
+
+        # Add fade-in animation
+        self._opacity = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._opacity)
+        self._fade_anim = QPropertyAnimation(self._opacity, b"opacity", self)
+        self._fade_anim.setDuration(250)
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._fade_anim.start()
+
         outer = QHBoxLayout(self)
         outer.setContentsMargins(4, 2, 4, 2)
 
