@@ -72,7 +72,7 @@ class ConnectionManager:
     async def broadcast(self, message: dict):
         """Send a JSON message to all connected clients."""
         data = json.dumps(message)
-        for ws in self.active[:]:  # copy list to avoid mutation issues
+        for ws in list(self.active):  # copy list to avoid mutation issues
             try:
                 await ws.send_text(data)
             except Exception:
