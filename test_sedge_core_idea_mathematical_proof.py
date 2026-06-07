@@ -27,8 +27,8 @@ from james.tools.constants import (
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
     Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
-    Proves that successful paths strengthen, failed paths decay, and optimal
-    strategies automatically emerge.
+    Proves that successful paths become stronger, failed paths decay, and optimal
+    strategies emerge automatically.
     """
 
     def setUp(self):
