@@ -16,7 +16,7 @@ and gateway — then checks incoming attack parameters against them.
 import logging
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger(__name__)
