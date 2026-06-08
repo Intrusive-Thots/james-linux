@@ -11,6 +11,7 @@ import re
 import json
 import logging
 import keyring
+import shlex
 from datetime import datetime
 import threading
 from dataclasses import dataclass, field
