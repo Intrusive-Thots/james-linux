@@ -60,9 +60,9 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience and represent transitions between decisions.
+    Edges store experience weight and represent transitions between decisions.
     Weights = learned success utility scores. Over time, successful paths
-    become stronger and failed paths decay.
+    become stronger and failed paths decay, allowing optimal strategies to emerge automatically.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -237,8 +237,9 @@ class LearningEngine:
     This is what makes it "self-evolving".
     It receives traversal outcomes (SUCCESS, FAILURE, PARTIAL_SIGNAL) and retroactively
     adjusts the experiential weights of all edges along the utilized path. Over time,
-    this creates a continuous feedback loop where successful paths become stronger
-    and failed paths decay.
+    this creates a continuous feedback loop where successful sequences gain higher
+    success_weight and stronger traversal probability, while failed sequences gain higher
+    failure_weight and reduced probability.
     """
 
     def update(
@@ -270,10 +271,11 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This replaces static "AI decisions" with stochastic weighted selection.
-    It balances exploration (trying weak paths occasionally) vs exploitation
-    (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations.
+    This replaces static "AI decisions".
+    It uses weighted stochastic selection (exploration + exploitation).
+    The system naturally balances exploration (trying weak paths occasionally) vs
+    exploitation (using strong known paths). The policy layer probabilistically determines
+    optimal path continuations via stochastic weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -319,8 +321,8 @@ class SelfEvolvingAgent:
 
     This is where learning actually happens.
     This class orchestrates the complete learning cycle by combining the DecisionEngine
-    and the LearningEngine to navigate the decision graph. Through iterative feedback,
-    optimal strategies emerge automatically, while failed paths decay.
+    and the LearningEngine to navigate the decision graph. Through iterative feedback
+    and the self-evolution loop, optimal strategies emerge automatically.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -375,12 +377,16 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
+    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
+
     Instantiates the structural decision graph mapped to the Parrot WiFi system domain.
 
     This factory function maps specific domain concepts into the graph:
     States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
     Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+    Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
+    REAL EVOLUTION BEHAVIOR
     After enough runs, the graph converges toward optimal attack/analysis pipelines,
     unstable techniques decay automatically, and high-yield workflows become dominant paths.
     This creates a living decision ecosystem instead of static scripts.
