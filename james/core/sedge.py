@@ -307,6 +307,9 @@ class DecisionEngine:
         total = sum(weights)
 
         # Fallback to uniform random selection if cumulative utility is non-positive
+        # This zero-utility fallback logic prevents zero-division errors when all path candidates
+        # have an accumulated weight of 0.0 or lower. By falling back to uniform random selection,
+        # it distributes selections equally to balance exploration vs exploitation.
         if total <= 0.0:
             return random.choice(candidates).to_node
 

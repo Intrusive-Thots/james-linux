@@ -210,6 +210,44 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.assertAlmostEqual(ratio_y, 1/3, delta=0.02)
         self.assertAlmostEqual(ratio_z, 1/3, delta=0.02)
 
+    def test_stochastic_fallback(self):
+        """
+        Tests the fallback to uniform random selection when all edge utilities are <= 0.0.
+        This explicitly verifies that SEDGE falls back to uniform random selection when
+        all edge utilities result in a sum <= 0.0, distributing selections roughly equally
+        over a large number of iterations to test statistical stability.
+        """
+        decision_engine = DecisionEngine(self.graph)
+
+        # Create edges with zero or negative utility
+        # Note: According to Edge.score(), success_weight / (failure_weight + epsilon)
+        # We can simulate <= 0 utility by setting success_weight to 0 or negative.
+        edge_1 = Edge(from_node="A", to_node="Path1", success_weight=-1.0, failure_weight=1.0)
+        edge_2 = Edge(from_node="A", to_node="Path2", success_weight=0.0, failure_weight=1.0)
+        edge_3 = Edge(from_node="A", to_node="Path3", success_weight=-2.0, failure_weight=1.0)
+
+        self.graph.add_edge(edge_1)
+        self.graph.add_edge(edge_2)
+        self.graph.add_edge(edge_3)
+
+        counts = {"Path1": 0, "Path2": 0, "Path3": 0}
+        iterations = 250000
+
+        # When all edges have score <= 0.0, total weight will be <= 0.0
+        # DecisionEngine should fallback to uniform random choice
+        for _ in range(iterations):
+            choice = decision_engine.decide("A")
+            counts[choice] += 1
+
+        ratio_1 = counts["Path1"] / iterations
+        ratio_2 = counts["Path2"] / iterations
+        ratio_3 = counts["Path3"] / iterations
+
+        # Verify roughly equal distribution (~33.3% each)
+        self.assertAlmostEqual(ratio_1, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_2, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_3, 1/3, delta=0.02)
+
     def test_exploration_vs_exploitation_decay(self):
         """
         Mathematical proof that failing paths naturally decay over time to balance
