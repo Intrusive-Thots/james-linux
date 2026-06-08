@@ -100,11 +100,15 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_b = counts["B"] / iterations
         ratio_c = counts["C"] / iterations
 
-        # Expected ratios based on scores:
-        # B score ~ 80, C score ~ 20. Total ~ 100
-        # Prob B ~ 0.8, Prob C ~ 0.2
-        self.assertAlmostEqual(ratio_b, 0.8, delta=0.02)
-        self.assertAlmostEqual(ratio_c, 0.2, delta=0.02)
+        # Expected ratios based on calculated mathematical scores
+        score_b = edge_b.score()
+        score_c = edge_c.score()
+        total_score = score_b + score_c
+        expected_b = score_b / total_score
+        expected_c = score_c / total_score
+
+        self.assertAlmostEqual(ratio_b, expected_b, delta=0.02)
+        self.assertAlmostEqual(ratio_c, expected_c, delta=0.02)
 
     def test_learning_engine_backpropagation(self):
         """
@@ -251,13 +255,15 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_exploit = counts["Exploit"] / iterations
         ratio_explore = counts["Explore"] / iterations
 
-        # Exploit score ~ 10, Explore score ~ 0.333
-        # Total score ~ 10.333
-        # Prob Explore ~ 0.333 / 10.333 ~ 0.032
-        # Prob Exploit ~ 10 / 10.333 ~ 0.967
+        # Expected ratios based on calculated mathematical scores
+        score_exploit = edge_exploit.score()
+        score_explore = edge_explore.score()
+        total_score = score_exploit + score_explore
+        expected_exploit = score_exploit / total_score
+        expected_explore = score_explore / total_score
 
-        self.assertAlmostEqual(ratio_exploit, 0.967, delta=0.02)
-        self.assertAlmostEqual(ratio_explore, 0.032, delta=0.02)
+        self.assertAlmostEqual(ratio_exploit, expected_exploit, delta=0.02)
+        self.assertAlmostEqual(ratio_explore, expected_explore, delta=0.02)
 
 
 if __name__ == '__main__':

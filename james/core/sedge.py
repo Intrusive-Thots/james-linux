@@ -38,8 +38,8 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a system situation or decision point.
-    They are the fundamental vertices where Nodes = system states or actions.
+    Each node represents a discrete system situation or decision point.
+    They are the fundamental vertices representing system states or executable actions.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -60,9 +60,9 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight and represent transitions between decisions.
-    Weights = learned success utility scores. Over time, successful paths
-    become stronger and failed paths decay, allowing optimal strategies to emerge automatically.
+    Edges store accumulated experiential weight and represent directed transitions between decisions.
+    The internal weights operate as learned success utility scores. Through stochastic traversal,
+    successful paths become stronger while failed paths progressively decay.
 
     Attributes:
         from_node (str): Identifier of the origin node.
