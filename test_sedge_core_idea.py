@@ -101,7 +101,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 200000
+        iterations = 250000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
@@ -197,7 +197,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         # When utility is zero for all, it should fallback to uniform random selection
         counts = {"B": 0, "C": 0}
-        iterations = 200000
+        iterations = 250000
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1

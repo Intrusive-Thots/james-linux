@@ -100,6 +100,11 @@ class DecisionGraph:
     DECISION GRAPH CORE
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
+    The system builds a directed weighted decision graph where:
+    - Nodes = system states or actions
+    - Edges = transitions between decisions
+    - Weights = learned success utility scores
+
     It maintains the registry of Nodes (states/actions) and Edges (weighted transitions).
     The graph exposes operations for path traversal, dynamic path scoring, and state
     resolution. Over time, successful paths become stronger, failed paths decay, and
@@ -326,6 +331,11 @@ class SelfEvolvingAgent:
     This class orchestrates the complete learning cycle by combining the DecisionEngine
     and the LearningEngine to navigate the decision graph. Through iterative feedback
     and the self-evolution loop, optimal strategies emerge automatically.
+
+    HOW IT LEARNS OPTIMAL PATHS
+    Over time:
+    Successful sequences gain higher success_weight and stronger traversal probability.
+    Failed sequences gain higher failure_weight and reduced probability.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
