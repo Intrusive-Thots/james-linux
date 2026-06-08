@@ -175,6 +175,11 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+Return shortcut not found in ChatPanel input"
         )
 
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+L") for s in shortcuts),
+            "Ctrl+L shortcut not found in ChatPanel"
+        )
+
     def test_log_scroll_anim(self):
         from PyQt5.QtCore import QPropertyAnimation
 

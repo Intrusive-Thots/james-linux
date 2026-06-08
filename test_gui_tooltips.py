@@ -82,7 +82,7 @@ class TestGUITooltips(unittest.TestCase):
 
         chat_panel = self.main_window.tabs.widget(0)
         self.assertIsInstance(chat_panel, ChatPanel)
-        self.assertEqual(chat_panel._btn_clear.toolTip(), "Clear chat history")
+        self.assertEqual(chat_panel._btn_clear.toolTip(), "Clear chat history (Ctrl+L)")
         self.assertEqual(chat_panel._btn_send.toolTip(), "Send command to JAMES (Enter)")
 
     def test_troubleshoot_tab_tooltips(self):
