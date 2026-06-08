@@ -270,10 +270,11 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This replaces static "AI decisions" with stochastic weighted selection.
-    It balances exploration (trying weak paths occasionally) vs exploitation
-    (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations.
+    This replaces static "AI decisions". It uses stochastic weighted selection to naturally balance:
+    - exploration (trying weak paths occasionally)
+    - exploitation (using strong known paths)
+
+    The policy layer probabilistically determines optimal path continuations based on learned weights.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -319,8 +320,12 @@ class SelfEvolvingAgent:
 
     This is where learning actually happens.
     This class orchestrates the complete learning cycle by combining the DecisionEngine
-    and the LearningEngine to navigate the decision graph. Through iterative feedback,
-    optimal strategies emerge automatically, while failed paths decay.
+    and the LearningEngine to navigate the decision graph.
+
+    Over time, through execution feedback learning:
+    - successful paths become stronger (higher success_weight, stronger traversal probability)
+    - failed paths decay (higher failure_weight, reduced probability)
+    - optimal strategies emerge automatically
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -379,10 +384,15 @@ def build_parrot_wifi_graph() -> DecisionGraph:
 
     This factory function maps specific domain concepts into the graph:
     States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+    Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
+    Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant paths.
+    REAL EVOLUTION BEHAVIOR:
+    After enough runs:
+    - graph converges toward optimal attack/analysis pipelines
+    - unstable techniques decay automatically
+    - high-yield workflows become dominant paths
+
     This creates a living decision ecosystem instead of static scripts.
 
     Returns:
