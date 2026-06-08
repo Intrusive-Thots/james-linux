@@ -16,12 +16,13 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-
-logger = logging.getLogger(__name__)
+import shlex
 
 from james.core.ai_engine import GeminiEngine
 
 from james.core.orchestrator import Orchestrator
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

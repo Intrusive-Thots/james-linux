@@ -1,16 +1,15 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
-This module implements a directed, weighted decision graph ecosystem designed to dynamically
-adapt and optimize state transitions. In this architecture:
-- Nodes = system states or actions.
-- Edges = transitions between decisions.
-- Weights = learned success utility scores.
+The system builds a directed weighted decision graph where:
+Nodes = system states or actions
+Edges = transitions between decisions
+Weights = learned success utility scores
 
-Over time, through iterative stochastic traversal and backpropagated execution feedback:
-- successful paths become stronger
-- failed paths decay
-- optimal strategies emerge automatically
+Over time:
+successful paths become stronger
+failed paths decay
+optimal strategies emerge automatically
 """
 
 import random
@@ -36,10 +35,10 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    STATE NODE MODEL
+    ARCHITECTURE
 
-    Each node represents a system situation or decision point.
-    They are the fundamental vertices where Nodes = system states or actions.
+    STATE NODE MODEL
+    Each node represents a system situation or decision point:
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -58,11 +57,9 @@ class Node:
 @dataclass
 class Edge:
     """
-    EDGE MODEL (LEARNING PATHS)
+    2. EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience and represent transitions between decisions.
-    Weights = learned success utility scores. Over time, successful paths
-    become stronger and failed paths decay.
+    Edges store experience weight:
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -101,9 +98,6 @@ class DecisionGraph:
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
     It maintains the registry of Nodes (states/actions) and Edges (weighted transitions).
-    The graph exposes operations for path traversal, dynamic path scoring, and state
-    resolution. Over time, successful paths become stronger, failed paths decay, and
-    optimal strategies emerge automatically.
     """
 
     def __init__(self) -> None:
@@ -235,10 +229,6 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
     This is what makes it "self-evolving".
-    It receives traversal outcomes (SUCCESS, FAILURE, PARTIAL_SIGNAL) and retroactively
-    adjusts the experiential weights of all edges along the utilized path. Over time,
-    this creates a continuous feedback loop where successful paths become stronger
-    and failed paths decay.
     """
 
     def update(
@@ -269,11 +259,7 @@ class LearningEngine:
 class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
-
-    This replaces static "AI decisions" with stochastic weighted selection.
-    It balances exploration (trying weak paths occasionally) vs exploitation
-    (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations.
+    This replaces static "AI decisions".
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -316,11 +302,7 @@ class DecisionEngine:
 class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
-
     This is where learning actually happens.
-    This class orchestrates the complete learning cycle by combining the DecisionEngine
-    and the LearningEngine to navigate the decision graph. Through iterative feedback,
-    optimal strategies emerge automatically, while failed paths decay.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -375,15 +357,23 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    Instantiates the structural decision graph mapped to the Parrot WiFi system domain.
+    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
 
-    This factory function maps specific domain concepts into the graph:
-    States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
+    You can map nodes like:
 
-    After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant paths.
-    This creates a living decision ecosystem instead of static scripts.
+    States NETWORK_DISCOVERY TARGET_ANALYSIS SECURITY_PROFILING
+    Actions PASSIVE_SCAN HANDSHAKE_CAPTURE DEAUTH_TEST EVIL_TWIN_SIMULATION (authorized only)
+    Outcomes SUCCESS FAILURE PARTIAL_SIGNAL
+
+    REAL EVOLUTION BEHAVIOR
+
+    After enough runs:
+    graph converges toward optimal attack/analysis pipelines
+    unstable techniques decay automatically
+    high-yield workflows become dominant paths
+
+    This creates:
+    a living decision ecosystem instead of static scripts
 
     Returns:
         DecisionGraph: The fully initialized decision graph ecosystem.

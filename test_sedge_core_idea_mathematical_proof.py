@@ -27,8 +27,14 @@ from james.tools.constants import (
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
     Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
-    Proves that successful paths become stronger, failed paths decay, and optimal
-    strategies emerge automatically.
+    The system builds a directed weighted decision graph where:
+    Nodes = system states or actions
+    Edges = transitions between decisions
+    Weights = learned success utility scores
+    Over time:
+    successful paths become stronger
+    failed paths decay
+    optimal strategies emerge automatically
     """
 
     def setUp(self):
@@ -132,6 +138,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
+        HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
         Mathematical proof of SEDGE behavior on the real domain map.
         Simulates 250000 runs to guarantee mathematical dominance of the successful path.
         This verifies the core architectural principles from the design.
