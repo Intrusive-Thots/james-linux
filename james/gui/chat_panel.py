@@ -379,7 +379,7 @@ class ChatPanel(QWidget):
         self._btn_clear = QPushButton("Clear")
         self._btn_clear.setFixedWidth(64)
         self._btn_clear.setFixedHeight(36)
-        self._btn_clear.setToolTip("Clear chat history")
+        self._btn_clear.setToolTip("Clear chat history (Ctrl+L)")
 
         input_layout.addWidget(self._input, stretch=1)
         input_layout.addWidget(self._btn_send)
@@ -399,6 +399,10 @@ class ChatPanel(QWidget):
         shortcut.activated.connect(lambda: self._send(self._input.text()))
 
         self._btn_clear.clicked.connect(self._clear_chat)
+
+        clear_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
+        clear_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
+        clear_shortcut.activated.connect(self._clear_chat)
 
     # ── Actions ────────────────────────────────────────────────────
 
