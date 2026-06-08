@@ -39,7 +39,8 @@ class Node:
     STATE NODE MODEL
 
     Each node represents a discrete system situation or decision point.
-    They are the fundamental vertices representing system states or executable actions.
+    They are the fundamental vertices representing system states or executable actions
+    in the directed, weighted decision graph.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -61,8 +62,8 @@ class Edge:
     EDGE MODEL (LEARNING PATHS)
 
     Edges store accumulated experiential weight and represent directed transitions between decisions.
-    The internal weights operate as learned success utility scores. Through stochastic traversal,
-    successful paths become stronger while failed paths progressively decay.
+    The internal weights operate as learned success utility scores. Through iterative stochastic traversal
+    and backpropagated execution feedback, successful paths become stronger while failed paths progressively decay.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -234,12 +235,12 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This is what makes it "self-evolving".
+    This is what makes the system "self-evolving".
     It receives traversal outcomes (SUCCESS, FAILURE, PARTIAL_SIGNAL) and retroactively
     adjusts the experiential weights of all edges along the utilized path. Over time,
     this creates a continuous feedback loop where successful sequences gain higher
     success_weight and stronger traversal probability, while failed sequences gain higher
-    failure_weight and reduced probability.
+    failure_weight and reduced probability, leading to emergent optimal strategies.
     """
 
     def update(
@@ -271,11 +272,11 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This replaces static "AI decisions".
-    It uses weighted stochastic selection (exploration + exploitation).
-    The system naturally balances exploration (trying weak paths occasionally) vs
-    exploitation (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations via stochastic weighted selection.
+    This replaces static "AI decisions" by utilizing weighted stochastic selection
+    (balancing exploration and exploitation). The system naturally balances exploration
+    (trying weak paths occasionally) vs exploitation (using strong known paths).
+    The policy layer probabilistically determines optimal path continuations via stochastic
+    weighted selection, relying on the success utility scores.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -322,10 +323,10 @@ class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
 
-    This is where learning actually happens.
+    This is where learning actually happens in the SEDGE architecture.
     This class orchestrates the complete learning cycle by combining the DecisionEngine
-    and the LearningEngine to navigate the decision graph. Through iterative feedback
-    and the self-evolution loop, optimal strategies emerge automatically.
+    (Policy Layer) and the LearningEngine (Execution Feedback) to navigate the decision graph.
+    Through iterative feedback and the self-evolution loop, optimal strategies emerge automatically.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
