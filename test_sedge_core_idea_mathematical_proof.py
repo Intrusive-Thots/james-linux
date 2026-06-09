@@ -27,8 +27,9 @@ from james.tools.constants import (
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
     Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
-    Proves that successful paths become stronger, failed paths decay, and optimal
-    strategies emerge automatically in the Self-Evolving Decision Graph Engine.
+    Proves that successful sequences (e.g. scan -> analyze -> capture) gain higher
+    success_weight, failed sequences gain higher failure_weight, and optimal
+    attack/analysis pipelines emerge automatically.
     """
 
     def setUp(self):
@@ -80,7 +81,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_mathematical_probability_convergence(self):
         """
         Proves that stochastic selection converges optimally with law of large numbers.
-        This balances exploration vs exploitation dynamically.
+        This balances exploration (trying weak paths) vs exploitation (strong known paths).
         """
         decision_engine = DecisionEngine(self.graph)
 
@@ -138,7 +139,9 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
         Simulates 250000 runs to guarantee mathematical dominance of the successful path.
-        This verifies the REAL EVOLUTION BEHAVIOR principles from the design.
+        This verifies the REAL EVOLUTION BEHAVIOR principles from the design:
+        - graph converges toward optimal attack pipelines
+        - unstable techniques decay
         """
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)

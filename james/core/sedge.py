@@ -1,11 +1,11 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
-This module implements a directed, weighted decision graph ecosystem designed to dynamically
+The system builds a directed weighted decision graph ecosystem designed to dynamically
 adapt and optimize state transitions. In this architecture:
-- Nodes = system states or actions.
-- Edges = transitions between decisions.
-- Weights = learned success utility scores.
+- Nodes = system states or actions
+- Edges = transitions between decisions
+- Weights = learned success utility scores
 
 Over time, through iterative stochastic traversal and backpropagated execution feedback:
 - successful paths become stronger
@@ -278,9 +278,12 @@ class DecisionEngine:
 
     This replaces static "AI decisions".
     It uses weighted stochastic selection (exploration + exploitation).
-    The system naturally balances exploration (trying weak paths occasionally) vs
-    exploitation (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations via stochastic weighted selection.
+    The system naturally balances:
+    - exploration (trying weak paths occasionally)
+    - exploitation (using strong known paths)
+
+    The policy layer probabilistically determines optimal path continuations
+    via stochastic weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -333,9 +336,13 @@ class SelfEvolvingAgent:
     and the self-evolution loop, optimal strategies emerge automatically.
 
     HOW IT LEARNS OPTIMAL PATHS
-    Over time:
-    Successful sequences gain higher success_weight and stronger traversal probability.
-    Failed sequences gain higher failure_weight and reduced probability.
+    Over time, successful sequences (e.g. scan -> analyze -> capture) gain:
+    - higher success_weight
+    - stronger traversal probability
+
+    Failed sequences (e.g. scan -> aggressive_attack -> fail) gain:
+    - higher failure_weight
+    - reduced probability
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -395,13 +402,16 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     Instantiates the structural decision graph mapped to the Parrot WiFi system domain.
 
     This factory function maps specific domain concepts into the graph:
-    States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION
-    Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
+    - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
+    - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
+    - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
     REAL EVOLUTION BEHAVIOR
-    After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant paths.
+    After enough runs:
+    - the graph converges toward optimal attack/analysis pipelines
+    - unstable techniques decay automatically
+    - high-yield workflows become dominant paths
+
     This creates a living decision ecosystem instead of static scripts.
 
     Returns:
