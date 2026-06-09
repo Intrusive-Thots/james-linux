@@ -11,7 +11,7 @@ Over time:
 - failed paths decay
 - optimal strategies emerge automatically
 
- ARCHITECTURE
+ARCHITECTURE
 """
 
 import random
@@ -40,6 +40,8 @@ class Node:
     STATE NODE MODEL
 
     Each node represents a system situation or decision point.
+    Nodes map to actual phases like NETWORK_DISCOVERY, TARGET_ANALYSIS,
+    or Actions like PASSIVE_SCAN.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -61,6 +63,8 @@ class Edge:
     2. EDGE MODEL (LEARNING PATHS)
 
     Edges store experience weight.
+    They govern transitions between decisions (like Network Discovery -> Passive Scan).
+    Over time, higher success_weight means stronger traversal probability.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -105,6 +109,7 @@ class DecisionGraph:
 
     Over time, successful paths become stronger, failed paths decay, and
     optimal strategies emerge automatically.
+    This creates a living decision ecosystem instead of static scripts.
     """
 
     def __init__(self) -> None:
@@ -236,6 +241,9 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
     This is what makes it "self-evolving".
+    Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
+    higher success_weight and stronger traversal probability.
+    Failed sequences gain higher failure_weight and reduced probability.
     """
 
     def update(
@@ -272,6 +280,7 @@ class DecisionEngine:
     The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
+    This is achieved via stochastic weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -335,6 +344,9 @@ class SelfEvolvingAgent:
     - exploitation (using strong known paths)
     This is achieved via:
     - stochastic weighted selection
+
+    After enough runs, the graph converges toward optimal attack/analysis pipelines,
+    unstable techniques decay automatically, and high-yield workflows become dominant.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
