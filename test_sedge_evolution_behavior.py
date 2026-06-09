@@ -103,17 +103,24 @@ class TestSedgeEvolutionBehavior(unittest.TestCase):
         self.graph.add_edge(edge_c)
 
         counts = {"B": 0, "C": 0}
-        iterations = 1000
+        iterations = 250000
 
         for _ in range(iterations):
             choice = decision_engine.decide("A")
             counts[choice] += 1
 
-        # We expect B to be chosen overwhelmingly more often than C (exploitation)
-        self.assertGreater(counts["B"], counts["C"] * 5)
+        ratio_b = counts["B"] / iterations
+        ratio_c = counts["C"] / iterations
 
-        # We also expect C to be chosen occasionally (exploration)
-        self.assertGreater(counts["C"], 0)
+        score_b = edge_b.score()
+        score_c = edge_c.score()
+        total_score = score_b + score_c
+        expected_b = score_b / total_score
+        expected_c = score_c / total_score
+
+        # Use assertAlmostEqual to assert empirical probabilities against mathematically expected ratios
+        self.assertAlmostEqual(ratio_b, expected_b, delta=0.02)
+        self.assertAlmostEqual(ratio_c, expected_c, delta=0.02)
 
     def test_graph_converges_to_optimal_pipelines(self):
         """

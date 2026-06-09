@@ -10,6 +10,8 @@ Over time:
 - successful paths become stronger
 - failed paths decay
 - optimal strategies emerge automatically
+
+ ARCHITECTURE
 """
 
 import random
@@ -56,7 +58,7 @@ class Node:
 @dataclass
 class Edge:
     """
-    EDGE MODEL (LEARNING PATHS)
+    2. EDGE MODEL (LEARNING PATHS)
 
     Edges store experience weight.
 
@@ -326,6 +328,13 @@ class SelfEvolvingAgent:
     Failed sequences (e.g. scan -> aggressive_attack -> fail) gain:
     - higher failure_weight
     - reduced probability
+
+    EXPLORATION vs EXPLOITATION
+    System naturally balances:
+    - exploration (trying weak paths occasionally)
+    - exploitation (using strong known paths)
+    This is achieved via:
+    - stochastic weighted selection
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
