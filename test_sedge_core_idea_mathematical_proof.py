@@ -27,9 +27,9 @@ from james.tools.constants import (
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
     Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
-    Proves that successful sequences (e.g. scan -> analyze -> capture) gain higher
-    success_weight, failed sequences gain higher failure_weight, and optimal
-    attack/analysis pipelines emerge automatically.
+    Proves that successful sequences (e.g. scan -> analyze -> handshake_capture -> validate)
+    gain higher success_weight, failed sequences gain higher failure_weight, and optimal
+    attack/analysis pipelines emerge automatically within the living decision ecosystem.
     """
 
     def setUp(self):
