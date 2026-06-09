@@ -1,13 +1,12 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
-The system builds a directed weighted decision graph ecosystem designed to dynamically
-adapt and optimize state transitions. In this architecture:
+The system builds a directed weighted decision graph where:
 - Nodes = system states or actions
 - Edges = transitions between decisions
 - Weights = learned success utility scores
 
-Over time, through iterative stochastic traversal and backpropagated execution feedback:
+Over time:
 - successful paths become stronger
 - failed paths decay
 - optimal strategies emerge automatically
@@ -38,8 +37,7 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a discrete system situation or decision point.
-    They are the fundamental vertices representing system states or executable actions.
+    Each node represents a system situation or decision point.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -60,9 +58,7 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store accumulated experiential weight and represent directed transitions between decisions.
-    The internal weights operate as learned success utility scores. Through stochastic traversal,
-    successful paths become stronger while failed paths progressively decay.
+    Edges store experience weight.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -105,9 +101,7 @@ class DecisionGraph:
     - Edges = transitions between decisions
     - Weights = learned success utility scores
 
-    It maintains the registry of Nodes (states/actions) and Edges (weighted transitions).
-    The graph exposes operations for path traversal, dynamic path scoring, and state
-    resolution. Over time, successful paths become stronger, failed paths decay, and
+    Over time, successful paths become stronger, failed paths decay, and
     optimal strategies emerge automatically.
     """
 
@@ -240,11 +234,6 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
     This is what makes it "self-evolving".
-    It receives traversal outcomes (SUCCESS, FAILURE, PARTIAL_SIGNAL) and retroactively
-    adjusts the experiential weights of all edges along the utilized path. Over time,
-    this creates a continuous feedback loop where successful sequences gain higher
-    success_weight and stronger traversal probability, while failed sequences gain higher
-    failure_weight and reduced probability.
     """
 
     def update(
@@ -281,9 +270,6 @@ class DecisionEngine:
     The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-
-    The policy layer probabilistically determines optimal path continuations
-    via stochastic weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -331,12 +317,9 @@ class SelfEvolvingAgent:
     SELF-EVOLUTION LOOP
 
     This is where learning actually happens.
-    This class orchestrates the complete learning cycle by combining the DecisionEngine
-    and the LearningEngine to navigate the decision graph. Through iterative feedback
-    and the self-evolution loop, optimal strategies emerge automatically.
 
-    HOW IT LEARNS OPTIMAL PATHS
-    Over time, successful sequences (e.g. scan -> analyze -> capture) gain:
+    HOW IT "LEARNS OPTIMAL PATHS"
+    Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
     - higher success_weight
     - stronger traversal probability
 
@@ -399,16 +382,14 @@ def build_parrot_wifi_graph() -> DecisionGraph:
     """
     HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
 
-    Instantiates the structural decision graph mapped to the Parrot WiFi system domain.
-
-    This factory function maps specific domain concepts into the graph:
+    You can map nodes like:
     - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
     - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
     - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
     REAL EVOLUTION BEHAVIOR
     After enough runs:
-    - the graph converges toward optimal attack/analysis pipelines
+    - graph converges toward optimal attack/analysis pipelines
     - unstable techniques decay automatically
     - high-yield workflows become dominant paths
 
