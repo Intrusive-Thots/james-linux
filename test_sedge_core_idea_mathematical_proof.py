@@ -187,6 +187,30 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         # Verify edge score mathematical dominance
         self.assertGreater(handshake_edge.score(), deauth_edge.score() * 10)
 
+        # Ensure the graph is static during the sampling loop to test distribution mathematically
+        decision_engine = DecisionEngine(graph)
+        counts = {ACTION_HANDSHAKE_CAPTURE: 0, ACTION_DEAUTH_TEST: 0}
+        iterations = 250000
+
+        for _ in range(iterations):
+            choice = decision_engine.decide(STATE_TARGET_ANALYSIS)
+            if choice in counts:
+                counts[choice] += 1
+
+        ratio_handshake = counts[ACTION_HANDSHAKE_CAPTURE] / iterations
+        ratio_deauth = counts[ACTION_DEAUTH_TEST] / iterations
+
+        score_handshake = handshake_edge.score()
+        score_deauth = deauth_edge.score()
+        total_score = score_handshake + score_deauth
+
+        expected_handshake = score_handshake / total_score
+        expected_deauth = score_deauth / total_score
+
+        self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.02)
+        self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.02)
+
+
     def test_zero_utility_fallback_distribution(self):
         """
         Proof of uniform random selection fallback when total weight is <= 0.0.

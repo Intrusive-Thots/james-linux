@@ -37,7 +37,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    STATE NODE MODEL
+    1. STATE NODE MODEL
 
     Each node represents a system situation or decision point.
 
@@ -103,8 +103,10 @@ class DecisionGraph:
     - Edges = transitions between decisions
     - Weights = learned success utility scores
 
-    Over time, successful paths become stronger, failed paths decay, and
-    optimal strategies emerge automatically.
+    Over time:
+    - successful paths become stronger
+    - failed paths decay
+    - optimal strategies emerge automatically
     """
 
     def __init__(self) -> None:
@@ -320,12 +322,15 @@ class SelfEvolvingAgent:
 
     This is where learning actually happens.
 
-    HOW IT "LEARNS OPTIMAL PATHS"
-    Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
+    HOW IT LEARNS OPTIMAL PATHS
+    Over time:
+    Successful sequences: scan -> analyze -> handshake_capture -> validate
+    gain:
     - higher success_weight
     - stronger traversal probability
 
-    Failed sequences (e.g. scan -> aggressive_attack -> fail) gain:
+    Failed sequences: scan -> aggressive_attack -> fail
+    gain:
     - higher failure_weight
     - reduced probability
 
