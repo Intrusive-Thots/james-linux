@@ -26,7 +26,7 @@ from james.tools.constants import (
 
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
-    Mathematical proof and comprehensive test suite for the SEDGE CORE IDEA.
+    Mathematical proof and comprehensive test suite for the SEDGE Core Idea.
     Proves that successful sequences (e.g. scan -> analyze -> handshake_capture -> validate)
     gain higher success_weight, failed sequences gain higher failure_weight, and optimal
     attack/analysis pipelines emerge automatically within the living decision ecosystem.
@@ -137,7 +137,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
-        Mathematical proof of SEDGE behavior on the real domain map.
+        Mathematical proof of SEDGE behavior on the real domain map to ensure robust self-evolving patterns.
         Simulates 250000 runs to guarantee mathematical dominance of the successful path.
         This verifies the REAL EVOLUTION BEHAVIOR principles from the design:
         - graph converges toward optimal attack pipelines

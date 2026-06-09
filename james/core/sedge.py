@@ -35,7 +35,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    STATE NODE MODEL
+    State Node Model
 
     Each node represents a system situation or decision point.
 
@@ -56,7 +56,7 @@ class Node:
 @dataclass
 class Edge:
     """
-    EDGE MODEL (LEARNING PATHS)
+    Edge Model (Learning Paths)
 
     Edges store experience weight.
 
@@ -93,7 +93,7 @@ class Edge:
 
 class DecisionGraph:
     """
-    DECISION GRAPH CORE
+    Decision Graph Core
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
     The system builds a directed weighted decision graph where:
@@ -231,7 +231,7 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
+    Execution Feedback Learning (Key System)
 
     This is what makes it "self-evolving".
     """
@@ -263,7 +263,7 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    DECISION ENGINE (POLICY LAYER)
+    Decision Engine (Policy Layer)
 
     This replaces static "AI decisions".
     It uses weighted stochastic selection (exploration + exploitation).
@@ -314,11 +314,11 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    SELF-EVOLUTION LOOP
+    Self-Evolution Loop
 
     This is where learning actually happens.
 
-    HOW IT "LEARNS OPTIMAL PATHS"
+    How it "Learns Optimal Paths"
     Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
     - higher success_weight
     - stronger traversal probability
@@ -380,14 +380,14 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
+    How this maps to your Parrot WiFi System
 
     You can map nodes like:
     - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
     - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
     - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
-    REAL EVOLUTION BEHAVIOR
+    Real Evolution Behavior
     After enough runs:
     - graph converges toward optimal attack/analysis pipelines
     - unstable techniques decay automatically
