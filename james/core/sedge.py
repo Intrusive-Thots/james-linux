@@ -1,13 +1,12 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
-This module implements a directed, weighted decision graph ecosystem designed to dynamically
-adapt and optimize state transitions. In this architecture:
-- Nodes = system states or actions.
-- Edges = transitions between decisions.
-- Weights = learned success utility scores.
+The system builds a directed weighted decision graph where:
+- Nodes = system states or actions
+- Edges = transitions between decisions
+- Weights = learned success utility scores
 
-Over time, through iterative stochastic traversal and backpropagated execution feedback:
+Over time:
 - successful paths become stronger
 - failed paths decay
 - optimal strategies emerge automatically
@@ -38,7 +37,7 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a discrete system situation or decision point.
+    Each node represents a system situation or decision point.
     They are the fundamental vertices representing system states or executable actions.
 
     Attributes:
@@ -60,7 +59,7 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store accumulated experiential weight and represent directed transitions between decisions.
+    Edges store experience weight and represent directed transitions between decisions.
     The internal weights operate as learned success utility scores. Through stochastic traversal,
     successful paths become stronger while failed paths progressively decay.
 
@@ -278,9 +277,11 @@ class DecisionEngine:
 
     This replaces static "AI decisions".
     It uses weighted stochastic selection (exploration + exploitation).
-    The system naturally balances exploration (trying weak paths occasionally) vs
-    exploitation (using strong known paths). The policy layer probabilistically determines
-    optimal path continuations via stochastic weighted selection.
+    The system naturally balances:
+    - exploration (trying weak paths occasionally)
+    - exploitation (using strong known paths)
+
+    This is achieved via stochastic weighted selection.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:

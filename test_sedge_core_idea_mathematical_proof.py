@@ -294,6 +294,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_explore = counts["Explore"] / iterations
 
         # Expected ratios based on calculated mathematical scores
+        # Ensure stationary graph during probability assertion
         score_exploit = edge_exploit.score()
         score_explore = edge_explore.score()
         total_score = score_exploit + score_explore
