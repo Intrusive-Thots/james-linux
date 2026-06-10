@@ -104,9 +104,9 @@ class DecisionGraph:
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
     The system builds a directed weighted decision graph where:
-    - Nodes = system states or actions
-    - Edges = transitions between decisions
-    - Weights = learned success utility scores
+    - Nodes = system states or actions, functioning as discrete state nodes.
+    - Edges = transitions between decisions, functioning as dynamic learning paths.
+    - Weights = learned success utility scores based on historical execution outcomes.
 
     Over time, successful paths become stronger, failed paths decay, and
     optimal strategies emerge automatically.
