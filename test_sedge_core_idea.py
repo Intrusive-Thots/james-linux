@@ -26,6 +26,8 @@ from james.tools.constants import (
 class TestSedgeCoreIdea(unittest.TestCase):
     """
     Tests for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA components to verify self-evolving behavior.
+    Validates state nodes, learning paths, execution feedback learning, the policy layer,
+    and the self-evolution loop to ensure optimal strategies emerge automatically over time.
     """
 
     def setUp(self):
