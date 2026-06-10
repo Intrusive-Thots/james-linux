@@ -1,17 +1,10 @@
 """
-SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
+Self-Evolving Decision Graph Engine (SEDGE) Core.
 
-The system builds a directed weighted decision graph where:
-- Nodes = system states or actions
-- Edges = transitions between decisions
-- Weights = learned success utility scores
-
-Over time:
-- successful paths become stronger
-- failed paths decay
-- optimal strategies emerge automatically
-
-ARCHITECTURE
+This module implements a directed, weighted decision graph that models system
+states and actions as state nodes and transitions as learning paths.
+Through execution feedback learning, the system automatically strengthens successful
+paths and decays failed ones, allowing optimal strategies to emerge automatically.
 """
 
 import random
@@ -37,11 +30,11 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    1. STATE NODE MODEL
+    Represents a state node in the decision graph.
 
-    Each node represents a system situation or decision point in the decision graph.
-    Nodes map to actual phases like NETWORK_DISCOVERY, TARGET_ANALYSIS,
-    or Actions like PASSIVE_SCAN, acting as state nodes.
+    State nodes represent distinct system situations or decision points, acting
+    as core elements within the graph. These can represent high-level system states
+    or specific actions.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -60,12 +53,11 @@ class Node:
 @dataclass
 class Edge:
     """
-    EDGE MODEL (LEARNING PATHS)
+    Represents a learning path transitioning between two state nodes.
 
-    Edges store experience weight as transitions between decisions.
-    They govern transitions between decisions (like Network Discovery -> Passive Scan),
-    forming the core learning paths of the system.
-    Over time, higher success_weight means stronger traversal probability.
+    Edges store experience weights for transitions between decisions, forming
+    the core learning paths. Over time, edges with higher success weights develop
+    stronger traversal probabilities as optimal strategies emerge.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -100,17 +92,11 @@ class Edge:
 
 class DecisionGraph:
     """
-    DECISION GRAPH CORE
+    Central structure for managing state nodes and learning paths.
 
-    Serves as the central state tracking structure for the SEDGE ecosystem.
-    The system builds a directed weighted decision graph where:
-    - Nodes = system states or actions
-    - Edges = transitions between decisions
-    - Weights = learned success utility scores
-
-    Over time, successful paths become stronger, failed paths decay, and
-    optimal strategies emerge automatically.
-    This creates a living decision ecosystem instead of static scripts.
+    The decision graph builds a directed, weighted ecosystem where nodes act as
+    system states and edges store learned utility scores. It serves as the foundation
+    for the self-evolution loop, enabling the emergence of optimal strategies.
     """
 
     def __init__(self) -> None:
@@ -239,12 +225,11 @@ class DecisionGraph:
 
 class LearningEngine:
     """
-    EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
+    Handles execution feedback learning to dynamically update learning paths.
 
-    This execution feedback learning is what makes the system "self-evolving".
-    Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
-    higher success_weight and stronger traversal probability.
-    Failed sequences gain higher failure_weight and reduced probability.
+    By applying execution feedback learning across the decision graph, this engine
+    adjusts the utility scores of learning paths based on execution outcomes.
+    Successful paths gain traversal probability while failed paths naturally decay.
     """
 
     def update(
@@ -274,14 +259,11 @@ class LearningEngine:
 
 class DecisionEngine:
     """
-    DECISION ENGINE (POLICY LAYER)
+    Policy layer responsible for stochastic weighted selection of learning paths.
 
-    This policy layer replaces static "AI decisions".
-    It uses weighted stochastic selection (exploration + exploitation).
-    The system naturally balances:
-    - exploration (trying weak paths occasionally)
-    - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection.
+    The decision engine acts as the policy layer of the system, replacing static
+    decision trees with dynamic exploration and exploitation mechanics. It utilizes
+    the utility scores from the decision graph to determine optimal next transitions.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -326,28 +308,11 @@ class DecisionEngine:
 
 class SelfEvolvingAgent:
     """
-    SELF-EVOLUTION LOOP
+    Agent that orchestrates the self-evolution loop for continuous learning.
 
-    This self-evolution loop is where learning actually happens.
-
-    HOW IT LEARNS OPTIMAL PATHS
-    Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
-    - higher success_weight
-    - stronger traversal probability
-
-    Failed sequences (e.g. scan -> aggressive_attack -> fail) gain:
-    - higher failure_weight
-    - reduced probability
-
-    EXPLORATION vs EXPLOITATION
-    System naturally balances:
-    - exploration (trying weak paths occasionally)
-    - exploitation (using strong known paths)
-    This is achieved via:
-    - stochastic weighted selection
-
-    After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant.
+    By executing the self-evolution loop, the agent traverses the decision graph
+    using the policy layer and incorporates execution feedback learning. This continuous
+    process allows the system to converge toward optimal paths automatically.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -402,20 +367,7 @@ class SelfEvolvingAgent:
 
 def build_parrot_wifi_graph() -> DecisionGraph:
     """
-    HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
-
-    You can map nodes like:
-    - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
-    - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
-
-    REAL EVOLUTION BEHAVIOR
-    After enough runs:
-    - graph converges toward optimal attack/analysis pipelines
-    - unstable techniques decay automatically
-    - high-yield workflows become dominant paths
-
-    This creates a living decision ecosystem instead of static scripts.
+    Constructs a specialized decision graph ecosystem using state nodes and learning paths.
 
     Returns:
         DecisionGraph: The fully initialized decision graph ecosystem.
