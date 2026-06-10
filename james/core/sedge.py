@@ -37,7 +37,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    STATE NODE MODEL
+    1. STATE NODE MODEL
 
     Each node represents a system situation or decision point in the decision graph.
     Nodes map to actual phases like NETWORK_DISCOVERY, TARGET_ANALYSIS,
@@ -330,7 +330,7 @@ class SelfEvolvingAgent:
 
     This self-evolution loop is where learning actually happens.
 
-    HOW IT "LEARNS OPTIMAL PATHS"
+    HOW IT LEARNS OPTIMAL PATHS
     Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
     - higher success_weight
     - stronger traversal probability

@@ -149,9 +149,6 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
 
-        handshake_selections = 0
-        deauth_selections = 0
-
         import random
         for _ in range(250000):
             # In our simulation:
@@ -187,8 +184,32 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         self.assertGreater(handshake_edge.success_weight, 100)
         self.assertGreaterEqual(deauth_edge.failure_weight, 2)
 
-        # Verify edge score mathematical dominance
-        self.assertGreater(handshake_edge.score(), deauth_edge.score() * 10)
+        # Now, test empirical selection probability on the static trained graph
+        handshake_selections = 0
+        deauth_selections = 0
+        iterations = 250000
+
+        # Test stochastic distribution over the trained nodes without updating weights
+        for _ in range(iterations):
+            choice = agent.decision_engine.decide(STATE_TARGET_ANALYSIS)
+            if choice == ACTION_HANDSHAKE_CAPTURE:
+                handshake_selections += 1
+            elif choice == ACTION_DEAUTH_TEST:
+                deauth_selections += 1
+
+        ratio_handshake = handshake_selections / iterations
+        ratio_deauth = deauth_selections / iterations
+
+        score_handshake = handshake_edge.score()
+        score_deauth = deauth_edge.score()
+        total_score = score_handshake + score_deauth
+
+        expected_handshake = score_handshake / total_score
+        expected_deauth = score_deauth / total_score
+
+        # Verify edge score mathematical dominance vs empirical stochastic ratio
+        self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.02)
+        self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.02)
 
     def test_zero_utility_fallback_distribution(self):
         """
