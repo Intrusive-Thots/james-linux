@@ -39,9 +39,9 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a system situation or decision point.
+    Each node represents a system situation or decision point in the decision graph.
     Nodes map to actual phases like NETWORK_DISCOVERY, TARGET_ANALYSIS,
-    or Actions like PASSIVE_SCAN.
+    or Actions like PASSIVE_SCAN, acting as state nodes.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -60,10 +60,11 @@ class Node:
 @dataclass
 class Edge:
     """
-    2. EDGE MODEL (LEARNING PATHS)
+    EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight.
-    They govern transitions between decisions (like Network Discovery -> Passive Scan).
+    Edges store experience weight as transitions between decisions.
+    They govern transitions between decisions (like Network Discovery -> Passive Scan),
+    forming the core learning paths of the system.
     Over time, higher success_weight means stronger traversal probability.
 
     Attributes:
@@ -240,7 +241,7 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This is what makes it "self-evolving".
+    This execution feedback learning is what makes the system "self-evolving".
     Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
     higher success_weight and stronger traversal probability.
     Failed sequences gain higher failure_weight and reduced probability.
@@ -275,7 +276,7 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This replaces static "AI decisions".
+    This policy layer replaces static "AI decisions".
     It uses weighted stochastic selection (exploration + exploitation).
     The system naturally balances:
     - exploration (trying weak paths occasionally)
@@ -327,7 +328,7 @@ class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
 
-    This is where learning actually happens.
+    This self-evolution loop is where learning actually happens.
 
     HOW IT "LEARNS OPTIMAL PATHS"
     Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
