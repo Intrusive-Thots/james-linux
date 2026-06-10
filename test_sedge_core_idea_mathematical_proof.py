@@ -28,8 +28,10 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
     Mathematical proof and comprehensive test suite for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA.
     Proves that successful sequences (e.g. scan -> analyze -> handshake_capture -> validate)
-    gain higher success_weight, failed sequences gain higher failure_weight, and optimal
-    attack/analysis pipelines emerge automatically within the living decision ecosystem.
+    gain higher success_weight via execution feedback learning across learning paths,
+    failed sequences gain higher failure_weight, and optimal attack/analysis pipelines emerge
+    automatically within the living decision ecosystem utilizing state nodes, a policy layer,
+    and a self-evolution loop.
     """
 
     def setUp(self):
