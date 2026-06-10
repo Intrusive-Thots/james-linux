@@ -304,14 +304,10 @@ class Orchestrator:
                     lines = self.__class__._wordlist_cache[cache_key]
                 else:
                     try:
-                        out = subprocess.check_output(["wc", "-l", str(p)], text=True)
-                        lines = int(out.split()[0])
-                    except Exception:
-                        try:
-                            lines = sum(1 for _ in open(p, encoding="latin-1"))
-                        except Exception as e:
-                            logger.debug("Could not count lines in %s: %s", path, e)
-                            lines = 0
+                        lines = max(1, p.stat().st_size // 10)
+                    except Exception as e:
+                        logger.debug("Could not estimate lines in %s: %s", path, e)
+                        lines = 0
                     self.__class__._wordlist_cache[cache_key] = lines
 
                 inventory.append(
@@ -340,13 +336,9 @@ class Orchestrator:
                     lines = self.__class__._wordlist_cache[cache_key]
                 else:
                     try:
-                        out = subprocess.check_output(["wc", "-l", str(f)], text=True)
-                        lines = int(out.split()[0])
+                        lines = max(1, f.stat().st_size // 10)
                     except Exception:
-                        try:
-                            lines = sum(1 for _ in open(f, encoding="latin-1"))
-                        except Exception:
-                            lines = 0
+                        lines = 0
                     self.__class__._wordlist_cache[cache_key] = lines
 
                 name = f.stem
