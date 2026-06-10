@@ -37,11 +37,11 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    1. STATE NODE MODEL
+    STATE NODE MODEL
 
-    Each node represents a system situation or decision point in the decision graph.
-    Nodes map to actual phases like NETWORK_DISCOVERY, TARGET_ANALYSIS,
-    or Actions like PASSIVE_SCAN, acting as state nodes.
+    Each node represents a system situation or decision point.
+    Nodes function as discrete state nodes mapping to actual phases
+    like NETWORK_DISCOVERY or actions like PASSIVE_SCAN.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -62,10 +62,10 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight as transitions between decisions.
-    They govern transitions between decisions (like Network Discovery -> Passive Scan),
-    forming the core learning paths of the system.
-    Over time, higher success_weight means stronger traversal probability.
+    Edges store experience weight and act as transitions between decisions.
+    They govern the learning paths of the system. Over time, higher
+    success_weight translates to stronger traversal probability, while
+    failing paths accrue failure_weight and decay.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -104,8 +104,8 @@ class DecisionGraph:
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
     The system builds a directed weighted decision graph where:
-    - Nodes = system states or actions, functioning as discrete state nodes.
-    - Edges = transitions between decisions, functioning as dynamic learning paths.
+    - Nodes = system states or actions (state nodes).
+    - Edges = transitions between decisions (learning paths).
     - Weights = learned success utility scores based on historical execution outcomes.
 
     Over time, successful paths become stronger, failed paths decay, and
@@ -243,8 +243,9 @@ class LearningEngine:
 
     This execution feedback learning is what makes the system "self-evolving".
     Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
-    higher success_weight and stronger traversal probability.
-    Failed sequences gain higher failure_weight and reduced probability.
+    higher success_weight and stronger traversal probability along their learning paths.
+    Failed sequences gain higher failure_weight and reduced probability,
+    causing unstable techniques to decay automatically.
     """
 
     def update(
@@ -277,11 +278,11 @@ class DecisionEngine:
     DECISION ENGINE (POLICY LAYER)
 
     This policy layer replaces static "AI decisions".
-    It uses weighted stochastic selection (exploration + exploitation).
+    It uses weighted stochastic selection to balance exploration vs exploitation.
     The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection.
+    This is achieved via stochastic weighted selection across the decision graph.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -331,11 +332,11 @@ class SelfEvolvingAgent:
     This self-evolution loop is where learning actually happens.
 
     HOW IT LEARNS OPTIMAL PATHS
-    Over time, successful sequences (e.g. scan -> analyze -> handshake_capture -> validate) gain:
+    Over time, successful sequences gain:
     - higher success_weight
     - stronger traversal probability
 
-    Failed sequences (e.g. scan -> aggressive_attack -> fail) gain:
+    Failed sequences gain:
     - higher failure_weight
     - reduced probability
 
@@ -343,11 +344,11 @@ class SelfEvolvingAgent:
     System naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-    This is achieved via:
-    - stochastic weighted selection
+    This is achieved via stochastic weighted selection.
 
     After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant.
+    unstable techniques decay automatically, and high-yield workflows become dominant paths,
+    creating a living decision ecosystem instead of static scripts.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
