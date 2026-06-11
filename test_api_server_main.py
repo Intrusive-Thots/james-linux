@@ -45,5 +45,22 @@ class TestApiServerMain(unittest.TestCase):
         # Ensure uvicorn.run is not called if port parsing fails
         mock_run.assert_not_called()
 
+class TestApiServerCORS(unittest.TestCase):
+    def test_cors_default_origins(self):
+        """Test that CORS origins default correctly when JAMES_CORS_ORIGINS is unset."""
+        with patch.dict(os.environ, clear=True):
+            import importlib
+            import james.api.server
+            importlib.reload(james.api.server)
+            self.assertEqual(james.api.server.cors_origins, ["http://localhost:5173", "http://127.0.0.1:5173"])
+
+    def test_cors_custom_origins(self):
+        """Test that CORS origins are parsed correctly from JAMES_CORS_ORIGINS."""
+        with patch.dict(os.environ, {'JAMES_CORS_ORIGINS': 'http://example.com, https://test.org '}):
+            import importlib
+            import james.api.server
+            importlib.reload(james.api.server)
+            self.assertEqual(james.api.server.cors_origins, ["http://example.com", "https://test.org"])
+
 if __name__ == "__main__":
     unittest.main()
