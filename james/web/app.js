@@ -589,13 +589,36 @@ function exportLog() {
 
 /* ── Tab Switching ─────────────────────────────────────────── */
 
+let activeTabId = null;
+let activeTabElement = null;
+let activePanelElement = null;
+
 function switchTab(tabId) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-    const panel = document.getElementById(`panel-${tabId}`);
-    panel.classList.remove('hidden');
-    panel.classList.add('active');
+    if (activeTabId === null) {
+        activeTabElement = document.querySelector('.tab.active');
+        if (activeTabElement) {
+            activeTabId = activeTabElement.dataset.tab;
+            activePanelElement = document.getElementById(`panel-${activeTabId}`);
+        }
+    }
+
+    if (activeTabId === tabId) return;
+
+    if (activeTabElement) activeTabElement.classList.remove('active');
+    if (activePanelElement) {
+        activePanelElement.classList.add('hidden');
+        activePanelElement.classList.remove('active');
+    }
+
+    activeTabId = tabId;
+    activeTabElement = document.querySelector(`.tab[data-tab="${tabId}"]`);
+    activePanelElement = document.getElementById(`panel-${tabId}`);
+
+    if (activeTabElement) activeTabElement.classList.add('active');
+    if (activePanelElement) {
+        activePanelElement.classList.remove('hidden');
+        activePanelElement.classList.add('active');
+    }
 
     // Auto-load data when switching to certain tabs
     if (tabId === 'loot') refreshLoot();
