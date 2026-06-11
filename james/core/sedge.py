@@ -2,9 +2,9 @@
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 
 The system builds a directed weighted decision graph where:
-- Nodes = system states or actions
-- Edges = transitions between decisions
-- Weights = learned success utility scores
+- Nodes = system states or actions (state nodes)
+- Edges = transitions between decisions (learning paths)
+- Weights = learned success utility scores (execution feedback learning)
 
 Over time:
 - successful paths become stronger
@@ -41,7 +41,8 @@ class Node:
 
     Each node represents a system situation or decision point.
     Nodes function as discrete state nodes mapping to actual phases
-    like NETWORK_DISCOVERY or actions like PASSIVE_SCAN.
+    (e.g., NETWORK_DISCOVERY) or actions (e.g., PASSIVE_SCAN) within
+    the system's architecture.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -65,7 +66,8 @@ class Edge:
     Edges store experience weight and act as transitions between decisions.
     They govern the learning paths of the system. Over time, higher
     success_weight translates to stronger traversal probability, while
-    failing paths accrue failure_weight and decay.
+    failing paths accrue failure_weight and decay. This mechanism forms
+    the basis of execution feedback learning.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -88,7 +90,8 @@ class Edge:
         """
         Computes the proportional utility score for the transition.
 
-        Evaluates the relative ratio of the success weight to the failure weight.
+        Evaluates the relative ratio of the success weight to the failure weight
+        as part of the execution feedback learning system.
         A small epsilon is integrated into the denominator to mitigate
         zero-division anomalies.
 
@@ -106,7 +109,8 @@ class DecisionGraph:
     The system builds a directed weighted decision graph where:
     - Nodes = system states or actions (state nodes).
     - Edges = transitions between decisions (learning paths).
-    - Weights = learned success utility scores based on historical execution outcomes.
+    - Weights = learned success utility scores based on historical execution outcomes
+      (execution feedback learning).
 
     Over time, successful paths become stronger, failed paths decay, and
     optimal strategies emerge automatically.
@@ -282,7 +286,8 @@ class DecisionEngine:
     The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection across the decision graph.
+    This is achieved via stochastic weighted selection across the decision graph
+    using the established learning paths.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
