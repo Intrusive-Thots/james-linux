@@ -158,7 +158,9 @@ class Orchestrator:
                             settings.pop("sudo_password", None)
                             settings_file.write_text(json.dumps(settings, indent=2))
                         except Exception as e:
-                            logger.warning("Could not migrate sudo password to keyring: %s", e)
+                            logger.warning(
+                                "Could not migrate sudo password to keyring: %s", e
+                            )
 
             if sudo_pass:
                 self.layer.set_sudo_password(sudo_pass)
@@ -1174,7 +1176,7 @@ class Orchestrator:
 
                 gen = WifiWordlistGenerator()
                 ssid_list = gen.generate_ssid_targeted(ssid)
-                count = sum(1 for _ in open(ssid_list))
+                count = os.stat(ssid_list).st_size // 10
                 self._print(f"  Generated {count:,} SSID-specific candidates")
                 ac_result = self.aircrack.crack_wpa(capture, ssid_list, bssid=bssid)
                 if ac_result.get("found"):
@@ -1260,7 +1262,7 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             wifi_common = gen.generate_wifi_common()
-            count = sum(1 for _ in open(wifi_common))
+            count = os.stat(wifi_common).st_size // 10
             self._print(f"  Generated {count:,} common Wi-Fi candidates")
             ac_result = self.aircrack.crack_wpa(capture, wifi_common, bssid=bssid)
             if ac_result.get("found"):
@@ -1280,7 +1282,7 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             numeric_list = gen.generate_numeric()
-            count = sum(1 for _ in open(numeric_list))
+            count = os.stat(numeric_list).st_size // 10
             self._print(f"  Generated {count:,} numeric candidates")
             ac_result = self.aircrack.crack_wpa(capture, numeric_list, bssid=bssid)
             if ac_result.get("found"):
