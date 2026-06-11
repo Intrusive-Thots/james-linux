@@ -65,9 +65,7 @@ class ConnectionManager:
     def disconnect(self, ws: WebSocket):
         if ws in self.active:
             self.active.remove(ws)
-        logger.info(
-            "WebSocket client disconnected (%d remaining)", len(self.active)
-        )
+        logger.info("WebSocket client disconnected (%d remaining)", len(self.active))
 
     async def broadcast(self, message: dict):
         """Send a JSON message to all connected clients."""
@@ -81,9 +79,7 @@ class ConnectionManager:
     def broadcast_sync(self, message: dict):
         """Thread-safe broadcast from synchronous orchestrator callbacks."""
         if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(
-                self.broadcast(message), self._loop
-            )
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
 
 
 manager = ConnectionManager()
@@ -151,9 +147,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Read allowed CORS origins from environment variable, falling back to localhost for development
+allowed_origins_env = os.environ.get("JAMES_CORS_ORIGINS", "")
+if allowed_origins_env:
+    allow_origins = [
+        origin.strip()
+        for origin in allowed_origins_env.split(",")
+        if origin.strip()
+    ]
+else:
+    # Restrict to standard local development ports to prevent open CORS vulnerability
+    allow_origins = [
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -246,9 +261,7 @@ async def websocket_endpoint(ws: WebSocket):
             request_id = msg.get("id", None)
 
             # Dispatch action in a task to avoid blocking the event loop
-            asyncio.create_task(
-                _handle_action(ws, orch, action, params, request_id)
-            )
+            asyncio.create_task(_handle_action(ws, orch, action, params, request_id))
 
     except WebSocketDisconnect:
         manager.disconnect(ws)
@@ -300,13 +313,9 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
     if action == "scan_aps":
         return await _action_scan(orch, params)
     elif action == "start_monitor":
-        return await asyncio.to_thread(
-            orch.start_monitor, params.get("interface", "")
-        )
+        return await asyncio.to_thread(orch.start_monitor, params.get("interface", ""))
     elif action == "stop_monitor":
-        return await asyncio.to_thread(
-            orch.stop_monitor, params.get("interface", "")
-        )
+        return await asyncio.to_thread(orch.stop_monitor, params.get("interface", ""))
     elif action == "capture_handshake":
         return await _action_capture(orch, params)
     elif action == "crack_wpa":
@@ -320,9 +329,7 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
     elif action == "abort_attack":
         return await _action_abort(orch)
     elif action == "kill_james":
-        await _log(
-            "warn", "KILL JAMES initiated — shutting down all operations…"
-        )
+        await _log("warn", "KILL JAMES initiated — shutting down all operations…")
         return await asyncio.to_thread(orch.kill_james)
     elif action == "system_check":
         return await asyncio.to_thread(orch.system_check)
@@ -340,9 +347,7 @@ async def _action_scan(orch, params: dict):
     duration = params.get("duration", 10)
     await manager.broadcast({"type": "scan_status", "scanning": True})
     try:
-        result = await asyncio.to_thread(
-            orch.scan_nearby_aps, interface, duration
-        )
+        result = await asyncio.to_thread(orch.scan_nearby_aps, interface, duration)
     except Exception as e:
         await manager.broadcast({"type": "scan_status", "scanning": False})
         await _log("error", f"Scan failed: {e}")
@@ -372,9 +377,7 @@ async def _action_capture(orch, params: dict):
 
     # 1. Ensure monitor mode
     try:
-        mon_iface = await asyncio.to_thread(
-            orch.ensure_monitor_mode, interface
-        )
+        mon_iface = await asyncio.to_thread(orch.ensure_monitor_mode, interface)
     except Exception as e:
         await _log("error", f"Failed to enter monitor mode: {e}")
         await _attack_status("idle", f"Monitor mode failed: {e}", 0)
@@ -408,9 +411,7 @@ async def _action_capture(orch, params: dict):
         pct = 20 + (burst + 1) * 20  # 40, 60, 80
         await _attack_status("capturing", f"Deauth burst {burst+1}/3…", pct)
         try:
-            await asyncio.to_thread(
-                orch.aircrack.deauth, mon_iface, bssid, count=5
-            )
+            await asyncio.to_thread(orch.aircrack.deauth, mon_iface, bssid, count=5)
         except Exception as e:
             await _log("warn", f"Deauth burst {burst+1} failed: {e}")
         await asyncio.sleep(3)
@@ -517,9 +518,7 @@ async def _action_crack(orch, params: dict):
         )
     except Exception as e:
         await _log("error", f"Crack failed: {e}")
-        await _attack_status(
-            "complete", f"Crack error: {e}", 100, {"found": False}
-        )
+        await _attack_status("complete", f"Crack error: {e}", 100, {"found": False})
         return {"found": False, "error": str(e)}
 
     if result.get("found"):
@@ -537,9 +536,7 @@ async def _action_crack(orch, params: dict):
         await _attack_status(
             "complete", "Key not found in wordlist", 100, {"found": False}
         )
-        await _log(
-            "warn", "Key not found. Try a larger wordlist or Evil Twin attack."
-        )
+        await _log("warn", "Key not found. Try a larger wordlist or Evil Twin attack.")
 
     return result
 
@@ -599,9 +596,7 @@ async def _action_auto_pilot(orch, params: dict):
     await _log("info", "🤖 Auto-Pilot: Phase 1 — Scanning for targets…")
     await manager.broadcast({"type": "scan_status", "scanning": True})
     try:
-        scan_result = await asyncio.to_thread(
-            orch.scan_nearby_aps, interface, duration
-        )
+        scan_result = await asyncio.to_thread(orch.scan_nearby_aps, interface, duration)
     except Exception as e:
         await manager.broadcast({"type": "scan_status", "scanning": False})
         await _log("error", f"Auto-Pilot scan failed: {e}")
@@ -707,9 +702,7 @@ async def _action_agent_command(orch, params: dict):
         ifaces = await asyncio.to_thread(orch.wifi_interfaces)
         if ifaces:
             iface = ifaces[0].get("interface", ifaces[0].get("name", ""))
-            result = await _action_scan(
-                orch, {"interface": iface, "duration": 15}
-            )
+            result = await _action_scan(orch, {"interface": iface, "duration": 15})
             count = result.get("count", len(result.get("aps", [])))
             return {"response": f"Scan complete. Found {count} networks."}
         return {"response": "No wireless interface found."}
