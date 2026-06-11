@@ -16,10 +16,8 @@ Usage:
 import logging
 import os
 import secrets
-import signal
 import subprocess
 import time
-import threading
 
 from james.utils.net import get_local_ip
 
