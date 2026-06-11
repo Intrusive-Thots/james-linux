@@ -1260,7 +1260,8 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             wifi_common = gen.generate_wifi_common()
-            count = sum(1 for _ in open(wifi_common))
+            with open(wifi_common, 'rb') as f:
+                count = sum(chunk.count(b'\n') for chunk in iter(lambda: f.read(1024 * 1024), b''))
             self._print(f"  Generated {count:,} common Wi-Fi candidates")
             ac_result = self.aircrack.crack_wpa(capture, wifi_common, bssid=bssid)
             if ac_result.get("found"):
