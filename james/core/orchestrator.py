@@ -1174,7 +1174,7 @@ class Orchestrator:
 
                 gen = WifiWordlistGenerator()
                 ssid_list = gen.generate_ssid_targeted(ssid)
-                count = sum(1 for _ in open(ssid_list))
+                count = int(subprocess.check_output(['wc', '-l', ssid_list]).split()[0])
                 self._print(f"  Generated {count:,} SSID-specific candidates")
                 ac_result = self.aircrack.crack_wpa(capture, ssid_list, bssid=bssid)
                 if ac_result.get("found"):
