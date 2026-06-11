@@ -1174,7 +1174,8 @@ class Orchestrator:
 
                 gen = WifiWordlistGenerator()
                 ssid_list = gen.generate_ssid_targeted(ssid)
-                count = sum(1 for _ in open(ssid_list))
+                with open(ssid_list, 'rb') as f:
+                    count = f.read().count(b'\n')
                 self._print(f"  Generated {count:,} SSID-specific candidates")
                 ac_result = self.aircrack.crack_wpa(capture, ssid_list, bssid=bssid)
                 if ac_result.get("found"):
@@ -1260,7 +1261,8 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             wifi_common = gen.generate_wifi_common()
-            count = sum(1 for _ in open(wifi_common))
+            with open(wifi_common, 'rb') as f:
+                count = f.read().count(b'\n')
             self._print(f"  Generated {count:,} common Wi-Fi candidates")
             ac_result = self.aircrack.crack_wpa(capture, wifi_common, bssid=bssid)
             if ac_result.get("found"):
@@ -1280,7 +1282,8 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             numeric_list = gen.generate_numeric()
-            count = sum(1 for _ in open(numeric_list))
+            with open(numeric_list, 'rb') as f:
+                count = f.read().count(b'\n')
             self._print(f"  Generated {count:,} numeric candidates")
             ac_result = self.aircrack.crack_wpa(capture, numeric_list, bssid=bssid)
             if ac_result.get("found"):
