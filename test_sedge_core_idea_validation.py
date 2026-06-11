@@ -168,7 +168,7 @@ class TestSedgeCoreIdeaValidation(unittest.TestCase):
             from_node="A", to_node="B", success_weight=1.0, failure_weight=0.0
         )
         score = edge.score()
-        self.assertGreater(score, 1000)
+        self.assertAlmostEqual(score, 1000000.0, delta=1.0)
 
     def test_decision_engine_zero_utility_fallback_logic(self):
         decision_engine = DecisionEngine(self.graph)

@@ -183,7 +183,7 @@ class TestSedgeCoreIdeaVerified(unittest.TestCase):
         )
         # Should not raise ZeroDivisionError due to epsilon
         score = edge.score()
-        self.assertGreater(score, 1000)  # Should be a very large number
+        self.assertAlmostEqual(score, 1000000.0, delta=1.0)  # Should be a very large number
 
     def test_decision_engine_zero_utility_fallback_verified(self):
         """Verify decision engine fallback when all utilities are effectively zero."""
