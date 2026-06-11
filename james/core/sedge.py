@@ -46,7 +46,8 @@ class Node:
 
     Attributes:
         id (str): Unique string identifier for the node.
-        state_type (str): Categorical classification of the state (e.g., "scan", "analysis", "action").
+        state_type (str): Categorical classification of the state
+            (e.g., "scan", "analysis", "action").
         metadata (dict[str, Any]): Optional contextual tracking metadata.
     """
 
@@ -84,13 +85,16 @@ class Edge:
     visits: int = 0
 
     def __repr__(self) -> str:
-        return f"Edge({self.from_node} -> {self.to_node}, visits={self.visits}, score={self.score():.2f})"
+        return (
+            f"Edge({self.from_node} -> {self.to_node}, "
+            f"visits={self.visits}, score={self.score():.2f})"
+        )
 
     def score(self) -> float:
         """
         Computes the proportional utility score for the transition.
 
-        Evaluates the relative ratio of the success weight to the failure weight
+        Evaluates the relative ratio of the success weight to failure weight
         as part of the execution feedback learning system.
         A small epsilon is integrated into the denominator to mitigate
         zero-division anomalies.
@@ -109,8 +113,8 @@ class DecisionGraph:
     The system builds a directed weighted decision graph where:
     - Nodes = system states or actions (state nodes).
     - Edges = transitions between decisions (learning paths).
-    - Weights = learned success utility scores based on historical execution outcomes
-      (execution feedback learning).
+    - Weights = learned success utility scores based on historical execution
+      outcomes (execution feedback learning).
 
     Over time, successful paths become stronger, failed paths decay, and
     optimal strategies emerge automatically.
@@ -246,8 +250,8 @@ class LearningEngine:
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
     This execution feedback learning is what makes the system "self-evolving".
-    Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
-    higher success_weight and stronger traversal probability along their learning paths.
+    Successful sequences (e.g., scan -> analyze -> handshake_capture) gain
+    higher success_weight and stronger traversal probability along paths.
     Failed sequences gain higher failure_weight and reduced probability,
     causing unstable techniques to decay automatically.
     """
@@ -260,7 +264,7 @@ class LearningEngine:
 
         Args:
             graph (DecisionGraph): The decision graph undergoing updates.
-            path (list[str]): The sequential path of node identifiers traversed.
+            path (list[str]): The sequential path of node IDs traversed.
             outcome (str): The final result (e.g., 'SUCCESS', 'FAILURE').
         """
         for frm, to in zip(path[:-1], path[1:]):
@@ -282,11 +286,11 @@ class DecisionEngine:
     DECISION ENGINE (POLICY LAYER)
 
     This policy layer replaces static "AI decisions".
-    It uses weighted stochastic selection to balance exploration vs exploitation.
+    Uses weighted stochastic selection to balance exploration vs exploitation.
     The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection across the decision graph
+    This is achieved via stochastic weighted selection across the graph
     using the established learning paths.
     """
 
@@ -301,14 +305,16 @@ class DecisionEngine:
 
     def decide(self, current_node: str) -> str | None:
         """
-        Determines the optimal subsequent transition stochastically using utility scores.
+        Determines the optimal subsequent transition stochastically
+        using utility scores.
 
         Args:
             current_node (str): The identifier of the currently active node.
 
         Returns:
-            str | None: The identifier of the stochastically selected subsequent node,
-                        or None if no valid candidate paths exist.
+            str | None: The identifier of the stochastically selected
+                        subsequent node, or None if no valid candidate
+                        paths exist.
         """
         candidates = self.graph.edges.get(current_node, [])
         if not candidates:
@@ -318,10 +324,11 @@ class DecisionEngine:
         weights = [c.score() for c in candidates]
         total = sum(weights)
 
-        # Fallback to uniform random selection if cumulative utility is non-positive
-        # This zero-utility fallback logic prevents zero-division errors when all path candidates
-        # have an accumulated weight of 0.0 or lower. By falling back to uniform random selection,
-        # it distributes selections equally to balance exploration vs exploitation.
+        # Fallback to uniform random selection if cumulative utility is <= 0
+        # This zero-utility fallback logic prevents zero-division errors when
+        # all path candidates have an accumulated weight of 0.0 or lower.
+        # By falling back to uniform random selection, it distributes
+        # selections equally to balance exploration vs exploitation.
         if total <= 0.0:
             return random.choice(candidates).to_node
 
@@ -351,8 +358,8 @@ class SelfEvolvingAgent:
     - exploitation (using strong known paths)
     This is achieved via stochastic weighted selection.
 
-    After enough runs, the graph converges toward optimal attack/analysis pipelines,
-    unstable techniques decay automatically, and high-yield workflows become dominant paths,
+    After enough runs, the graph converges toward optimal pipelines,
+    unstable techniques decay, and workflows become dominant paths,
     creating a living decision ecosystem instead of static scripts.
     """
 
@@ -361,7 +368,7 @@ class SelfEvolvingAgent:
         Initializes the autonomous agent within the provided decision graph.
 
         Args:
-            graph (DecisionGraph): The environment map to traverse and optimize.
+            graph (DecisionGraph): The environment map to traverse.
         """
         self.graph = graph
         self.decision_engine = DecisionEngine(graph)
@@ -412,7 +419,8 @@ def build_parrot_wifi_graph() -> DecisionGraph:
 
     You can map nodes like:
     - States: NETWORK_DISCOVERY, TARGET_ANALYSIS, SECURITY_PROFILING
-    - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST, EVIL_TWIN_SIMULATION (authorized only)
+    - Actions: PASSIVE_SCAN, HANDSHAKE_CAPTURE, DEAUTH_TEST,
+               EVIL_TWIN_SIMULATION (authorized only)
     - Outcomes: SUCCESS, FAILURE, PARTIAL_SIGNAL
 
     REAL EVOLUTION BEHAVIOR

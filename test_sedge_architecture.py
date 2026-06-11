@@ -57,7 +57,7 @@ class TestSedgeArchitecture(unittest.TestCase):
         edge_zero = Edge(
             from_node="C", to_node="D", success_weight=1.0, failure_weight=0.0
         )
-        self.assertGreater(edge_zero.score(), 1000)
+        self.assertAlmostEqual(edge_zero.score(), 1000000.0, delta=1.0)
 
     def test_decision_graph_add_get_best_next(self):
         """Test DecisionGraph core operations."""
