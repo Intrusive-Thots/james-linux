@@ -8,3 +8,4 @@ build/
 .venv/
 venv/
 wordlists/wifi-mega-wpa.txt
+dummy_wordlist.txt
