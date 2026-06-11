@@ -1,0 +1,3 @@
+🎯 **What:** The testing gap addressed: Untested `check_kill` function in `james/tools/parrot.py`. Added unit tests.
+📊 **Coverage:** Covered successful and failed scenarios with `airmon-ng check kill` via mocked `NativeLayer`.
+✨ **Result:** Improved overall test coverage of the `AircrackSuite` in the `james.tools.parrot` module.
