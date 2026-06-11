@@ -39,9 +39,9 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a system situation or decision point.
-    Nodes function as discrete state nodes mapping to actual phases
-    like NETWORK_DISCOVERY or actions like PASSIVE_SCAN.
+    Each node represents a system situation or decision point within the architecture.
+    Nodes function as discrete state nodes mapping to actual operational phases
+    (e.g., NETWORK_DISCOVERY) or actionable tasks (e.g., PASSIVE_SCAN).
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -62,10 +62,10 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight and act as transitions between decisions.
-    They govern the learning paths of the system. Over time, higher
-    success_weight translates to stronger traversal probability, while
-    failing paths accrue failure_weight and decay.
+    Edges store experience weight and act as directed transitions between decisions.
+    They dynamically govern the learning paths of the system based on historical outcomes.
+    Over time, a higher success_weight translates to stronger traversal probability,
+    while failing paths accrue failure_weight and decay automatically.
 
     Attributes:
         from_node (str): Identifier of the origin node.
@@ -103,14 +103,14 @@ class DecisionGraph:
     DECISION GRAPH CORE
 
     Serves as the central state tracking structure for the SEDGE ecosystem.
-    The system builds a directed weighted decision graph where:
-    - Nodes = system states or actions (state nodes).
-    - Edges = transitions between decisions (learning paths).
-    - Weights = learned success utility scores based on historical execution outcomes.
+    The architecture builds a directed weighted decision graph where:
+    - Nodes = system states or actions (discrete state nodes).
+    - Edges = transitions between decisions (dynamic learning paths).
+    - Weights = learned success utility scores derived from execution feedback.
 
     Over time, successful paths become stronger, failed paths decay, and
-    optimal strategies emerge automatically.
-    This creates a living decision ecosystem instead of static scripts.
+    optimal strategies emerge automatically. This creates a self-evolving,
+    living decision ecosystem instead of relying on static scripts.
     """
 
     def __init__(self) -> None:
@@ -241,11 +241,11 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This execution feedback learning is what makes the system "self-evolving".
+    This execution feedback learning mechanism is what makes the system truly "self-evolving".
     Successful sequences (e.g., scan -> analyze -> handshake_capture -> validate) gain
-    higher success_weight and stronger traversal probability along their learning paths.
-    Failed sequences gain higher failure_weight and reduced probability,
-    causing unstable techniques to decay automatically.
+    a higher success_weight and stronger traversal probability along their learning paths.
+    Failed sequences gain a higher failure_weight and reduced probability,
+    causing unstable techniques to decay automatically and optimally.
     """
 
     def update(
@@ -277,12 +277,11 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This policy layer replaces static "AI decisions".
-    It uses weighted stochastic selection to balance exploration vs exploitation.
-    The system naturally balances:
-    - exploration (trying weak paths occasionally)
-    - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection across the decision graph.
+    This policy layer acts as the dynamic decision engine, replacing static "AI decisions".
+    It employs weighted stochastic selection to naturally balance:
+    - exploration (occasionally traversing weak paths to discover new strategies)
+    - exploitation (capitalizing on strong, known learning paths)
+    This continuous balance is achieved via stochastic weighted selection across the graph.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
@@ -329,26 +328,26 @@ class SelfEvolvingAgent:
     """
     SELF-EVOLUTION LOOP
 
-    This self-evolution loop is where learning actually happens.
+    This self-evolution loop is where dynamic execution feedback learning actually happens.
 
     HOW IT LEARNS OPTIMAL PATHS
     Over time, successful sequences gain:
     - higher success_weight
-    - stronger traversal probability
+    - stronger traversal probability along learning paths
 
     Failed sequences gain:
     - higher failure_weight
     - reduced probability
 
     EXPLORATION vs EXPLOITATION
-    System naturally balances:
+    The system naturally balances:
     - exploration (trying weak paths occasionally)
     - exploitation (using strong known paths)
-    This is achieved via stochastic weighted selection.
+    This is achieved via the policy layer's stochastic weighted selection.
 
     After enough runs, the graph converges toward optimal attack/analysis pipelines,
     unstable techniques decay automatically, and high-yield workflows become dominant paths,
-    creating a living decision ecosystem instead of static scripts.
+    ultimately fostering a living decision ecosystem rather than rigid static scripts.
     """
 
     def __init__(self, graph: DecisionGraph) -> None:
