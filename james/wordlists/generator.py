@@ -314,15 +314,6 @@ COMMON_SUFFIXES = [
 # Year range for mutations
 YEARS = list(range(1970, 2027))
 
-# ISP default password patterns (commonly 8-10 chars)
-ISP_PATTERNS = [
-    # All numeric (8 digits) — very common for ISP routers
-    "########",
-    # Hex patterns (some ISPs use hex)
-    "HHHHHHHH",  # 8 hex chars
-    "HHHHHHHHHH",  # 10 hex chars
-]
-
 
 class WifiWordlistGenerator:
     """
@@ -684,7 +675,10 @@ class WifiWordlistGenerator:
             if os.path.exists(sys_file):
                 try:
                     with open(sys_file, "r", errors="ignore") as f:
-                        all_passwords.update([l for l in map(str.strip, f) if 8 <= len(l) <= 63])
+                        all_passwords.update(
+                            [line for line in map(str.strip, f)
+                             if 8 <= len(line) <= 63]
+                        )
                 except Exception:
                     pass
 
