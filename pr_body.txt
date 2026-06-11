@@ -1,0 +1,3 @@
+🎯 **What:** Added unit tests for the untested `vnc_url` and `url` properties in `james/remote/gui_remote.py`.
+📊 **Coverage:** Added tests to verify the IP and port string formatting for the VNC connection and the HTTP VNC web client URL.
+✨ **Result:** Improved test coverage for the GUIRemote component, ensuring network URL formatting remains reliable and any regressions are caught immediately.
