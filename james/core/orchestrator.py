@@ -11,7 +11,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 import shlex
 from datetime import datetime
@@ -711,7 +710,7 @@ class Orchestrator:
 
         # ── Summary ─────────────────────────────────────────────
         self._print("\n" + "━" * 50)
-        self._print(f"🛑 KILL JAMES Complete")
+        self._print("🛑 KILL JAMES Complete")
         self._print(f"  Processes killed:     {len(summary['killed'])}")
         self._print(f"  Interfaces restored:  {len(summary['interfaces_restored'])}")
         if summary["errors"]:
@@ -1174,7 +1173,7 @@ class Orchestrator:
 
                 gen = WifiWordlistGenerator()
                 ssid_list = gen.generate_ssid_targeted(ssid)
-                count = sum(1 for _ in open(ssid_list))
+                count = Path(ssid_list).stat().st_size // 10
                 self._print(f"  Generated {count:,} SSID-specific candidates")
                 ac_result = self.aircrack.crack_wpa(capture, ssid_list, bssid=bssid)
                 if ac_result.get("found"):
@@ -1260,7 +1259,7 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             wifi_common = gen.generate_wifi_common()
-            count = sum(1 for _ in open(wifi_common))
+            count = Path(wifi_common).stat().st_size // 10
             self._print(f"  Generated {count:,} common Wi-Fi candidates")
             ac_result = self.aircrack.crack_wpa(capture, wifi_common, bssid=bssid)
             if ac_result.get("found"):
@@ -1280,7 +1279,7 @@ class Orchestrator:
 
             gen = WifiWordlistGenerator()
             numeric_list = gen.generate_numeric()
-            count = sum(1 for _ in open(numeric_list))
+            count = Path(numeric_list).stat().st_size // 10
             self._print(f"  Generated {count:,} numeric candidates")
             ac_result = self.aircrack.crack_wpa(capture, numeric_list, bssid=bssid)
             if ac_result.get("found"):
@@ -1351,11 +1350,11 @@ class Orchestrator:
             self._print("📝 Generating Wi-Fi wordlists...")
             common = gen.generate_wifi_common()
             files.append(common)
-            self._print(f"  ✓ wifi_common.txt")
+            self._print("  ✓ wifi_common.txt")
 
             numeric = gen.generate_numeric()
             files.append(numeric)
-            self._print(f"  ✓ wifi_numeric.txt")
+            self._print("  ✓ wifi_numeric.txt")
 
             if ssid:
                 targeted = gen.generate_ssid_targeted(ssid)
@@ -1682,7 +1681,7 @@ class Orchestrator:
                 if isinstance(result, dict) and result.get("error"):
                     self._print(f"  ⚠️ {result['error']}")
                 else:
-                    self._print(f"  ✅ Done")
+                    self._print("  ✅ Done")
             except Exception as e:
                 logger.exception("Skill step %d failed: %s", i, e)
                 self._print(f"  ❌ Failed: {e}")
