@@ -1,0 +1,4 @@
+🎯 **What:** Removed the unused variable `ISP_PATTERNS` from `james/wordlists/generator.py`.
+💡 **Why:** `ISP_PATTERNS` was identified as dead code since it is not referenced anywhere in the codebase. Removing it improves code health, maintainability, and readability by eliminating unnecessary components.
+✅ **Verification:** Verified the removal visually using `git diff`, ran `flake8` to ensure no linting regressions, and ran the full unit test suite which all passed successfully, ensuring no logic was broken.
+✨ **Result:** A cleaner codebase with reduced cognitive load and dead code eliminated without changing functional behavior.
