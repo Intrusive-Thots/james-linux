@@ -589,13 +589,40 @@ function exportLog() {
 
 /* ── Tab Switching ─────────────────────────────────────────── */
 
+const tabsCache = {};
+const panelsCache = {};
+let activeTabId = null;
+
 function switchTab(tabId) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-    const panel = document.getElementById(`panel-${tabId}`);
-    panel.classList.remove('hidden');
-    panel.classList.add('active');
+    if (activeTabId === tabId) return;
+
+    if (activeTabId === null) {
+        document.querySelectorAll('.tab').forEach(t => {
+            const id = t.getAttribute('data-tab');
+            tabsCache[id] = t;
+            if (t.classList.contains('active')) {
+                activeTabId = id;
+            }
+        });
+        document.querySelectorAll('.panel').forEach(p => {
+            const id = p.id.replace('panel-', '');
+            panelsCache[id] = p;
+        });
+    }
+
+    if (activeTabId && tabsCache[activeTabId] && panelsCache[activeTabId]) {
+        tabsCache[activeTabId].classList.remove('active');
+        panelsCache[activeTabId].classList.add('hidden');
+        panelsCache[activeTabId].classList.remove('active');
+    }
+
+    if (tabsCache[tabId] && panelsCache[tabId]) {
+        tabsCache[tabId].classList.add('active');
+        panelsCache[tabId].classList.remove('hidden');
+        panelsCache[tabId].classList.add('active');
+    }
+
+    activeTabId = tabId;
 
     // Auto-load data when switching to certain tabs
     if (tabId === 'loot') refreshLoot();
