@@ -1,0 +1,4 @@
+🎯 **What:** Resolved the code health warning regarding unused variables `VNC_PORT` and `WEB_PORT` in `james/remote/gui_remote.py` by accessing them via `GUIRemote.VNC_PORT` and `GUIRemote.WEB_PORT` respectively.
+💡 **Why:** The variables are constants defined at the class level and were incorrectly flagged as unused because they were accessed via `self`. Switching to class-level access properly resolves the linter warning while maintaining code readability, rather than replacing them with magic numbers.
+✅ **Verification:** Ran the full test suite (`QT_QPA_PLATFORM=offscreen python3 -m unittest discover -p 'test_*.py'`) to verify no regressions were introduced.
+✨ **Result:** Enhanced code health by eliminating linter warnings while preserving standard object-oriented patterns and variable usage.

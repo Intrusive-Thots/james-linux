@@ -47,12 +47,12 @@ class GUIRemote:
     @property
     def url(self) -> str:
         ip = get_local_ip()
-        return f"http://{ip}:{self.WEB_PORT}/vnc.html"
+        return f"http://{ip}:{GUIRemote.WEB_PORT}/vnc.html"
 
     @property
     def vnc_url(self) -> str:
         ip = get_local_ip()
-        return f"{ip}:{self.VNC_PORT}"
+        return f"{ip}:{GUIRemote.VNC_PORT}"
 
     def _generate_vnc_password(self) -> str:
         """Generate a random 8-character alphanumeric VNC password."""
@@ -214,7 +214,7 @@ class GUIRemote:
             )
 
         # 4. Open firewall ports
-        for port in [self.VNC_PORT, self.WEB_PORT]:
+        for port in [GUIRemote.VNC_PORT, GUIRemote.WEB_PORT]:
             try:
                 subprocess.run(
                     ["sudo", "-n", "ufw", "allow", str(port)],
@@ -244,7 +244,7 @@ class GUIRemote:
             except Exception:
                 pass
         actions.append(
-            f"Firewall ports {self.VNC_PORT},{self.WEB_PORT} opened"
+            f"Firewall ports {GUIRemote.VNC_PORT},{GUIRemote.WEB_PORT} opened"
         )
 
         # 5. Start x11vnc
@@ -256,7 +256,7 @@ class GUIRemote:
             "-shared",  # Allow multiple connections
             "-noxdamage",  # Compatibility
             "-rfbport",
-            str(self.VNC_PORT),
+            str(GUIRemote.VNC_PORT),
             "-bg",  # Background after starting
         ]
         if pw_file:
@@ -278,7 +278,7 @@ class GUIRemote:
                 errors.append(f"x11vnc failed to start: {stderr[:200]}")
             else:
                 actions.append(
-                    f"x11vnc sharing {self._display} on :{self.VNC_PORT}"
+                    f"x11vnc sharing {self._display} on :{GUIRemote.VNC_PORT}"
                 )
         except FileNotFoundError:
             errors.append(
@@ -302,15 +302,15 @@ class GUIRemote:
                         [
                             launch_script,
                             "--listen",
-                            str(self.WEB_PORT),
+                            str(GUIRemote.WEB_PORT),
                             "--vnc",
-                            f"localhost:{self.VNC_PORT}",
+                            f"localhost:{GUIRemote.VNC_PORT}",
                         ],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                     )
                     time.sleep(1)
-                    actions.append(f"noVNC proxy on :{self.WEB_PORT}")
+                    actions.append(f"noVNC proxy on :{GUIRemote.WEB_PORT}")
                 except Exception as e:
                     errors.append(f"noVNC launch error: {e}")
             else:
@@ -354,8 +354,8 @@ class GUIRemote:
             ws_cmd.extend(["--web", web_dir])
         ws_cmd.extend(
             [
-                str(self.WEB_PORT),
-                f"localhost:{self.VNC_PORT}",
+                str(GUIRemote.WEB_PORT),
+                f"localhost:{GUIRemote.VNC_PORT}",
             ]
         )
 
@@ -372,7 +372,7 @@ class GUIRemote:
                 )
                 errors.append(f"websockify failed: {stderr[:200]}")
             else:
-                actions.append(f"websockify proxy on :{self.WEB_PORT}")
+                actions.append(f"websockify proxy on :{GUIRemote.WEB_PORT}")
         except FileNotFoundError:
             errors.append(
                 "websockify not found — install: sudo apt install novnc websockify"
