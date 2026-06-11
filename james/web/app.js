@@ -589,13 +589,30 @@ function exportLog() {
 
 /* ── Tab Switching ─────────────────────────────────────────── */
 
+let activeTabId = 'chat'; // Default tab
+
 function switchTab(tabId) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-    const panel = document.getElementById(`panel-${tabId}`);
-    panel.classList.remove('hidden');
-    panel.classList.add('active');
+    if (activeTabId === tabId) return;
+
+    // Remove active state from previous tab and panel
+    const prevTab = document.querySelector(`.tab[data-tab="${activeTabId}"]`);
+    if (prevTab) prevTab.classList.remove('active');
+    const prevPanel = document.getElementById(`panel-${activeTabId}`);
+    if (prevPanel) {
+        prevPanel.classList.add('hidden');
+        prevPanel.classList.remove('active');
+    }
+
+    // Add active state to new tab and panel
+    const nextTab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+    if (nextTab) nextTab.classList.add('active');
+    const nextPanel = document.getElementById(`panel-${tabId}`);
+    if (nextPanel) {
+        nextPanel.classList.remove('hidden');
+        nextPanel.classList.add('active');
+    }
+
+    activeTabId = tabId;
 
     // Auto-load data when switching to certain tabs
     if (tabId === 'loot') refreshLoot();
