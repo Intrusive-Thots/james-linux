@@ -662,7 +662,7 @@ class RemoteServer:
     @property
     def url(self) -> str:
         ip = get_local_ip()
-        return f"http://{ip}:{self.port}"
+        return f"http://{ip}:{self.port}/"
 
     def start(self):
         """Start the remote server in a background thread."""
