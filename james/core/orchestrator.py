@@ -1277,10 +1277,11 @@ class Orchestrator:
         self._print("\n[6/6] Numeric PIN patterns...")
         try:
             from james.wordlists.generator import WifiWordlistGenerator
+            import os
 
             gen = WifiWordlistGenerator()
             numeric_list = gen.generate_numeric()
-            count = sum(1 for _ in open(numeric_list))
+            count = os.path.getsize(numeric_list) // 10
             self._print(f"  Generated {count:,} numeric candidates")
             ac_result = self.aircrack.crack_wpa(capture, numeric_list, bssid=bssid)
             if ac_result.get("found"):
