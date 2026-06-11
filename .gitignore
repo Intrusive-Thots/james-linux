@@ -8,3 +8,5 @@ build/
 .venv/
 venv/
 wordlists/wifi-mega-wpa.txt
+node_modules
+node_modules/
