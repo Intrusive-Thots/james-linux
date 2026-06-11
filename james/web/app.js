@@ -590,12 +590,26 @@ function exportLog() {
 /* ── Tab Switching ─────────────────────────────────────────── */
 
 function switchTab(tabId) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-    const panel = document.getElementById(`panel-${tabId}`);
-    panel.classList.remove('hidden');
-    panel.classList.add('active');
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.dataset.tab === tabId) return;
+
+    if (activeTab) {
+        activeTab.classList.remove('active');
+        const activePanel = document.getElementById(`panel-${activeTab.dataset.tab}`);
+        if (activePanel) {
+            activePanel.classList.add('hidden');
+            activePanel.classList.remove('active');
+        }
+    }
+
+    const newTab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+    if (newTab) newTab.classList.add('active');
+
+    const newPanel = document.getElementById(`panel-${tabId}`);
+    if (newPanel) {
+        newPanel.classList.remove('hidden');
+        newPanel.classList.add('active');
+    }
 
     // Auto-load data when switching to certain tabs
     if (tabId === 'loot') refreshLoot();
