@@ -11,7 +11,7 @@ import shlex
 import os
 import signal
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class NativeLayer:
         if env_pass:
             self._sudo_pass = env_pass
 
-        # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility
+        # Ensure /sbin and /usr/sbin in PATH for desktop launcher compatibility
         current_path = os.environ.get("PATH", "")
         for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
             if sbin_path not in current_path:
@@ -76,7 +76,7 @@ class NativeLayer:
         os.environ["PATH"] = current_path
 
     def set_sudo_password(self, password: str):
-        """Set the sudo password for privilege escalation (stored in-memory only)."""
+        """Set sudo password for privilege escalation (in-memory only)."""
         self._sudo_pass = password
 
     # ── public API ──────────────────────────────────────────────
@@ -97,7 +97,7 @@ class NativeLayer:
         Args:
             command:   The command string to execute.
             sudo:      If True, prepend 'sudo' (skipped when already root).
-            timeout:   Per-command timeout in seconds (None → default_timeout).
+            timeout:   Per-command timeout in sec (None → default).
             cwd:       Working directory for the subprocess.
             env:       Extra environment variables (merged with os.environ).
             on_output: Optional callback invoked with each stdout line in
@@ -109,7 +109,7 @@ class NativeLayer:
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
 
-        # Log short utility commands at DEBUG to avoid log flooding from polling
+        # Log short utility commands at DEBUG to avoid log flooding
         log_level = logging.DEBUG if effective_timeout <= 5 else logging.INFO
         logger.log(
             log_level, "exec → %s  (timeout=%ss)", cmd, effective_timeout
@@ -132,7 +132,7 @@ class NativeLayer:
         """
         Launch a long-running process (e.g. airodump-ng) without blocking.
 
-        Returns the Popen handle so the caller can read output / kill later.
+        Returns the Popen handle so the caller can read output or kill later.
         """
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
@@ -192,7 +192,7 @@ class NativeLayer:
     def _prepare_command(self, command: str, sudo: bool = False) -> str:
         """Optionally wrap command with sudo privilege escalation.
 
-        If sudo is requested and we are not already root, pipes the
+        If sudo is requested and we are not root, pipes the
         stored password via stdin to ``sudo -S``. The password must
         have been set via ``set_sudo_password()`` or the
         ``JAMES_SUDO_PASS`` environment variable.
