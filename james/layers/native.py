@@ -11,7 +11,7 @@ import shlex
 import os
 import signal
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
@@ -58,13 +58,14 @@ class NativeLayer:
         self._is_root = os.geteuid() == 0
         self._sudo_pass: Optional[str] = None
         self._bg_procs: list[subprocess.Popen] = []  # process registry
+        self._tool_cache: dict[str, bool] = {}
 
         # Allow sudo password from environment (never hardcode it)
         env_pass = os.environ.get("JAMES_SUDO_PASS")
         if env_pass:
             self._sudo_pass = env_pass
 
-        # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility
+        # Ensure /sbin and /usr/sbin are in PATH for desktop launcher compatibility  # noqa: E501
         current_path = os.environ.get("PATH", "")
         for sbin_path in ["/sbin", "/usr/sbin", "/usr/local/sbin"]:
             if sbin_path not in current_path:
@@ -76,7 +77,7 @@ class NativeLayer:
         os.environ["PATH"] = current_path
 
     def set_sudo_password(self, password: str):
-        """Set the sudo password for privilege escalation (stored in-memory only)."""
+        """Set the sudo password for privilege escalation (stored in-memory only)."""  # noqa: E501
         self._sudo_pass = password
 
     # ── public API ──────────────────────────────────────────────
@@ -109,7 +110,7 @@ class NativeLayer:
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
 
-        # Log short utility commands at DEBUG to avoid log flooding from polling
+        # Log short utility commands at DEBUG to avoid log flooding from polling  # noqa: E501
         log_level = logging.DEBUG if effective_timeout <= 5 else logging.INFO
         logger.log(
             log_level, "exec → %s  (timeout=%ss)", cmd, effective_timeout
@@ -183,9 +184,14 @@ class NativeLayer:
         self._bg_procs = [p for p in self._bg_procs if p.poll() is None]
 
     def check_tool(self, tool_name: str) -> bool:
-        """Return True if *tool_name* is available on PATH."""
-        result = self.run(f"which {shlex.quote(tool_name)}", timeout=5)
-        return result.success
+        """Check if a tool is installed on the system."""
+        if tool_name in self._tool_cache:
+            return self._tool_cache[tool_name]
+
+        res = self.run(f"which {shlex.quote(tool_name)}", timeout=5)
+        installed = res.success
+        self._tool_cache[tool_name] = installed
+        return installed
 
     # ── internals ───────────────────────────────────────────────
 
