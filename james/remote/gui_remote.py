@@ -16,10 +16,8 @@ Usage:
 import logging
 import os
 import secrets
-import signal
 import subprocess
 import time
-import threading
 
 from james.utils.net import get_local_ip
 
@@ -205,9 +203,7 @@ class GUIRemote:
         # 3. Create VNC password
         pw_file = self._create_vnc_password()
         if pw_file:
-            actions.append(
-                f"VNC password configured (password: {self._vnc_password})"
-            )
+            actions.append(f"VNC password configured (password: {self._vnc_password})")
         else:
             actions.append(
                 "VNC running without password (password file creation failed)"
@@ -243,9 +239,7 @@ class GUIRemote:
                 )
             except Exception:
                 pass
-        actions.append(
-            f"Firewall ports {self.VNC_PORT},{self.WEB_PORT} opened"
-        )
+        actions.append(f"Firewall ports {self.VNC_PORT},{self.WEB_PORT} opened")
 
         # 5. Start x11vnc
         vnc_cmd = [
@@ -277,13 +271,9 @@ class GUIRemote:
                 stderr = self._vnc_proc.stderr.read().decode(errors="replace")
                 errors.append(f"x11vnc failed to start: {stderr[:200]}")
             else:
-                actions.append(
-                    f"x11vnc sharing {self._display} on :{self.VNC_PORT}"
-                )
+                actions.append(f"x11vnc sharing {self._display} on :{self.VNC_PORT}")
         except FileNotFoundError:
-            errors.append(
-                "x11vnc not found — install with: sudo apt install x11vnc"
-            )
+            errors.append("x11vnc not found — install with: sudo apt install x11vnc")
         except Exception as e:
             errors.append(f"x11vnc error: {e}")
 
@@ -367,9 +357,7 @@ class GUIRemote:
             )
             time.sleep(1)
             if self._novnc_proc.poll() is not None:
-                stderr = self._novnc_proc.stderr.read().decode(
-                    errors="replace"
-                )
+                stderr = self._novnc_proc.stderr.read().decode(errors="replace")
                 errors.append(f"websockify failed: {stderr[:200]}")
             else:
                 actions.append(f"websockify proxy on :{self.WEB_PORT}")
