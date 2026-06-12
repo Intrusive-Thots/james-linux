@@ -379,14 +379,15 @@ echo "────────────────────────�
 JAMES_DIR="$TARGET_HOME/Desktop/james-linux"
 if [ -f "$JAMES_DIR/james/wordlists/generator.py" ]; then
     su - $TARGET_USER -c "cd $JAMES_DIR && python3 -c '
+import subprocess
 from james.wordlists.generator import WifiWordlistGenerator
 gen = WifiWordlistGenerator()
 common = gen.generate_wifi_common()
 numeric = gen.generate_numeric()
 ultimate = gen.get_combined_wordlist()
-c1 = sum(1 for _ in open(common))
-c2 = sum(1 for _ in open(numeric))
-c3 = sum(1 for _ in open(ultimate))
+c1 = int(subprocess.check_output([\"wc\", \"-l\", common]).split()[0])
+c2 = int(subprocess.check_output([\"wc\", \"-l\", numeric]).split()[0])
+c3 = int(subprocess.check_output([\"wc\", \"-l\", ultimate]).split()[0])
 print(f\"  wifi_common.txt:   {c1:,} candidates\")
 print(f\"  wifi_numeric.txt:  {c2:,} candidates\")
 print(f\"  wifi_ultimate.txt: {c3:,} candidates\")
