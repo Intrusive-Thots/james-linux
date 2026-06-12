@@ -82,7 +82,8 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight and act as transitions between decisions along learning paths.
+    Edges store experience weight and act as transitions
+    between decisions along learning paths.
     They govern the learning paths of the system. Over time, higher
     success_weight translates to stronger traversal probability, while
     failing paths accrue failure_weight and decay. This mechanism forms
@@ -127,7 +128,8 @@ class DecisionGraph:
     """
     DECISION GRAPH CORE
 
-    Serves as the central state tracking structure for the SEDGE ecosystem for the self-evolution loop.
+    Serves as the central state tracking structure for the SEDGE
+    ecosystem for the self-evolution loop.
     The system builds a directed weighted decision graph where:
     - Nodes = system states or actions (state nodes).
     - Edges = transitions between decisions (learning paths).
@@ -267,7 +269,8 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This execution feedback learning is what makes the system "self-evolving" across the self-evolution loop.
+    This execution feedback learning is what makes the system
+    "self-evolving" across the self-evolution loop.
     Successful sequences (e.g., scan -> analyze -> handshake_capture) gain
     higher success_weight and stronger traversal probability along paths.
     Failed sequences gain higher failure_weight and reduced probability,
@@ -303,7 +306,8 @@ class DecisionEngine:
     """
     DECISION ENGINE (POLICY LAYER)
 
-    This policy layer replaces static "AI decisions" to drive the self-evolution loop.
+    This policy layer replaces static "AI decisions" to drive the
+    self-evolution loop.
     Uses weighted stochastic selection to balance exploration vs exploitation.
     The system naturally balances:
     - exploration (trying weak paths occasionally)
