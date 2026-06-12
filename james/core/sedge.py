@@ -113,7 +113,8 @@ class Edge:
         Computes the proportional utility score for the transition.
 
         Evaluates the relative ratio of the success weight to failure weight
-        as part of the execution feedback learning system.
+        as part of the execution feedback learning system. This connects the
+        state nodes through learning paths.
         A small epsilon is integrated into the denominator to mitigate
         zero-division anomalies.
 
