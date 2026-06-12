@@ -60,7 +60,8 @@ class Node:
     Each node represents a system situation or decision point.
     These state nodes function as discrete state nodes mapping to actual phases
     (e.g., NETWORK_DISCOVERY) or actions (e.g., PASSIVE_SCAN) within
-    the system's architecture, providing a structural foundation.
+    the system's architecture, providing a structural foundation for the
+    decision graph engine.
 
     Attributes:
         id (str): Unique string identifier for the node.
