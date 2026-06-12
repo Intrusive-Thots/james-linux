@@ -42,7 +42,7 @@ class Node:
     Each node represents a system situation or decision point.
     Nodes function as discrete state nodes mapping to actual phases
     (e.g., NETWORK_DISCOVERY) or actions (e.g., PASSIVE_SCAN) within
-    the system's architecture.
+    the system's architecture, providing a structural foundation.
 
     Attributes:
         id (str): Unique string identifier for the node.
@@ -68,7 +68,7 @@ class Edge:
     They govern the learning paths of the system. Over time, higher
     success_weight translates to stronger traversal probability, while
     failing paths accrue failure_weight and decay. This mechanism forms
-    the basis of execution feedback learning.
+    the basis of execution feedback learning across all learning paths.
 
     Attributes:
         from_node (str): Identifier of the origin node.
