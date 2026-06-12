@@ -1,0 +1,139 @@
+ SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
+
+The system builds a directed weighted decision graph where:
+
+Nodes = system states or actions Edges = transitions between decisions Weights = learned success utility scores
+
+Over time:
+
+successful paths become stronger failed paths decay optimal strategies emerge automatically
+
+ ARCHITECTURE
+
+STATE NODE MODEL
+Each node represents a system situation or decision point:
+
+from dataclasses import dataclass, field from typing import Dict, List
+
+@dataclass class Node: id: str state_type: str # "scan", "analysis", "action" metadata: Dict = field(default_factory=dict) 2. EDGE MODEL (LEARNING PATHS)
+
+Edges store experience weight:
+
+@dataclass class Edge: from_node: str to_node: str success_weight: float = 1.0 failure_weight: float = 1.0 visits: int = 0
+
+def score(self):
+    return self.success_weight / (self.failure_weight + 1e-6)
+DECISION GRAPH CORE class DecisionGraph: def init(self): self.nodes = {} self.edges = {}
+
+def add_node(self, node: Node): self.nodes[node.id] = node
+
+def add_edge(self, edge: Edge): self.edges.setdefault(edge.from_node, []).append(edge)
+
+def get_best_next(self, node_id: str): edges = self.edges.get(node_id, [])
+
+ if not edges:
+     return None
+
+ return max(edges, key=lambda e: e.score())
+EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
+
+This is what makes it \x93self-evolving\x94.
+
+class LearningEngine: def update(self, graph: DecisionGraph, path: List[str], success: bool):
+
+    for i in range(len(path) - 1):
+        frm, to = path[i], path[i + 1]
+
+        edges = graph.edges.get(frm, [])
+
+        for e in edges:
+            if e.to_node == to:
+
+                e.visits += 1
+
+                if success:
+                    e.success_weight += 1.0
+                else:
+                    e.failure_weight += 1.0
+DECISION ENGINE (POLICY LAYER)
+This replaces static \x93AI decisions\x94.
+
+import random
+
+class DecisionEngine: def init(self, graph: DecisionGraph): self.graph = graph
+
+def decide(self, current_node: str):
+
+    candidates = self.graph.edges.get(current_node, [])
+
+    if not candidates:
+        return None
+
+    # weighted stochastic selection (exploration + exploitation)
+    weights = [c.score() for c in candidates]
+
+    total = sum(weights)
+    probs = [w / total for w in weights]
+
+    return random.choices(candidates, weights=probs)[0].to_node
+SELF-EVOLUTION LOOP
+This is where learning actually happens.
+
+class SelfEvolvingAgent: def init(self, graph): self.graph = graph self.decision_engine = DecisionEngine(graph) self.learner = LearningEngine()
+
+    self.current_node = "START"
+    self.current_path = ["START"]
+
+def step(self, success_signal=None):
+
+    next_node = self.decision_engine.decide(self.current_node)
+
+    if not next_node:
+        return "halt"
+
+    self.current_path.append(next_node)
+    self.current_node = next_node
+
+    return next_node
+
+def feedback(self, success: bool):
+    self.learner.update(self.graph, self.current_path, success)
+
+    # reset episode
+    self.current_node = "START"
+    self.current_path = ["START"]
+ HOW IT \x93LEARNS OPTIMAL PATHS\x94
+
+Over time:
+
+Successful sequences: scan  analyze  handshake_capture  validate
+
+gain:
+
+higher success_weight stronger traversal probability Failed sequences: scan  aggressive_attack  fail
+
+gain:
+
+higher failure_weight reduced probability  EXPLORATION vs EXPLOITATION
+
+System naturally balances:
+
+exploration (trying weak paths occasionally) exploitation (using strong known paths)
+
+This is achieved via:
+
+stochastic weighted selection
+
+ HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM
+
+You can map nodes like:
+
+States NETWORK_DISCOVERY TARGET_ANALYSIS SECURITY_PROFILING Actions PASSIVE_SCAN HANDSHAKE_CAPTURE DEAUTH_TEST EVIL_TWIN_SIMULATION (authorized only) Outcomes SUCCESS FAILURE PARTIAL_SIGNAL  REAL EVOLUTION BEHAVIOR
+
+After enough runs:
+
+graph converges toward optimal attack/analysis pipelines unstable techniques decay automatically high-yield workflows become dominant paths
+
+This creates:
+
+a living decision ecosystem instead of static scripts

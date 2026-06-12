@@ -12,6 +12,24 @@ Over time:
 - optimal strategies emerge automatically
 
 ARCHITECTURE
+
+STATE NODE MODEL
+Each node represents a system situation or decision point.
+
+EDGE MODEL (LEARNING PATHS)
+Edges store experience weight.
+
+DECISION GRAPH CORE
+The core structure holding the nodes and edges.
+
+EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
+This is what makes it self-evolving.
+
+DECISION ENGINE (POLICY LAYER)
+This replaces static AI decisions.
+
+SELF-EVOLUTION LOOP
+This is where learning actually happens.
 """
 
 import random
