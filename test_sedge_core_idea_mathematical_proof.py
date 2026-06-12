@@ -55,7 +55,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
         edge.success_weight = 1.0
         edge.failure_weight = 0.0
-        self.assertGreater(edge.score(), 999999)
+        self.assertAlmostEqual(edge.score(), 999999.999999, delta=0.1)
 
     def test_mathematical_path_scoring(self):
         """
