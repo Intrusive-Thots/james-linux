@@ -789,6 +789,16 @@ document.addEventListener('keydown', (e) => {
     if (document.activeElement === document.getElementById('api-key-input') && e.key === 'Enter') {
         doLogin();
     }
+
+    // Global tab switching shortcuts (Alt + 1-6)
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+        if (e.key === '1') { e.preventDefault(); switchTab('chat'); }
+        if (e.key === '2') { e.preventDefault(); switchTab('recon'); }
+        if (e.key === '3') { e.preventDefault(); switchTab('wifi'); }
+        if (e.key === '4') { e.preventDefault(); switchTab('crack'); }
+        if (e.key === '5') { e.preventDefault(); switchTab('loot'); }
+        if (e.key === '6') { e.preventDefault(); switchTab('log'); }
+    }
 });
 
 /* ── Auto-login if token exists ────────────────────────────── */
