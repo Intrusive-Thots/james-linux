@@ -17,19 +17,23 @@ from james.tools.constants import (
     STATE_TARGET_ANALYSIS,
     ACTION_HANDSHAKE_CAPTURE,
     STATE_SECURITY_PROFILING,
-    ACTION_EVIL_TWIN_SIMULATION
 )
+
 
 class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
     """
     Comprehensive tests targeting the SEDGE CORE IDEA from the design document.
     Verifies that Node, Edge, DecisionGraph, LearningEngine, DecisionEngine,
-    SelfEvolvingAgent, and build_parrot_wifi_graph work as intended according to the specification.
+    SelfEvolvingAgent, and build_parrot_wifi_graph work as intended.
     """
 
     def test_node_model(self):
         """Test STATE NODE MODEL from the design document."""
-        node = Node(id="test_node", state_type="state", metadata={"key": "value"})
+        node = Node(
+            id="test_node",
+            state_type="state",
+            metadata={"key": "value"}
+        )
         self.assertEqual(node.id, "test_node")
         self.assertEqual(node.state_type, "state")
         self.assertEqual(node.metadata, {"key": "value"})
@@ -61,7 +65,7 @@ class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
         self.assertEqual(graph.get_best_next("A"), edge)
 
     def test_execution_feedback_learning(self):
-        """Test EXECUTION FEEDBACK LEARNING (KEY SYSTEM) from the design document."""
+        """Test EXECUTION FEEDBACK LEARNING from the design document."""
         graph = DecisionGraph()
         graph.add_node(Node(id="A", state_type="state"))
         graph.add_node(Node(id="B", state_type="action"))
@@ -97,8 +101,14 @@ class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
         graph.add_node(Node(id="C", state_type="action"))
 
         # Edge A->B has high success, A->C has high failure
-        edge_ab = Edge(from_node="A", to_node="B", success_weight=100.0, failure_weight=1.0)
-        edge_ac = Edge(from_node="A", to_node="C", success_weight=1.0, failure_weight=100.0)
+        edge_ab = Edge(
+            from_node="A", to_node="B",
+            success_weight=100.0, failure_weight=1.0
+        )
+        edge_ac = Edge(
+            from_node="A", to_node="C",
+            success_weight=1.0, failure_weight=100.0
+        )
 
         graph.add_edge(edge_ab)
         graph.add_edge(edge_ac)
@@ -145,7 +155,7 @@ class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
         self.assertEqual(edge_start_b.success_weight, 2.0)
 
     def test_parrot_wifi_system_mapping(self):
-        """Test HOW THIS MAPS TO YOUR PARROT WIFI SYSTEM from the design document."""
+        """Test HOW THIS MAPS TO PARROT WIFI SYSTEM from design document."""
         graph = build_parrot_wifi_graph()
 
         # Verify States
@@ -160,7 +170,9 @@ class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
 
         # Verify Edge mapping (Sequence: START -> Network Discovery)
         edges = graph.get_edges(STATE_START)
-        self.assertTrue(any(e.to_node == STATE_NETWORK_DISCOVERY for e in edges))
+        has_net = any(e.to_node == STATE_NETWORK_DISCOVERY for e in edges)
+        self.assertTrue(has_net)
+
 
 if __name__ == '__main__':
     unittest.main()
