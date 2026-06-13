@@ -225,7 +225,8 @@ class DecisionGraph:
 
     def get_best_next(self, node_id: str) -> Edge | None:
         """
-        Identifies the optimal subsequent transition from a given node.
+        Identifies the optimal subsequent transition from a given state node.
+        Evaluates available learning paths to select the most optimal path.
 
         Args:
             node_id (str): The current node identifier.
