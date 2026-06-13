@@ -170,18 +170,6 @@ class DecisionGraph:
         self.edges.setdefault(edge.from_node, []).append(edge)
         self.edges_dict.setdefault(edge.from_node, {})[edge.to_node] = edge
 
-    def get_node(self, node_id: str) -> Node | None:
-        """
-        Retrieves a specific node by its unique identifier.
-
-        Args:
-            node_id (str): The target node's identifier.
-
-        Returns:
-            Node | None: The requested node, or None if it does not exist.
-        """
-        return self.nodes.get(node_id)
-
     def get_edges(self, node_id: str) -> list[Edge]:
         """
         Extracts all outbound edges originating from a specified node.
