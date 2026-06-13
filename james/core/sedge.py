@@ -59,6 +59,7 @@ class Node:
 
     Each node represents a system situation or decision point.
     These state nodes function as discrete state nodes mapping to actual phases
+    of execution within the execution feedback learning system
     (e.g., NETWORK_DISCOVERY) or actions (e.g., PASSIVE_SCAN) within
     the system's architecture, providing a structural foundation for the
     decision graph engine.
@@ -83,7 +84,7 @@ class Edge:
     """
     EDGE MODEL (LEARNING PATHS)
 
-    Edges store experience weight and act as transitions
+    Edges store experience weight and act as transitions (learning paths)
     between decisions along learning paths.
     They govern the learning paths of the system. Over time, higher
     success_weight translates to stronger traversal probability, while
@@ -131,6 +132,7 @@ class DecisionGraph:
     DECISION GRAPH CORE
 
     Serves as the central state tracking structure for the SEDGE
+    ecosystem integrating state nodes and learning paths
     ecosystem for the self-evolution loop.
     The system builds a directed weighted decision graph where:
     - Nodes = system states or actions (state nodes).
@@ -148,10 +150,6 @@ class DecisionGraph:
         self.nodes: dict[str, Node] = {}
         self.edges: dict[str, list[Edge]] = {}
         self.edges_dict: dict[str, dict[str, Edge]] = {}
-
-    def get_node(self, node_id: str) -> Node | None:
-        """Returns the node for the given identifier, or None."""
-        return self.nodes.get(node_id)
 
     def add_node(self, node: Node) -> None:
         """
@@ -284,8 +282,10 @@ class LearningEngine:
     """
 
     def update(
-        self, graph: DecisionGraph, path: list[str], outcome: str
-    ) -> None:
+            self,
+            graph: DecisionGraph,
+            path: list[str],
+            outcome: str) -> None:
         """
         Adjusts the experiential weights of all edges in a completed path.
 
@@ -486,24 +486,28 @@ def build_parrot_wifi_graph() -> DecisionGraph:
 
     # Sequence: START -> Network Discovery
     graph.add_edge(
-        Edge(from_node=STATE_START, to_node=STATE_NETWORK_DISCOVERY)
-    )
+        Edge(
+            from_node=STATE_START,
+            to_node=STATE_NETWORK_DISCOVERY))
 
     # Sequence: Network Discovery -> Passive Scan -> Target Analysis
     graph.add_edge(
-        Edge(from_node=STATE_NETWORK_DISCOVERY, to_node=ACTION_PASSIVE_SCAN)
-    )
+        Edge(
+            from_node=STATE_NETWORK_DISCOVERY,
+            to_node=ACTION_PASSIVE_SCAN))
     graph.add_edge(
-        Edge(from_node=ACTION_PASSIVE_SCAN, to_node=STATE_TARGET_ANALYSIS)
-    )
+        Edge(
+            from_node=ACTION_PASSIVE_SCAN,
+            to_node=STATE_TARGET_ANALYSIS))
 
     # Target Analysis -> Actions
     graph.add_edge(
         Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_HANDSHAKE_CAPTURE)
     )
     graph.add_edge(
-        Edge(from_node=STATE_TARGET_ANALYSIS, to_node=ACTION_DEAUTH_TEST)
-    )
+        Edge(
+            from_node=STATE_TARGET_ANALYSIS,
+            to_node=ACTION_DEAUTH_TEST))
 
     # Actions -> Security Profiling
     graph.add_edge(
@@ -513,8 +517,9 @@ def build_parrot_wifi_graph() -> DecisionGraph:
         )
     )
     graph.add_edge(
-        Edge(from_node=ACTION_DEAUTH_TEST, to_node=STATE_SECURITY_PROFILING)
-    )
+        Edge(
+            from_node=ACTION_DEAUTH_TEST,
+            to_node=STATE_SECURITY_PROFILING))
 
     # Security Profiling -> Evil Twin Simulation
     graph.add_edge(
