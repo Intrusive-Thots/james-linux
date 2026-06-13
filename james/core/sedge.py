@@ -151,6 +151,18 @@ class DecisionGraph:
         self.edges: dict[str, list[Edge]] = {}
         self.edges_dict: dict[str, dict[str, Edge]] = {}
 
+    def get_node(self, node_id: str) -> Node | None:
+        """
+        Retrieves a node from the graph by its identifier.
+
+        Args:
+            node_id (str): The unique identifier of the node.
+
+        Returns:
+            Node | None: The requested node, or None if it does not exist.
+        """
+        return self.nodes.get(node_id)
+
     def add_node(self, node: Node) -> None:
         """
         Incorporates a discrete node into the decision ecosystem.
