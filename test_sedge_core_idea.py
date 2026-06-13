@@ -12,22 +12,19 @@ from james.tools.constants import (
     OUTCOME_SUCCESS,
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
-    STATE_START,
-    STATE_NETWORK_DISCOVERY,
     STATE_TARGET_ANALYSIS,
-    STATE_SECURITY_PROFILING,
-    ACTION_PASSIVE_SCAN,
     ACTION_HANDSHAKE_CAPTURE,
     ACTION_DEAUTH_TEST,
-    ACTION_EVIL_TWIN_SIMULATION,
 )
 
 
 class TestSedgeCoreIdea(unittest.TestCase):
     """
-    Tests for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA components to verify self-evolving behavior.
-    Validates state nodes, learning paths, execution feedback learning, the policy layer,
-    and the self-evolution loop to ensure optimal strategies emerge automatically over time.
+    Tests for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
+    components to verify self-evolving behavior.
+    Validates state nodes, learning paths, execution feedback learning,
+    the policy layer, and the self-evolution loop to ensure optimal
+    strategies emerge automatically over time.
     """
 
     def setUp(self):
@@ -141,11 +138,17 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
                 if node == ACTION_HANDSHAKE_CAPTURE:
                     # Simulate 90% true mathematical success rate
-                    outcome = OUTCOME_SUCCESS if random.random() < 0.90 else OUTCOME_FAILURE
+                    if random.random() < 0.90:
+                        outcome = OUTCOME_SUCCESS
+                    else:
+                        outcome = OUTCOME_FAILURE
                     break
                 elif node == ACTION_DEAUTH_TEST:
                     # Simulate 10% true mathematical success rate
-                    outcome = OUTCOME_SUCCESS if random.random() < 0.10 else OUTCOME_FAILURE
+                    if random.random() < 0.10:
+                        outcome = OUTCOME_SUCCESS
+                    else:
+                        outcome = OUTCOME_FAILURE
                     break
 
             agent.feedback(outcome)
@@ -176,7 +179,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
         deauth_selections = 0
         iterations = 250000
 
-        # Test stochastic distribution over the trained nodes without updating weights
+        # Test stochastic distribution over the trained nodes without updating
+        # weights
         for _ in range(iterations):
             choice = agent.decision_engine.decide(STATE_TARGET_ANALYSIS)
             if choice == ACTION_HANDSHAKE_CAPTURE:
@@ -194,7 +198,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
         expected_handshake = score_handshake / total_score
         expected_deauth = score_deauth / total_score
 
-        # Verify edge score mathematical dominance vs empirical stochastic ratio
+        # Verify edge score mathematical dominance vs empirical stochastic
+        # ratio
         self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.02)
         self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.02)
 
@@ -218,7 +223,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
 
-        # When utility is zero for all, it should fallback to uniform random selection
+        # When utility is zero for all, it should fallback to uniform random
+        # selection
         counts = {"B": 0, "C": 0}
         iterations = 250000
         for _ in range(iterations):
