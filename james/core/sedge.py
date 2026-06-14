@@ -132,8 +132,8 @@ class DecisionGraph:
     DECISION GRAPH CORE
 
     Serves as the central state tracking structure for the SEDGE
-    ecosystem integrating state nodes and learning paths
-    ecosystem for the self-evolution loop.
+    ecosystem integrating state nodes and learning paths for the
+    self-evolution loop, governed by execution feedback learning.
     The system builds a directed weighted decision graph where:
     - Nodes = system states or actions (state nodes).
     - Edges = transitions between decisions (learning paths).
