@@ -39,7 +39,7 @@ class TestGUITooltips(unittest.TestCase):
 
         self.assertIsNotNone(copy_btn, "Copy button not found")
         self.assertEqual(
-            copy_btn.toolTip(), "Copy terminal output to clipboard"
+            copy_btn.toolTip(), "Copy terminal output to clipboard (Ctrl+C)"
         )
 
         self.assertIsNotNone(clear_btn, "Clear button not found")

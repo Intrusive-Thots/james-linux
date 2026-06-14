@@ -132,6 +132,9 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Shift+C"), self).activated.connect(
             self._clear_log
         )
+        QShortcut(QKeySequence("Ctrl+C"), self).activated.connect(
+            self._copy_log
+        )
 
         # Kill JAMES
         QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(
@@ -359,7 +362,7 @@ class MainWindow(QMainWindow):
         btn_copy.setStyleSheet(
             "font-size: 10px; padding: 0 10px; min-height: 26px;"
         )
-        btn_copy.setToolTip("Copy terminal output to clipboard")
+        btn_copy.setToolTip("Copy terminal output to clipboard (Ctrl+C)")
         btn_copy.clicked.connect(self._copy_log)
 
         btn_clear = QPushButton("Clear")
