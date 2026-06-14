@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ScrollText,
@@ -42,19 +42,23 @@ export function Logs({ state }: LogsProps) {
     }
   }, [state.logs.length, autoScroll]);
 
-  const filtered = state.logs.filter((log) => {
-    if (levelFilter !== "all" && log.level !== levelFilter) return false;
-    if (filter && !log.message.toLowerCase().includes(filter.toLowerCase()))
-      return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return state.logs.filter((log) => {
+      if (levelFilter !== "all" && log.level !== levelFilter) return false;
+      if (filter && !log.message.toLowerCase().includes(filter.toLowerCase()))
+        return false;
+      return true;
+    });
+  }, [state.logs, filter, levelFilter]);
 
-  const levelCounts = {
-    info: state.logs.filter((l) => l.level === "info").length,
-    warn: state.logs.filter((l) => l.level === "warn").length,
-    error: state.logs.filter((l) => l.level === "error").length,
-    success: state.logs.filter((l) => l.level === "success").length,
-  };
+  const levelCounts = useMemo(() => {
+    return {
+      info: state.logs.filter((l) => l.level === "info").length,
+      warn: state.logs.filter((l) => l.level === "warn").length,
+      error: state.logs.filter((l) => l.level === "error").length,
+      success: state.logs.filter((l) => l.level === "success").length,
+    };
+  }, [state.logs]);
 
   return (
     <motion.div

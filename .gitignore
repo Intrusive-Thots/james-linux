@@ -11,3 +11,4 @@ wordlists/wifi-mega-wpa.txt
 test_file.txt
 test_perf.py
 test_file2.txt
+node_modules/
