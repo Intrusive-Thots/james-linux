@@ -85,7 +85,7 @@ class Edge:
     EDGE MODEL (LEARNING PATHS)
 
     Edges store experience weight and act as transitions (learning paths)
-    between decisions along learning paths.
+    between state nodes along learning paths.
     They govern the learning paths of the system. Over time, higher
     success_weight translates to stronger traversal probability, while
     failing paths accrue failure_weight and decay. This mechanism forms
