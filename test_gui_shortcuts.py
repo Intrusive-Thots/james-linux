@@ -26,6 +26,7 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+Q", keys)
         self.assertIn("Ctrl+L", keys)
         self.assertIn("Ctrl+Shift+C", keys)
+        self.assertIn("Ctrl+C", keys)
         self.assertIn("Ctrl+K", keys)
         self.assertIn("Ctrl+1", keys)
         self.assertIn("Ctrl+2", keys)

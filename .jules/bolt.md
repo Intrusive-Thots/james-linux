@@ -4,3 +4,6 @@
 ## 2024-06-14 - React Performance - Memoizing Expensive Computations
 **Learning:** In a dashboard where real-time events (like `sessionUptime` changing every second) trigger frequent global re-renders via `useAppState`, expensive data derivations in child components (like filtering or aggregating a large `logs` array in `Logs.tsx`) must be memoized using `useMemo`. Otherwise, these expensive operations run on every single tick, unnecessarily blocking the main thread.
 **Action:** Wrap computationally intensive derived state operations (like `filtered` and `levelCounts` in `Logs.tsx`) with `useMemo`, depending only on the necessary subsets of state (e.g., `state.logs`, `filter`, `levelFilter`) instead of allowing them to re-evaluate on every render cycle.
+## 2025-06-14 - Add Ctrl+C Shortcut for Log Copy
+**Learning:** Adding a keyboard shortcut `Ctrl+C` for copying logs in the main window GUI significantly reduces friction since users expect this common shortcut. It directly aligns with existing patterns where the `Clear` button has a `Ctrl+Shift+C` shortcut.
+**Action:** Always ensure standard and expected user actions (like copy or clear) have well-advertised keyboard shortcuts (via tooltips) and are correctly registered in the main event loop or GUI widget.
