@@ -151,7 +151,7 @@ class TestSedgeCoreArchitecture(unittest.TestCase):
         edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=0.0)
         # Should not raise ZeroDivisionError
         score = edge.score()
-        self.assertAlmostEqual(score, 1000000.0, delta=1.0) # Should be a very large number
+        self.assertAlmostEqual(score, 999999.999999, delta=0.1) # Should be a very large number
 
     def test_decision_engine_zero_utility_fallback(self):
         decision_engine = DecisionEngine(self.graph)
