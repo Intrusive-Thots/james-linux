@@ -1,5 +1,8 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
+Features state nodes and learning paths to guide evolution.
+
+Architectural elements: state nodes, learning paths.
 
 The system builds a directed weighted decision graph where:
 - Nodes = system states or actions (state nodes)
@@ -535,3 +538,5 @@ def build_parrot_wifi_graph() -> DecisionGraph:
 
 
 # Core implementation of the SEDGE ecosystem initialized.
+
+# End of SEDGE ecosystem implementation.
