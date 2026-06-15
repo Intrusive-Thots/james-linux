@@ -7,3 +7,6 @@
 ## 2025-06-14 - Add Ctrl+C Shortcut for Log Copy
 **Learning:** Adding a keyboard shortcut `Ctrl+C` for copying logs in the main window GUI significantly reduces friction since users expect this common shortcut. It directly aligns with existing patterns where the `Clear` button has a `Ctrl+Shift+C` shortcut.
 **Action:** Always ensure standard and expected user actions (like copy or clear) have well-advertised keyboard shortcuts (via tooltips) and are correctly registered in the main event loop or GUI widget.
+## 2024-06-14 - React Performance - Memoizing Expensive Computations
+**Learning:** In a dashboard where real-time events (like `sessionUptime` changing every second) trigger frequent global re-renders via `useAppState`, expensive data derivations in child components (like filtering or sorting large lists in `Recon.tsx`) must be memoized using `useMemo`. Otherwise, these operations run on every render tick, causing unnecessary computational overhead.
+**Action:** Wrap computationally intensive derived state operations with `useMemo`, relying on strict dependency arrays (e.g., `[state.aps, filter, sortKey, sortDir]`) to ensure calculations only happen when relevant input data actually changes.

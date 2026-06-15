@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Radar,
@@ -59,39 +59,44 @@ export function Recon({
   );
 
   // Filter & sort
-  const filtered = state.aps
-    .filter((ap) => {
-      if (!filter) return true;
-      const q = filter.toLowerCase();
-      return (
-        ap.essid.toLowerCase().includes(q) ||
-        ap.bssid.toLowerCase().includes(q) ||
-        ap.vendor.toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      const dir = sortDir === "asc" ? 1 : -1;
-      switch (sortKey) {
-        case "essid":
-          return dir * a.essid.localeCompare(b.essid);
-        case "power":
-          return dir * (a.power - b.power);
-        case "channel":
-          return dir * (a.channel - b.channel);
-        case "clients":
-          return dir * (a.clients - b.clients);
-        case "privacy":
-          return dir * a.privacy.localeCompare(b.privacy);
-        default:
-          return 0;
-      }
-    });
+  const filtered = useMemo(() => {
+    return state.aps
+      .filter((ap) => {
+        if (!filter) return true;
+        const q = filter.toLowerCase();
+        return (
+          ap.essid.toLowerCase().includes(q) ||
+          ap.bssid.toLowerCase().includes(q) ||
+          ap.vendor.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const dir = sortDir === "asc" ? 1 : -1;
+        switch (sortKey) {
+          case "essid":
+            return dir * a.essid.localeCompare(b.essid);
+          case "power":
+            return dir * (a.power - b.power);
+          case "channel":
+            return dir * (a.channel - b.channel);
+          case "clients":
+            return dir * (a.clients - b.clients);
+          case "privacy":
+            return dir * a.privacy.localeCompare(b.privacy);
+          default:
+            return 0;
+        }
+      });
+  }, [state.aps, filter, sortKey, sortDir]);
 
-  const encCount = state.aps.filter(
-    (ap) => !ap.privacy.includes("OPN")
-  ).length;
-  const openCount = state.aps.length - encCount;
-  const totalClients = state.aps.reduce((s, ap) => s + ap.clients, 0);
+  const { encCount, openCount, totalClients } = useMemo(() => {
+    const enc = state.aps.filter((ap) => !ap.privacy.includes("OPN")).length;
+    return {
+      encCount: enc,
+      openCount: state.aps.length - enc,
+      totalClients: state.aps.reduce((s, ap) => s + ap.clients, 0),
+    };
+  }, [state.aps]);
 
   return (
     <motion.div
