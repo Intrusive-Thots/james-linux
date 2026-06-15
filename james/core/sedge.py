@@ -33,6 +33,8 @@ This replaces static AI decisions.
 
 SELF-EVOLUTION LOOP
 This is where learning actually happens.
+
+This forms a living decision ecosystem instead of static scripts.
 """
 
 import random
