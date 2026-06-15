@@ -17,10 +17,10 @@ Over time:
 ARCHITECTURE
 
 STATE NODE MODEL
-Each node represents a system situation or decision point.
+Each node represents a system situation or decision point as part of the state nodes model.
 
 EDGE MODEL (LEARNING PATHS)
-Edges store experience weight.
+Edges store experience weight to form learning paths between nodes.
 
 DECISION GRAPH CORE
 The core structure holding the nodes and edges.
@@ -60,7 +60,7 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a system situation or decision point.
+    Each node represents a system situation or decision point as part of the state nodes model.
     These state nodes form the foundation of the decision graph.
     These state nodes function as discrete state nodes mapping to actual phases
     of execution within the execution feedback learning system
