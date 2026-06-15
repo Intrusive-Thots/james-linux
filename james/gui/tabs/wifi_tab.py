@@ -199,6 +199,11 @@ class WiFiArsenalTab(QWidget):
             self._toggle_scan
         )
 
+        # Toggle Monitor Mode
+        QShortcut(QKeySequence("Ctrl+M"), self).activated.connect(
+            self._toggle_monitor
+        )
+
         # Copy Selected AP BSSID or Client MAC (only when tables are focused to avoid blocking global copy)
         ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
         ap_copy.setContext(Qt.WidgetShortcut)
@@ -213,6 +218,16 @@ class WiFiArsenalTab(QWidget):
             self.btn_start_scan.click()
         elif self.btn_stop_scan.isEnabled():
             self.btn_stop_scan.click()
+
+    def _toggle_monitor(self):
+        iface = self.iface_combo.currentData()
+        if not iface:
+            return
+        # A simple toggle: if it ends with 'mon', disable, else enable.
+        if iface.endswith("mon"):
+            self.btn_monitor_off.click()
+        else:
+            self.btn_monitor_on.click()
 
     def _copy_selected(self):
         # Check if ap_table has focus or selection
@@ -299,13 +314,13 @@ class WiFiArsenalTab(QWidget):
         self.btn_monitor_on.setObjectName("successBtn")
         self.btn_monitor_on.setMinimumWidth(88)
         self.btn_monitor_on.setToolTip(
-            "Enable monitor mode on the selected interface"
+            "Enable monitor mode on the selected interface (Ctrl+M)"
         )
         self.btn_monitor_off = QPushButton("■ Mon OFF")
         self.btn_monitor_off.setObjectName("warnBtn")
         self.btn_monitor_off.setMinimumWidth(88)
         self.btn_monitor_off.setToolTip(
-            "Disable monitor mode on the selected interface"
+            "Disable monitor mode on the selected interface (Ctrl+M)"
         )
 
         for btn in (

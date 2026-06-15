@@ -141,6 +141,35 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertTrue(
             any(s.key() == QKeySequence("Ctrl+C") for s in shortcuts)
         )
+        self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+M") for s in shortcuts)
+        )
+
+    def test_wifi_tab_toggle_monitor(self):
+        # We can't actually toggle monitor mode easily without a valid interface and bypassing thread,
+        # but we can verify the shortcut calls the correct slot or the _toggle_monitor logic logic.
+        from unittest.mock import patch
+        with patch.object(self.window.wifi_tab.btn_monitor_on, 'click') as mock_on:
+            with patch.object(self.window.wifi_tab.btn_monitor_off, 'click') as mock_off:
+                # no iface -> nothing happens
+                self.window.wifi_tab._toggle_monitor()
+                mock_on.assert_not_called()
+                mock_off.assert_not_called()
+
+                # dummy iface "wlan0"
+                self.window.wifi_tab.iface_combo.addItem("wlan0  [managed]", "wlan0")
+                self.window.wifi_tab.iface_combo.setCurrentIndex(self.window.wifi_tab.iface_combo.count() - 1)
+                self.window.wifi_tab._toggle_monitor()
+                mock_on.assert_called_once()
+                mock_off.assert_not_called()
+
+                mock_on.reset_mock()
+                # dummy iface "wlan0mon"
+                self.window.wifi_tab.iface_combo.addItem("wlan0mon  [monitor]", "wlan0mon")
+                self.window.wifi_tab.iface_combo.setCurrentIndex(self.window.wifi_tab.iface_combo.count() - 1)
+                self.window.wifi_tab._toggle_monitor()
+                mock_off.assert_called_once()
+                mock_on.assert_not_called()
 
     def test_troubleshoot_tab_shortcuts(self):
         from james.gui.tabs.troubleshoot_tab import TroubleshootTab
