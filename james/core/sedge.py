@@ -1,7 +1,6 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
 Features state nodes and learning paths to guide system evolution.
-
 Architectural elements: state nodes, learning paths.
 
 The system builds a directed weighted decision graph where:
@@ -17,7 +16,8 @@ Over time:
 ARCHITECTURE
 
 STATE NODE MODEL
-Each node represents a system situation or decision point as part of the state nodes model.
+Each node represents a system situation or decision point as part
+of the state nodes model.
 
 EDGE MODEL (LEARNING PATHS)
 Edges store experience weight to form learning paths between nodes.
@@ -62,7 +62,8 @@ class Node:
     """
     STATE NODE MODEL
 
-    Each node represents a system situation or decision point as part of the state nodes model.
+    Each node represents a system situation or decision point as part of
+    the state nodes model.
     These state nodes form the foundation of the decision graph.
     These state nodes function as discrete state nodes mapping to actual phases
     of execution within the execution feedback learning system
