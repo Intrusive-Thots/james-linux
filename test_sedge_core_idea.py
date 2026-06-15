@@ -209,7 +209,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         )
         # Should not raise ZeroDivisionError
         score = edge.score()
-        self.assertAlmostEqual(score, 999999.999999, delta=0.1)  # 1.0 / 1e-6
+        self.assertAlmostEqual(score, 1000000.0, delta=0.1)  # 1.0 / 1e-6
 
     def test_decision_engine_zero_utility_fallback(self):
         decision_engine = DecisionEngine(self.graph)

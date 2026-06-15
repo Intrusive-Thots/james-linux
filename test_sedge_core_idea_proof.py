@@ -36,7 +36,7 @@ class TestSedgeCoreIdeaProof(unittest.TestCase):
 
         # 10.0 / (0.0 + 1e-6) should be a very large number, no ZeroDivisionError
         score = edge.score()
-        self.assertAlmostEqual(score, 9999999.999999, delta=0.1)
+        self.assertAlmostEqual(score, 10000000.0, delta=0.1)
 
         edge2 = Edge(from_node="A", to_node="B", success_weight=5.0, failure_weight=5.0)
         # 5.0 / (5.0 + 1e-6)

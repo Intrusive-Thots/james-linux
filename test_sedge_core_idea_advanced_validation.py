@@ -55,7 +55,7 @@ class TestSedgeCoreIdeaAdvancedValidation(unittest.TestCase):
 
         # Test safe handling when failure weight drops near 0
         edge_zero = Edge(from_node="n1", to_node="n2", failure_weight=0.0)
-        self.assertAlmostEqual(edge_zero.score(), 999999.999999, delta=0.1)
+        self.assertAlmostEqual(edge_zero.score(), 1000000.0, delta=0.1)
 
     def test_learning_engine_updates_with_string_outcomes(self):
         """Ensures LearningEngine properly increments weights based on explicit string outcomes."""
