@@ -40,7 +40,7 @@ class TestSedgeIssue(unittest.TestCase):
         self.assertEqual(edge.success_weight, 1.0)
         self.assertEqual(edge.failure_weight, 1.0)
         self.assertEqual(edge.visits, 0)
-        self.assertAlmostEqual(edge.score(), 0.999999, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
     def test_decision_graph_add_node_and_edge(self):
         node_a = Node(id="A", state_type="state")

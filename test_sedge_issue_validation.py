@@ -46,7 +46,7 @@ class TestSedgeIssueValidation(unittest.TestCase):
         self.assertEqual(edge.failure_weight, 1.0)
         self.assertEqual(edge.visits, 0)
         # Check epsilon logic is roughly correct
-        self.assertAlmostEqual(edge.score(), 1.0, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
     def test_decision_graph_core(self):
         node_a = Node(id="A", state_type="state")

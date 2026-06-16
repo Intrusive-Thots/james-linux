@@ -43,7 +43,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         Proof of scoring mathematically mitigating zero division and scaling properly.
         """
         edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=1.0)
-        self.assertAlmostEqual(edge.score(), 0.999999, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
         edge.success_weight = 5.0
         edge.failure_weight = 2.0

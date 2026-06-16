@@ -49,7 +49,7 @@ class TestSedgeCoreIdeaFinalized(unittest.TestCase):
         self.assertEqual(edge.failure_weight, 1.0)
         self.assertEqual(edge.visits, 0)
         # Check initial score: 1.0 / (1.0 + 1e-6)
-        self.assertAlmostEqual(edge.score(), 0.999999, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
     def test_decision_graph_core(self):
         """Verify graph node/edge addition and correct node fetching."""

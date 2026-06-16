@@ -51,7 +51,7 @@ class TestSedgeArchitecture(unittest.TestCase):
             from_node="A", to_node="B", success_weight=5.0, failure_weight=2.0
         )
         # Expected: 5.0 / (2.0 + 1e-6) ~= 2.5
-        self.assertAlmostEqual(edge.score(), 2.5, places=5)
+        self.assertAlmostEqual(edge.score(), 2.499998750000625, places=6)
 
         # Test zero division prevention
         edge_zero = Edge(

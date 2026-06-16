@@ -55,7 +55,7 @@ class TestSEDGECoreIdeaSystem(unittest.TestCase):
         self.assertEqual(edge.failure_weight, 1.0)
 
         # Initial score: 1.0 / (1.0 + 1e-6) ~= 1.0
-        self.assertAlmostEqual(edge.score(), 1.0, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
         # Success updates
         edge.success_weight += 1.0
@@ -86,7 +86,7 @@ class TestSEDGECoreIdeaSystem(unittest.TestCase):
 
         # Test path scoring
         score = self.graph.get_path_score(["A", "B"])
-        self.assertAlmostEqual(score, 1.0, places=5)
+        self.assertAlmostEqual(score, 0.9999990000010001, places=6)
 
     def test_learning_engine_feedback(self):
         """Test that execution feedback adjusts edge weights."""
