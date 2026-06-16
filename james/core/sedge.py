@@ -1,6 +1,6 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA
-Features state nodes and learning paths to guide system evolution.
+Features state nodes and learning paths to guide the system evolution.
 Architectural elements: state nodes, learning paths.
 
 The system builds a directed weighted decision graph where:
