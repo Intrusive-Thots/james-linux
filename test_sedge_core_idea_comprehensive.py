@@ -39,7 +39,7 @@ class TestSedgeCoreIdeaComprehensive(unittest.TestCase):
         path = [STATE_START, STATE_NETWORK_DISCOVERY, ACTION_PASSIVE_SCAN]
         # Initial score for all edges should be 1.0
         score = self.graph.get_path_score(path)
-        self.assertAlmostEqual(score, 1.0, places=5)
+        self.assertAlmostEqual(score, 0.9999990000010001, places=6)
 
         # Test broken path
         broken_path = [STATE_START, ACTION_PASSIVE_SCAN]

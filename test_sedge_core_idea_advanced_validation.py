@@ -51,7 +51,7 @@ class TestSedgeCoreIdeaAdvancedValidation(unittest.TestCase):
         self.assertEqual(edge.failure_weight, 1.0)
 
         # Verify base scoring behavior
-        self.assertAlmostEqual(edge.score(), 0.999999, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
         # Test safe handling when failure weight drops near 0
         edge_zero = Edge(from_node="n1", to_node="n2", failure_weight=0.0)

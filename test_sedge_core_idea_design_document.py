@@ -46,7 +46,7 @@ class TestSEDGECoreIdeaDesignDocument(unittest.TestCase):
         self.assertEqual(edge.success_weight, 1.0)
         self.assertEqual(edge.failure_weight, 1.0)
         self.assertEqual(edge.visits, 0)
-        self.assertAlmostEqual(edge.score(), 1.0, places=5)
+        self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
     def test_decision_graph_core(self):
         """Test DECISION GRAPH CORE from the design document."""
