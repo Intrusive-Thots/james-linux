@@ -108,6 +108,8 @@ class TestSedgeCoreArchitecture(unittest.TestCase):
         graph = build_parrot_wifi_graph()
         agent = SelfEvolvingAgent(graph)
 
+        import random
+        random.seed(42)
         iterations = 1000
         handshake_selections = 0
         deauth_selections = 0

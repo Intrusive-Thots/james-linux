@@ -102,6 +102,8 @@ class TestSedgeOptimalPaths(unittest.TestCase):
         Run multiple iterations to simulate outcomes where HANDSHAKE_CAPTURE succeeds
         and DEAUTH_TEST fails, and verify the graph converges toward the optimal pipeline.
         """
+        import random
+        random.seed(42)
         iterations = 1000
 
         for _ in range(iterations):
@@ -137,6 +139,8 @@ class TestSedgeOptimalPaths(unittest.TestCase):
         self.assertGreater(handshake_edge.score(), deauth_edge.score())
 
         # Verify statistical selection via the DecisionEngine
+        import random
+        random.seed(42)
         handshake_selections = 0
         deauth_selections = 0
 
