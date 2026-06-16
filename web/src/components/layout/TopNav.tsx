@@ -7,6 +7,7 @@ import {
   Settings,
   Zap,
 } from "lucide-react";
+import { useMemo } from "react";
 import type { AppState } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
 
@@ -30,6 +31,8 @@ export function TopNav({ state, connected }: TopNavProps) {
     logs: "System Logs",
     settings: "Settings",
   };
+
+  const errorCount = useMemo(() => state.logs.filter((l) => l.level === "error").length, [state.logs]);
 
   return (
     <header
@@ -136,7 +139,7 @@ export function TopNav({ state, connected }: TopNavProps) {
 
         <button className="btn-ghost btn-sm relative">
           <Bell className="w-4 h-4" />
-          {state.logs.filter((l) => l.level === "error").length > 0 && (
+          {errorCount > 0 && (
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-danger rounded-full" />
           )}
         </button>
