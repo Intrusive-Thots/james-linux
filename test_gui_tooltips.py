@@ -106,5 +106,30 @@ class TestGUITooltips(unittest.TestCase):
             "Auto-install missing dependencies (Ctrl+I)",
         )
 
+    def test_setup_tab_tooltips(self):
+        from james.gui.tabs.setup_tab import SetupTab
+        setup_tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), SetupTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(setup_tab, "SetupTab not found")
+
+        self.assertEqual(
+            setup_tab.btn_bridge.toolTip(),
+            "Bridge networks (Ctrl+B)",
+        )
+        self.assertEqual(
+            setup_tab.btn_restart_nm.toolTip(),
+            "Restart NetworkManager (Ctrl+R)",
+        )
+        self.assertEqual(
+            setup_tab.btn_flush_iptables.toolTip(),
+            "Flush iptables (Ctrl+F)",
+        )
+
 if __name__ == "__main__":
     unittest.main()
