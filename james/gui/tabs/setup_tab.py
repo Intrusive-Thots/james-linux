@@ -11,7 +11,9 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QFrame,
     QSizePolicy,
+    QShortcut,
 )
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import Qt
 
 from james.gui.toast import show_toast
@@ -64,6 +66,7 @@ class SetupTab(QWidget):
         self.btn_bridge = QPushButton("🔗  Enable ICS  (Bridge Networks)")
         self.btn_bridge.setObjectName("primaryBtn")
         self.btn_bridge.setMinimumHeight(40)
+        self.btn_bridge.setToolTip("Bridge networks (Ctrl+B)")
         bridge_layout.addWidget(self.btn_bridge)
         layout.addWidget(bridge_group)
 
@@ -76,9 +79,11 @@ class SetupTab(QWidget):
         row.setSpacing(8)
         self.btn_restart_nm = QPushButton("🔄  Restart NetworkManager")
         self.btn_restart_nm.setMinimumHeight(38)
+        self.btn_restart_nm.setToolTip("Restart NetworkManager (Ctrl+R)")
         self.btn_flush_iptables = QPushButton("🧹  Flush iptables")
         self.btn_flush_iptables.setObjectName("warnBtn")
         self.btn_flush_iptables.setMinimumHeight(38)
+        self.btn_flush_iptables.setToolTip("Flush iptables (Ctrl+F)")
         row.addWidget(self.btn_restart_nm)
         row.addWidget(self.btn_flush_iptables)
         iface_layout.addLayout(row)
@@ -90,6 +95,10 @@ class SetupTab(QWidget):
         self.btn_bridge.clicked.connect(self.setup_ics)
         self.btn_restart_nm.clicked.connect(self.restart_nm)
         self.btn_flush_iptables.clicked.connect(self.flush_iptables)
+
+        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self.setup_ics)
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.restart_nm)
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self.flush_iptables)
 
     def setup_ics(self):
         lan = self.txt_lan_iface.text().strip()
