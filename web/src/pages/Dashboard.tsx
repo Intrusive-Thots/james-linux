@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
+import { useMemo } from "react";
 import type { AppState, PageId } from "../hooks/useAppState";
 
 interface DashboardProps {
@@ -30,10 +31,18 @@ const item = {
 };
 
 export function Dashboard({ state, onNavigate }: DashboardProps) {
-  const crackedCount = state.handshakes.filter((h) => h.cracked).length;
-  const pendingCount = state.handshakes.filter((h) => !h.cracked).length;
-  const errorCount = state.logs.filter((l) => l.level === "error").length;
-  const recentLogs = state.logs.slice(-8);
+  const { crackedCount, pendingCount } = useMemo(() => {
+    let cracked = 0;
+    let pending = 0;
+    for (const h of state.handshakes) {
+      if (h.cracked) cracked++;
+      else pending++;
+    }
+    return { crackedCount: cracked, pendingCount: pending };
+  }, [state.handshakes]);
+
+  const errorCount = useMemo(() => state.logs.filter((l) => l.level === "error").length, [state.logs]);
+  const recentLogs = useMemo(() => state.logs.slice(-8), [state.logs]);
 
   return (
     <motion.div

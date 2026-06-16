@@ -10,3 +10,6 @@
 ## 2024-06-14 - React Performance - Memoizing Expensive Computations
 **Learning:** In a dashboard where real-time events (like `sessionUptime` changing every second) trigger frequent global re-renders via `useAppState`, expensive data derivations in child components (like filtering or sorting large lists in `Recon.tsx`) must be memoized using `useMemo`. Otherwise, these operations run on every render tick, causing unnecessary computational overhead.
 **Action:** Wrap computationally intensive derived state operations with `useMemo`, relying on strict dependency arrays (e.g., `[state.aps, filter, sortKey, sortDir]`) to ensure calculations only happen when relevant input data actually changes.
+## 2024-06-16 - React Performance - Memoizing Expensive Computations in TopNav, Dashboard and Handshakes
+**Learning:** Expanding on previous learnings, global `useAppState` updates like `sessionUptime` cause components like `TopNav`, `Dashboard`, and `Handshakes` to re-render every second. Expensive array filters like `state.logs.filter` or `state.handshakes.filter` inside these components without memoization block the main thread.
+**Action:** Wrapped expensive derivations in `TopNav`, `Dashboard`, and `Handshakes` components with `useMemo` so that they do not block the thread when `sessionUptime` updates the global state.

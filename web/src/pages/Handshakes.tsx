@@ -8,6 +8,7 @@ import {
   Clock,
   HardDrive,
 } from "lucide-react";
+import { useMemo } from "react";
 import type { AppState } from "../hooks/useAppState";
 import { downloadFile, toCSV } from "../lib/utils";
 
@@ -26,8 +27,8 @@ const item = {
 };
 
 export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
-  const cracked = state.handshakes.filter((h) => h.cracked);
-  const pending = state.handshakes.filter((h) => !h.cracked);
+  const cracked = useMemo(() => state.handshakes.filter((h) => h.cracked), [state.handshakes]);
+  const pending = useMemo(() => state.handshakes.filter((h) => !h.cracked), [state.handshakes]);
 
   return (
     <motion.div
