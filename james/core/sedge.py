@@ -29,12 +29,12 @@ EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 This is what makes it self-evolving.
 
 DECISION ENGINE (POLICY LAYER)
-This replaces static AI decisions.
+This policy layer establishes a dynamic decision framework.
 
 SELF-EVOLUTION LOOP
-This is where learning actually happens.
+This loop forms the crux of continuous reinforcement learning.
 
-This forms a living decision ecosystem instead of static scripts.
+This architecture constitutes an adaptive, evolving decision matrix.
 """
 
 import random
@@ -281,7 +281,8 @@ class LearningEngine:
     """
     EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
 
-    This execution feedback learning is what makes the system
+    The execution feedback learning mechanism is what fundamentally drives
+    the system
     "self-evolving" across the self-evolution loop.
     Successful sequences (e.g., scan -> analyze -> handshake_capture) gain
     higher success_weight and stronger traversal probability along paths.
