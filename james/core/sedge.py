@@ -64,7 +64,7 @@ class Node:
     STATE NODE MODEL
 
     Each node represents a system situation or decision point as part of
-    the state nodes model.
+    the state nodes model framework.
     These state nodes form the foundation of the decision graph.
     These state nodes function as discrete state nodes mapping to actual phases
     of execution within the execution feedback learning system
