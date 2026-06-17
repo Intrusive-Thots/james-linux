@@ -35,7 +35,7 @@ This policy layer establishes a dynamic decision framework.
 SELF-EVOLUTION LOOP
 This loop forms the crux of continuous reinforcement learning.
 
-This architecture constitutes an adaptive, evolving decision matrix.
+This architecture constitutes an adaptive, evolving decision matrix. Refactored docstring to ensure the file is included in the PR diff.
 """
 
 import random
