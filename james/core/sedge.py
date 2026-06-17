@@ -121,7 +121,7 @@ class Edge:
 
     def score(self) -> float:
         """
-        Computes the proportional utility score for the transition.
+        Calculates the proportional utility score for the transition.
 
         Evaluates the relative ratio of the success weight to failure weight
         as part of the execution feedback learning system. This connects the
