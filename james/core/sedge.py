@@ -156,7 +156,7 @@ class DecisionGraph:
     """
 
     def __init__(self) -> None:
-        """Initializes a new, empty decision graph."""
+        """Initializes a new, empty decision graph for the SEDGE ecosystem."""
         self.nodes: dict[str, Node] = {}
         self.edges: dict[str, list[Edge]] = {}
         self.edges_dict: dict[str, dict[str, Edge]] = {}
