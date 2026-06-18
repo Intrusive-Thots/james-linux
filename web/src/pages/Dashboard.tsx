@@ -41,7 +41,13 @@ export function Dashboard({ state, onNavigate }: DashboardProps) {
     return { crackedCount: cracked, pendingCount: pending };
   }, [state.handshakes]);
 
-  const errorCount = useMemo(() => state.logs.filter((l) => l.level === "error").length, [state.logs]);
+  const errorCount = useMemo(() => {
+    let count = 0;
+    for (const l of state.logs) {
+      if (l.level === "error") count++;
+    }
+    return count;
+  }, [state.logs]);
   const recentLogs = useMemo(() => state.logs.slice(-8), [state.logs]);
 
   return (
