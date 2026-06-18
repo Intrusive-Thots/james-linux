@@ -1,5 +1,5 @@
 """
-SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA REFACTORED IMPLEMENTATION
+SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA REFACTORED IMPLEMENTATION - PROFESSIONAL DOCSTRING REFACTOR 2
 Features state nodes and learning paths to optimally guide the system
 evolution.
 Architectural elements: state nodes, learning paths.
