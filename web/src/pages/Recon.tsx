@@ -60,10 +60,10 @@ export function Recon({
 
   // Filter & sort
   const filtered = useMemo(() => {
+    const q = filter ? filter.toLowerCase() : "";
     return state.aps
       .filter((ap) => {
-        if (!filter) return true;
-        const q = filter.toLowerCase();
+        if (!q) return true;
         return (
           ap.essid.toLowerCase().includes(q) ||
           ap.bssid.toLowerCase().includes(q) ||
@@ -90,11 +90,16 @@ export function Recon({
   }, [state.aps, filter, sortKey, sortDir]);
 
   const { encCount, openCount, totalClients } = useMemo(() => {
-    const enc = state.aps.filter((ap) => !ap.privacy.includes("OPN")).length;
+    let enc = 0;
+    let clients = 0;
+    for (const ap of state.aps) {
+      if (!ap.privacy.includes("OPN")) enc++;
+      clients += ap.clients;
+    }
     return {
       encCount: enc,
       openCount: state.aps.length - enc,
-      totalClients: state.aps.reduce((s, ap) => s + ap.clients, 0),
+      totalClients: clients,
     };
   }, [state.aps]);
 

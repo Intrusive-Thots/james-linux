@@ -43,21 +43,21 @@ export function Logs({ state }: LogsProps) {
   }, [state.logs.length, autoScroll]);
 
   const filtered = useMemo(() => {
+    const q = filter.toLowerCase();
     return state.logs.filter((log) => {
       if (levelFilter !== "all" && log.level !== levelFilter) return false;
-      if (filter && !log.message.toLowerCase().includes(filter.toLowerCase()))
+      if (q && !log.message.toLowerCase().includes(q))
         return false;
       return true;
     });
   }, [state.logs, filter, levelFilter]);
 
   const levelCounts = useMemo(() => {
-    return {
-      info: state.logs.filter((l) => l.level === "info").length,
-      warn: state.logs.filter((l) => l.level === "warn").length,
-      error: state.logs.filter((l) => l.level === "error").length,
-      success: state.logs.filter((l) => l.level === "success").length,
-    };
+    const counts = { info: 0, warn: 0, error: 0, success: 0 };
+    for (const l of state.logs) {
+      counts[l.level]++;
+    }
+    return counts;
   }, [state.logs]);
 
   return (
