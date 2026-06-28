@@ -44,12 +44,13 @@ export function Logs({ state }: LogsProps) {
 
   const filtered = useMemo(() => {
     const q = filter.toLowerCase();
-    return state.logs.filter((log) => {
-      if (levelFilter !== "all" && log.level !== levelFilter) return false;
-      if (q && !log.message.toLowerCase().includes(q))
-        return false;
-      return true;
-    });
+    const result = [];
+    for (const log of state.logs) {
+      if (levelFilter !== "all" && log.level !== levelFilter) continue;
+      if (q && !log.message.toLowerCase().includes(q)) continue;
+      result.push(log);
+    }
+    return result;
   }, [state.logs, filter, levelFilter]);
 
   const levelCounts = useMemo(() => {

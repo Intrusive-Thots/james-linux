@@ -27,8 +27,15 @@ const item = {
 };
 
 export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
-  const cracked = useMemo(() => state.handshakes.filter((h) => h.cracked), [state.handshakes]);
-  const pending = useMemo(() => state.handshakes.filter((h) => !h.cracked), [state.handshakes]);
+  const { cracked, pending } = useMemo(() => {
+    const c = [];
+    const p = [];
+    for (const h of state.handshakes) {
+      if (h.cracked) c.push(h);
+      else p.push(h);
+    }
+    return { cracked: c, pending: p };
+  }, [state.handshakes]);
 
   return (
     <motion.div

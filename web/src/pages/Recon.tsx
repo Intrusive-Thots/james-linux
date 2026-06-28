@@ -61,15 +61,20 @@ export function Recon({
   // Filter & sort
   const filtered = useMemo(() => {
     const q = filter ? filter.toLowerCase() : "";
-    return state.aps
-      .filter((ap) => {
-        if (!q) return true;
-        return (
-          ap.essid.toLowerCase().includes(q) ||
-          ap.bssid.toLowerCase().includes(q) ||
-          ap.vendor.toLowerCase().includes(q)
-        );
-      })
+    const filteredAps = [];
+    for (const ap of state.aps) {
+      if (!q) {
+        filteredAps.push(ap);
+      } else if (
+        ap.essid.toLowerCase().includes(q) ||
+        ap.bssid.toLowerCase().includes(q) ||
+        ap.vendor.toLowerCase().includes(q)
+      ) {
+        filteredAps.push(ap);
+      }
+    }
+
+    return filteredAps
       .sort((a, b) => {
         const dir = sortDir === "asc" ? 1 : -1;
         switch (sortKey) {
