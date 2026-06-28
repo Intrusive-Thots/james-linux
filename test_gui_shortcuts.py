@@ -133,6 +133,9 @@ class TestMainWindowShortcuts(unittest.TestCase):
 
         # Verify WiFiArsenalTab specific shortcuts are present
         self.assertTrue(
+            any(s.key() == QKeySequence("Ctrl+H") for s in shortcuts)
+        )
+        self.assertTrue(
             any(s.key() == QKeySequence("Ctrl+R") for s in shortcuts)
         )
         self.assertTrue(

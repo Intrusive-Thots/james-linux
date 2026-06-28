@@ -49,6 +49,10 @@ class TestGUITooltips(unittest.TestCase):
 
     def test_wifi_tab_tooltips(self):
         self.assertEqual(
+            self.wifi_tab.btn_hw_info.toolTip(),
+            "Show hardware info for the selected interface (Ctrl+H)",
+        )
+        self.assertEqual(
             self.wifi_tab.btn_monitor_on.toolTip(),
             "Enable monitor mode on the selected interface (Ctrl+M)",
         )

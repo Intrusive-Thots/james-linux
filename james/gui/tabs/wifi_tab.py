@@ -194,6 +194,10 @@ class WiFiArsenalTab(QWidget):
             self.btn_refresh.click
         )
 
+        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(
+            self.btn_hw_info.click
+        )
+
         # Toggle Scan
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(
             self._toggle_scan
@@ -310,6 +314,7 @@ class WiFiArsenalTab(QWidget):
         self.btn_refresh.setToolTip("Refresh network interfaces (Ctrl+R)")
         self.btn_hw_info = QPushButton("HW Info")
         self.btn_hw_info.setMinimumWidth(76)
+        self.btn_hw_info.setToolTip("Show hardware info for the selected interface (Ctrl+H)")
         self.btn_monitor_on = QPushButton("▶ Mon ON")
         self.btn_monitor_on.setObjectName("successBtn")
         self.btn_monitor_on.setMinimumWidth(88)
