@@ -19,3 +19,6 @@
 ## 2024-05-18 - Avoid array.filter on frequently updating global state
 **Learning:** In the React frontend (`web/`), using `array.filter().length` or similar methods on frequently updating global state arrays (like `logs`, `aps`, `handshakes`) inside `useMemo` creates unnecessary intermediate array allocations on every render tick.
 **Action:** Replace `array.filter(condition)` with single-pass `for...of` loops or `reduce` inside `useMemo` hooks. This improves performance by avoiding intermediate array allocations, especially for high-frequency updates.
+## 2025-07-01 - [UI Discoverability via Tooltips]
+**Learning:** Keyboard navigation (like Ctrl+<num> for tabs) was implemented but effectively hidden from the user because there were no visual hints in the UI to advertise these shortcuts, leading to lower engagement with power-user features.
+**Action:** When implementing or modifying UI keyboard shortcuts, always ensure that any associated elements (such as tabs or buttons) have their tooltips updated to accurately advertise the new shortcut.

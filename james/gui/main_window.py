@@ -216,11 +216,22 @@ class MainWindow(QMainWindow):
         self.troubleshoot_tab = TroubleshootTab(self)
 
         self.tabs.addTab(self.chat_panel, "Agent")
+        self.tabs.setTabToolTip(0, "Conversational AI (Ctrl+1)")
+
         self.tabs.addTab(self.wifi_tab, "Wi-Fi Arsenal")
+        self.tabs.setTabToolTip(1, "Wi-Fi auditing and tools (Ctrl+2)")
+
         self.tabs.addTab(self.autopilot_tab, "Auto-Pilot")
+        self.tabs.setTabToolTip(2, "Automated routines (Ctrl+3)")
+
         self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
+        self.tabs.setTabToolTip(3, "Evil Twin pipeline (Ctrl+4)")
+
         self.tabs.addTab(self.setup_tab, "Setup")
+        self.tabs.setTabToolTip(4, "System configuration (Ctrl+5)")
+
         self.tabs.addTab(self.troubleshoot_tab, "Troubleshoot")
+        self.tabs.setTabToolTip(5, "Diagnostics and dependencies (Ctrl+6)")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
