@@ -33,11 +33,7 @@ export function TopNav({ state, connected }: TopNavProps) {
   };
 
   const errorCount = useMemo(() => {
-    let count = 0;
-    for (const l of state.logs) {
-      if (l.level === "error") count++;
-    }
-    return count;
+    return state.logs.reduce((count, l) => (l.level === "error" ? count + 1 : count), 0);
   }, [state.logs]);
 
   return (

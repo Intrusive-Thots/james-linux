@@ -28,13 +28,14 @@ const item = {
 
 export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
   const { cracked, pending } = useMemo(() => {
-    const c = [];
-    const p = [];
-    for (const h of state.handshakes) {
-      if (h.cracked) c.push(h);
-      else p.push(h);
-    }
-    return { cracked: c, pending: p };
+    return state.handshakes.reduce(
+      (acc, h) => {
+        if (h.cracked) acc.cracked.push(h);
+        else acc.pending.push(h);
+        return acc;
+      },
+      { cracked: [] as typeof state.handshakes, pending: [] as typeof state.handshakes }
+    );
   }, [state.handshakes]);
 
   return (

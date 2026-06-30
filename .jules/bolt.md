@@ -22,3 +22,6 @@
 ## 2025-07-01 - [UI Discoverability via Tooltips]
 **Learning:** Keyboard navigation (like Ctrl+<num> for tabs) was implemented but effectively hidden from the user because there were no visual hints in the UI to advertise these shortcuts, leading to lower engagement with power-user features.
 **Action:** When implementing or modifying UI keyboard shortcuts, always ensure that any associated elements (such as tabs or buttons) have their tooltips updated to accurately advertise the new shortcut.
+## 2025-07-02 - React Performance - Use reduce over for-loops for derived state
+**Learning:** Using standard `for...of` loops to derive array counts and states in React components (like `TopNav`, `Dashboard`, `Logs`, `Handshakes`, and `Recon`) does not return values functionally and requires mutating intermediate variables. Using `array.reduce()` accomplishes this in a cleaner, more functional way, maintaining a single pass through the array to optimize React render performance without allocating intermediate arrays.
+**Action:** Replace `for...of` loops that aggregate counts or filter items with single-pass `array.reduce()` blocks inside `useMemo` hooks.
