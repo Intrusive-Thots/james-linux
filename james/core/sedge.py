@@ -1,47 +1,31 @@
 """
-SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA REFACTORED IN PR UPDATED
-IMPLEMENTATION v8
-Features state nodes and learning paths to optimally guide the system
-evolution.
+SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA.
+
+This module implements the core idea of the Self-Evolving Decision Graph Engine
+(SEDGE). It features state nodes and learning paths to optimally guide the
+system evolution.
+
 Architectural elements: state nodes, learning paths, and utilities.
 
 The system builds a directed weighted decision graph where:
-- Nodes = system states or actions (state nodes)
-- Edges = transitions between decisions (learning paths)
-- Weights = learned success utility scores (execution feedback learning)
+- Nodes represent system states or actions (state nodes).
+- Edges represent transitions between decisions (learning paths).
+- Weights represent learned success utility scores (execution feedback).
 
 Over time:
 - successful paths become stronger
 - failed paths decay
 - optimal strategies emerge automatically
 
-ARCHITECTURE
-
-STATE NODE MODEL
-Each node represents a system situation or decision point as part
-of the state nodes model.
-
-EDGE MODEL (LEARNING PATHS)
-Edges store experience weight to form learning paths between nodes.
-
-DECISION GRAPH CORE
-The core structure holding the nodes and edges.
-
-EXECUTION FEEDBACK LEARNING (KEY SYSTEM)
-This is what makes it self-evolving.
-
-DECISION ENGINE (POLICY LAYER)
-This policy layer establishes a dynamic decision framework.
-
-SELF-EVOLUTION LOOP
-This loop forms the crux of continuous reinforcement learning.
+ARCHITECTURE:
+- STATE NODE MODEL: Each node represents a system situation or decision.
+- EDGE MODEL: Edges store experience weight to form learning paths.
+- DECISION GRAPH CORE: The structure holding nodes and edges.
+- EXECUTION FEEDBACK LEARNING: The mechanism for self-evolution.
+- DECISION ENGINE: The policy layer establishing a dynamic framework.
+- SELF-EVOLUTION LOOP: The crux of continuous reinforcement learning.
 
 This architecture constitutes an adaptive, evolving decision matrix.
-Refactored docstring to ensure the file is included in the PR diff.
-Additional docstring changes to force inclusion. Included for PR submission.
-Minor docstring update to ensure PR inclusion.
-Refactored docstring.
-Included for the core feature PR.
 """
 
 import random
