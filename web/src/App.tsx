@@ -144,6 +144,47 @@ export default function App() {
     addLog("info", "JAMES v2.0 — Tactical UI online.");
   }, []);
 
+  // ── Global Keyboard Shortcuts ──────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+        switch (e.code) {
+          case "Digit1":
+            e.preventDefault();
+            setPage("dashboard");
+            break;
+          case "Digit2":
+            e.preventDefault();
+            setPage("recon");
+            break;
+          case "Digit3":
+            e.preventDefault();
+            setPage("attacks");
+            break;
+          case "Digit4":
+            e.preventDefault();
+            setPage("handshakes");
+            break;
+          case "Digit5":
+            e.preventDefault();
+            setPage("agent");
+            break;
+          case "Digit6":
+            e.preventDefault();
+            setPage("logs");
+            break;
+          case "Digit7":
+            e.preventDefault();
+            setPage("settings");
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setPage]);
+
   // ── Scan handlers ──────────────────────────────────────────
   const handleStartScan = useCallback(() => {
     if (!state.adapter) {

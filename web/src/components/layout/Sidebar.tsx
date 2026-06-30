@@ -21,16 +21,17 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   section?: string;
+  shortcut?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
-  { id: "recon", label: "Recon", icon: Radar, section: "Operations" },
-  { id: "attacks", label: "Attacks", icon: Swords },
-  { id: "handshakes", label: "Handshakes", icon: FileKey },
-  { id: "agent", label: "AI Agent", icon: Bot, section: "System" },
-  { id: "logs", label: "Logs", icon: ScrollText },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview", shortcut: "1" },
+  { id: "recon", label: "Recon", icon: Radar, section: "Operations", shortcut: "2" },
+  { id: "attacks", label: "Attacks", icon: Swords, shortcut: "3" },
+  { id: "handshakes", label: "Handshakes", icon: FileKey, shortcut: "4" },
+  { id: "agent", label: "AI Agent", icon: Bot, section: "System", shortcut: "5" },
+  { id: "logs", label: "Logs", icon: ScrollText, shortcut: "6" },
+  { id: "settings", label: "Settings", icon: Settings, shortcut: "7" },
 ];
 
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -77,7 +78,19 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                     isActive ? "text-accent-cyan" : "text-text-muted"
                   )}
                 />
-                <span>{item.label}</span>
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.shortcut && (
+                  <span
+                    className={cn(
+                      "text-[10px] font-mono px-[6px] py-[2px] rounded border flex-shrink-0 ml-auto",
+                      isActive
+                        ? "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30"
+                        : "bg-bg-elevated text-text-muted border-border"
+                    )}
+                  >
+                    Alt+{item.shortcut}
+                  </span>
+                )}
               </button>
             </div>
           );

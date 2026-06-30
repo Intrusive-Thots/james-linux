@@ -13,3 +13,4 @@ test_perf.py
 test_file2.txt
 node_modules/
 web/node_modules/
+web/node_modules
