@@ -25,3 +25,11 @@
 ## 2025-07-02 - React Performance - Use reduce over for-loops for derived state
 **Learning:** Using standard `for...of` loops to derive array counts and states in React components (like `TopNav`, `Dashboard`, `Logs`, `Handshakes`, and `Recon`) does not return values functionally and requires mutating intermediate variables. Using `array.reduce()` accomplishes this in a cleaner, more functional way, maintaining a single pass through the array to optimize React render performance without allocating intermediate arrays.
 **Action:** Replace `for...of` loops that aggregate counts or filter items with single-pass `array.reduce()` blocks inside `useMemo` hooks.
+
+## 2026-06-30 - Implemented global keyboard shortcuts
+**Learning:** Global tab switching shortcuts (e.g., Alt+1) significantly improve UX and match behavior in the legacy frontend. Adding tooltips or visual cues synchronizes the UI with the keyboard shortcuts.
+**Action:** Use global event listeners for keyboard shortcuts and display them clearly in the UI.
+
+## 2026-06-30 - Keyboard event codes for cross-platform compatibility
+**Learning:** Relying on `e.key` with the `Alt` key will fail on macOS, as it yields special characters (e.g., '¡') instead of digits. Using `e.code` (e.g., 'Digit1') is the industry standard for modifier-based hotkeys to ensure cross-platform compatibility.
+**Action:** Use `e.code` when listening to `keydown` events combined with modifier keys.
