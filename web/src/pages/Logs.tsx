@@ -44,21 +44,22 @@ export function Logs({ state }: LogsProps) {
 
   const filtered = useMemo(() => {
     const q = filter.toLowerCase();
-    const result = [];
-    for (const log of state.logs) {
-      if (levelFilter !== "all" && log.level !== levelFilter) continue;
-      if (q && !log.message.toLowerCase().includes(q)) continue;
-      result.push(log);
-    }
-    return result;
+    return state.logs.reduce((acc, log) => {
+      if (levelFilter !== "all" && log.level !== levelFilter) return acc;
+      if (q && !log.message.toLowerCase().includes(q)) return acc;
+      acc.push(log);
+      return acc;
+    }, [] as LogEntry[]);
   }, [state.logs, filter, levelFilter]);
 
   const levelCounts = useMemo(() => {
-    const counts = { info: 0, warn: 0, error: 0, success: 0 };
-    for (const l of state.logs) {
-      counts[l.level]++;
-    }
-    return counts;
+    return state.logs.reduce(
+      (acc, l) => {
+        acc[l.level]++;
+        return acc;
+      },
+      { info: 0, warn: 0, error: 0, success: 0 }
+    );
   }, [state.logs]);
 
   return (
