@@ -1,7 +1,5 @@
 import unittest
-import math
 from james.core.sedge import (
-    Node,
     Edge,
     DecisionGraph,
     LearningEngine,
@@ -13,24 +11,19 @@ from james.tools.constants import (
     OUTCOME_SUCCESS,
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
-    STATE_START,
-    STATE_NETWORK_DISCOVERY,
     STATE_TARGET_ANALYSIS,
-    STATE_SECURITY_PROFILING,
-    ACTION_PASSIVE_SCAN,
     ACTION_HANDSHAKE_CAPTURE,
     ACTION_DEAUTH_TEST,
-    ACTION_EVIL_TWIN_SIMULATION,
 )
 
 
 class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     """
-    Mathematical proof and comprehensive test suite for the SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA.
-    Proves that successful sequences (e.g. scan -> analyze -> handshake_capture -> validate)
-    gain higher success_weight via execution feedback learning across learning paths,
-    failed sequences gain higher failure_weight, and optimal attack/analysis pipelines emerge
-    automatically within the living decision ecosystem utilizing state nodes, a policy layer,
+    Mathematical proof and comprehensive test suite for SEDGE CORE IDEA.
+    Proves that successful sequences (e.g. scan -> analyze)
+    gain higher success_weight via execution feedback learning,
+    failed sequences gain higher failure_weight, and optimal pipelines emerge
+    automatically utilizing state nodes, a policy layer,
     and a self-evolution loop.
     """
 
@@ -40,9 +33,13 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_mathematical_edge_scoring(self):
         """
-        Proof of scoring mathematically mitigating zero division and scaling properly.
+        Proof of scoring mitigating zero division.
         """
-        edge = Edge(from_node="A", to_node="B", success_weight=1.0, failure_weight=1.0)
+        edge = Edge(
+            from_node="A",
+            to_node="B",
+            success_weight=1.0,
+            failure_weight=1.0)
         self.assertAlmostEqual(edge.score(), 0.9999990000010001, places=6)
 
         edge.success_weight = 5.0
@@ -61,8 +58,16 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         """
         Mathematical proof of average utility score across traversal paths.
         """
-        edge1 = Edge(from_node="A", to_node="B", success_weight=3.0, failure_weight=1.0) # score ~ 3.0
-        edge2 = Edge(from_node="B", to_node="C", success_weight=5.0, failure_weight=1.0) # score ~ 5.0
+        edge1 = Edge(
+            from_node="A",
+            to_node="B",
+            success_weight=3.0,
+            failure_weight=1.0)  # score ~ 3.0
+        edge2 = Edge(
+            from_node="B",
+            to_node="C",
+            success_weight=5.0,
+            failure_weight=1.0)  # score ~ 5.0
 
         self.graph.add_edge(edge1)
         self.graph.add_edge(edge2)
@@ -82,13 +87,21 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_mathematical_probability_convergence(self):
         """
-        Proves that stochastic selection converges optimally with law of large numbers.
-        This balances EXPLORATION (trying weak paths) vs EXPLOITATION (strong known paths).
+        Proves that stochastic selection converges optimally with law of large numbers.  # noqa: E501
+        This balances EXPLORATION (trying weak paths) vs EXPLOITATION (strong known paths).  # noqa: E501
         """
         decision_engine = DecisionEngine(self.graph)
 
-        edge_b = Edge(from_node="A", to_node="B", success_weight=80.0, failure_weight=1.0)
-        edge_c = Edge(from_node="A", to_node="C", success_weight=20.0, failure_weight=1.0)
+        edge_b = Edge(
+            from_node="A",
+            to_node="B",
+            success_weight=80.0,
+            failure_weight=1.0)
+        edge_c = Edge(
+            from_node="A",
+            to_node="C",
+            success_weight=20.0,
+            failure_weight=1.0)
 
         self.graph.add_edge(edge_b)
         self.graph.add_edge(edge_c)
@@ -115,7 +128,7 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
     def test_learning_engine_backpropagation(self):
         """
-        Mathematical validation of weight adjustment across nodes (EXECUTION FEEDBACK LEARNING).
+        Mathematical validation of weight adjustment.
         """
         edge1 = Edge(from_node="A", to_node="B")
         edge2 = Edge(from_node="B", to_node="C")
@@ -140,9 +153,9 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
     def test_sedge_parrot_system_emergent_optimal_strategy(self):
         """
         Mathematical proof of SEDGE behavior on the real domain map.
-        Simulates 250000 runs to guarantee mathematical dominance of the successful path.
-        This verifies the REAL EVOLUTION BEHAVIOR principles from the design:
-        - graph converges toward optimal attack/analysis pipelines
+        Simulates 250000 runs to guarantee mathematical dominance.
+        This verifies the REAL EVOLUTION BEHAVIOR principles:
+        - graph converges toward optimal pipelines
         - unstable techniques decay automatically
         - high-yield workflows become dominant paths
         """
@@ -164,18 +177,20 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
 
                 if node == ACTION_HANDSHAKE_CAPTURE:
                     # Simulate 90% true mathematical success rate
-                    outcome = OUTCOME_SUCCESS if random.random() < 0.90 else OUTCOME_FAILURE
+                    outcome = OUTCOME_SUCCESS if random.random() < 0.90 else OUTCOME_FAILURE   # noqa: E501
                     break
                 elif node == ACTION_DEAUTH_TEST:
                     # Simulate 10% true mathematical success rate
-                    outcome = OUTCOME_SUCCESS if random.random() < 0.10 else OUTCOME_FAILURE
+                    outcome = OUTCOME_SUCCESS if random.random() < 0.10 else OUTCOME_FAILURE   # noqa: E501
                     break
 
             agent.feedback(outcome)
 
         analysis_edges = graph.edges.get(STATE_TARGET_ANALYSIS, [])
-        handshake_edge = next((e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)
-        deauth_edge = next((e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)
+        handshake_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_HANDSHAKE_CAPTURE), None)  # noqa: E501
+        deauth_edge = next(
+            (e for e in analysis_edges if e.to_node == ACTION_DEAUTH_TEST), None)  # noqa: E501
 
         # Mathematical Proof asserts
         self.assertIsNotNone(handshake_edge)
@@ -189,7 +204,8 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         deauth_selections = 0
         iterations = 250000
 
-        # Test stochastic distribution over the trained nodes without updating weights
+        # Test stochastic distribution over the trained nodes without updating
+        # weights
         for _ in range(iterations):
             choice = agent.decision_engine.decide(STATE_TARGET_ANALYSIS)
             if choice == ACTION_HANDSHAKE_CAPTURE:
@@ -207,19 +223,32 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         expected_handshake = score_handshake / total_score
         expected_deauth = score_deauth / total_score
 
-        # Verify edge score mathematical dominance vs empirical stochastic ratio
+        # Verify edge score mathematical dominance vs empirical stochastic
+        # ratio
         self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.02)
         self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.02)
 
     def test_zero_utility_fallback_distribution(self):
         """
-        Proof of uniform random selection fallback when total weight is <= 0.0.
+        Proof of random selection fallback when total weight <= 0.0.
         """
         decision_engine = DecisionEngine(self.graph)
 
-        edge_x = Edge(from_node="A", to_node="X", success_weight=0.0, failure_weight=1.0)
-        edge_y = Edge(from_node="A", to_node="Y", success_weight=0.0, failure_weight=1.0)
-        edge_z = Edge(from_node="A", to_node="Z", success_weight=0.0, failure_weight=1.0)
+        edge_x = Edge(
+            from_node="A",
+            to_node="X",
+            success_weight=0.0,
+            failure_weight=1.0)
+        edge_y = Edge(
+            from_node="A",
+            to_node="Y",
+            success_weight=0.0,
+            failure_weight=1.0)
+        edge_z = Edge(
+            from_node="A",
+            to_node="Z",
+            success_weight=0.0,
+            failure_weight=1.0)
 
         self.graph.add_edge(edge_x)
         self.graph.add_edge(edge_y)
@@ -237,25 +266,38 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_z = counts["Z"] / iterations
 
         # Expected ratio: ~0.333 each
-        self.assertAlmostEqual(ratio_x, 1/3, delta=0.02)
-        self.assertAlmostEqual(ratio_y, 1/3, delta=0.02)
-        self.assertAlmostEqual(ratio_z, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_x, 1 / 3, delta=0.02)
+        self.assertAlmostEqual(ratio_y, 1 / 3, delta=0.02)
+        self.assertAlmostEqual(ratio_z, 1 / 3, delta=0.02)
 
     def test_stochastic_fallback(self):
         """
-        Tests the fallback to uniform random selection when all edge utilities are <= 0.0.
-        This explicitly verifies that SEDGE falls back to uniform random selection when
-        all edge utilities result in a sum <= 0.0, distributing selections roughly equally
-        over a large number of iterations to test statistical stability.
+        Tests the fallback to uniform random selection.
+        Verifies that SEDGE falls back to uniform random selection when
+        edge utilities sum <= 0.0, distributing selections equally
+        over iterations to test statistical stability.
         """
         decision_engine = DecisionEngine(self.graph)
 
         # Create edges with zero or negative utility
-        # Note: According to Edge.score(), success_weight / (failure_weight + epsilon)
-        # We can simulate <= 0 utility by setting success_weight to 0 or negative.
-        edge_1 = Edge(from_node="A", to_node="Path1", success_weight=-1.0, failure_weight=1.0)
-        edge_2 = Edge(from_node="A", to_node="Path2", success_weight=0.0, failure_weight=1.0)
-        edge_3 = Edge(from_node="A", to_node="Path3", success_weight=-2.0, failure_weight=1.0)
+        # Note: According to Edge.score(), success_weight / (failure_weight + epsilon)  # noqa: E501
+        # We can simulate <= 0 utility by setting success_weight to 0 or
+        # negative.
+        edge_1 = Edge(
+            from_node="A",
+            to_node="Path1",
+            success_weight=-1.0,
+            failure_weight=1.0)
+        edge_2 = Edge(
+            from_node="A",
+            to_node="Path2",
+            success_weight=0.0,
+            failure_weight=1.0)
+        edge_3 = Edge(
+            from_node="A",
+            to_node="Path3",
+            success_weight=-2.0,
+            failure_weight=1.0)
 
         self.graph.add_edge(edge_1)
         self.graph.add_edge(edge_2)
@@ -275,25 +317,32 @@ class TestSedgeCoreIdeaMathematicalProof(unittest.TestCase):
         ratio_3 = counts["Path3"] / iterations
 
         # Verify roughly equal distribution (~33.3% each)
-        self.assertAlmostEqual(ratio_1, 1/3, delta=0.02)
-        self.assertAlmostEqual(ratio_2, 1/3, delta=0.02)
-        self.assertAlmostEqual(ratio_3, 1/3, delta=0.02)
+        self.assertAlmostEqual(ratio_1, 1 / 3, delta=0.02)
+        self.assertAlmostEqual(ratio_2, 1 / 3, delta=0.02)
+        self.assertAlmostEqual(ratio_3, 1 / 3, delta=0.02)
 
     def test_exploration_vs_exploitation_decay(self):
         """
-        Mathematical proof that failing paths naturally decay over time to balance
-        exploration vs exploitation. Simulates repeated paths with failures for one edge
-        to explicitly test its failure weight increasing and selection probability decaying.
+        Mathematical proof that failing paths decay over time to balance
+        exploration vs exploitation. Simulates repeated paths.
+        Tests failure weight increasing and probability decaying.
         """
         decision_engine = DecisionEngine(self.graph)
 
-        edge_exploit = Edge(from_node="A", to_node="Exploit", success_weight=10.0, failure_weight=1.0)
-        edge_explore = Edge(from_node="A", to_node="Explore", success_weight=2.0, failure_weight=1.0)
+        edge_exploit = Edge(
+            from_node="A",
+            to_node="Exploit",
+            success_weight=10.0,
+            failure_weight=1.0)
+        edge_explore = Edge(
+            from_node="A",
+            to_node="Explore",
+            success_weight=2.0,
+            failure_weight=1.0)
 
         self.graph.add_edge(edge_exploit)
         self.graph.add_edge(edge_explore)
 
-        initial_score_exploit = edge_exploit.score()
         initial_score_explore = edge_explore.score()
 
         self.assertEqual(initial_score_explore, 2.0 / (1.0 + 1e-6))
