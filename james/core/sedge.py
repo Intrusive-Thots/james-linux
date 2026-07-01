@@ -13,9 +13,9 @@ The system builds a directed weighted decision graph where:
 - Weights represent learned success utility scores (execution feedback).
 
 Over time:
-- successful paths become stronger
-- failed paths decay
-- optimal strategies emerge automatically
+- successful paths become stronger.
+- failed paths decay.
+- optimal strategies emerge automatically.
 
 ARCHITECTURE:
 - STATE NODE MODEL: Each node represents a system situation or decision.
