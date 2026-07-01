@@ -33,3 +33,6 @@
 ## 2026-06-30 - Keyboard event codes for cross-platform compatibility
 **Learning:** Relying on `e.key` with the `Alt` key will fail on macOS, as it yields special characters (e.g., '¡') instead of digits. Using `e.code` (e.g., 'Digit1') is the industry standard for modifier-based hotkeys to ensure cross-platform compatibility.
 **Action:** Use `e.code` when listening to `keydown` events combined with modifier keys.
+## 2025-06-17 - React Performance - Localizing Fast-Updating Timers
+**Learning:** In a React application utilizing global state (like `useAppState`), placing a fast-updating variable such as a 1-second `sessionUptime` timer directly into the global `AppState` causes the entire application tree to re-render every second. Even if child components use `useMemo`, the parent components (like `App`) receiving the global state will still execute their render cycles continuously, degrading performance.
+**Action:** When implementing high-frequency timers or fast-updating state, extract that specific state out of the global store and move it locally into the exact component (e.g., `TopNav`) that actually displays it. This localizes the re-renders to just that component, drastically improving overall application efficiency.

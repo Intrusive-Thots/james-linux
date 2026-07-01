@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 export interface LogEntry {
   id: number;
@@ -44,7 +44,6 @@ export interface AppState {
   attack: AttackState;
   logs: LogEntry[];
   handshakes: HandshakeFile[];
-  sessionUptime: number;
 }
 
 export interface HandshakeFile {
@@ -67,23 +66,12 @@ const INITIAL_STATE: AppState = {
   attack: { stage: "idle", progress: 0, status: "Ready" },
   logs: [],
   handshakes: [],
-  sessionUptime: 0,
 };
 
 let logCounter = 0;
 
 export function useAppState() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
-  const uptimeRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    uptimeRef.current = setInterval(() => {
-      setState((s) => ({ ...s, sessionUptime: s.sessionUptime + 1 }));
-    }, 1000);
-    return () => {
-      if (uptimeRef.current) clearInterval(uptimeRef.current);
-    };
-  }, []);
 
   const setPage = useCallback((page: PageId) => {
     setState((s) => ({ ...s, currentPage: page }));
