@@ -3,7 +3,7 @@ SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) CORE IDEA.
 
 This module implements the core idea of the Self-Evolving Decision Graph Engine
 (SEDGE). It features state nodes and learning paths to optimally guide the
-system evolution.
+system evolution autonomously.
 
 Architectural elements: state nodes, learning paths, and utilities.
 
