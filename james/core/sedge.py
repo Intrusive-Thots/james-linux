@@ -53,7 +53,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """
-    STATE NODE MODEL
+    STATE NODE MODEL (ARCHITECTURE)
 
     Each node represents a system situation or decision point as part of
     the state nodes model framework.
