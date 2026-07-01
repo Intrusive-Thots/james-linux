@@ -5,7 +5,7 @@ This module implements the core idea of the Self-Evolving Decision Graph Engine
 (SEDGE). It features state nodes and learning paths to optimally guide the
 system evolution autonomously.
 
-Architectural elements: state nodes, learning paths, and utilities.
+Architectural components: state nodes, learning paths, and utilities.
 
 The system builds a directed weighted decision graph where:
 - Nodes represent system states or actions (state nodes).
