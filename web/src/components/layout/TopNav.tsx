@@ -7,7 +7,7 @@ import {
   Settings,
   Zap,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { AppState } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
 
@@ -17,9 +17,22 @@ interface TopNavProps {
 }
 
 export function TopNav({ state, connected }: TopNavProps) {
-  const hours = Math.floor(state.sessionUptime / 3600);
-  const mins = Math.floor((state.sessionUptime % 3600) / 60);
-  const secs = state.sessionUptime % 60;
+  // ⚡ Bolt: Moved sessionUptime to local state.
+  // Previously, this timer was in useAppState, causing the entire
+  // global state to update and every component to re-render every second.
+  // Now, only TopNav re-renders every second.
+  const [sessionUptime, setSessionUptime] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionUptime((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const hours = Math.floor(sessionUptime / 3600);
+  const mins = Math.floor((sessionUptime % 3600) / 60);
+  const secs = sessionUptime % 60;
   const uptime = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
   const pageLabels: Record<string, string> = {
