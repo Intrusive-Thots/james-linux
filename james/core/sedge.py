@@ -36,7 +36,7 @@ class Edge:
     visits: int = 0
 
     def score(self):
-        return self.success_weight / (self.failure_weight + SEDGE_EPSILON)
+        return self.success_weight / (self.failure_weight + 1e-6)
 
     def __repr__(self) -> str:
         return (
