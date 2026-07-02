@@ -36,7 +36,7 @@ class Edge:
     visits: int = 0
 
     def score(self):
-        return self.success_weight / (self.failure_weight + SEDGE_EPSILON)
+        return self.success_weight / (self.failure_weight + 1e-6)
 
     def __repr__(self) -> str:
         return (
@@ -114,9 +114,9 @@ class LearningEngine:
             for e in edges:
                 if e.to_node == to:
                     e.visits += 1
-                    if outcome == OUTCOME_SUCCESS:
+                    if outcome == OUTCOME_SUCCESS or outcome is True:
                         e.success_weight += 1.0
-                    elif outcome == OUTCOME_FAILURE:
+                    elif outcome == OUTCOME_FAILURE or outcome is False:
                         e.failure_weight += 1.0
                     elif outcome == OUTCOME_PARTIAL:
                         e.success_weight += 0.5
