@@ -42,15 +42,6 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     }
   }, [messages]);
 
-  // Watch for agent responses from App.tsx
-  useEffect(() => {
-    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
-      lastResponseTs.current = lastAgentResponse.ts;
-      addMessage("agent", lastAgentResponse.response);
-      setProcessing(false);
-    }
-  }, [lastAgentResponse]);
-
   const addMessage = useCallback((role: "user" | "agent", content: string) => {
     setMessages((prev) => [
       ...prev,
@@ -62,6 +53,15 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
       },
     ]);
   }, []);
+
+  // Watch for agent responses from App.tsx
+  useEffect(() => {
+    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
+      lastResponseTs.current = lastAgentResponse.ts;
+      addMessage("agent", lastAgentResponse.response);
+      setProcessing(false);
+    }
+  }, [lastAgentResponse, addMessage]);
 
   const handleSendCommand = () => {
     const cmd = input.trim();
@@ -119,14 +119,16 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
   // Watch attack state for auto-pilot completion
   useEffect(() => {
     if (autoPilotRunning && state.attack.stage === "complete") {
-      setAutoPilotRunning(false);
-      if (state.attack.result?.found) {
-        addMessage("agent", `🎯 Auto-Pilot complete! Key found: ${state.attack.result.key}`);
-      } else {
-        addMessage("agent", "🔒 Auto-Pilot complete. Key not found in wordlist.");
-      }
+      setTimeout(() => {
+        setAutoPilotRunning(false);
+        if (state.attack.result?.found) {
+          addMessage("agent", `🎯 Auto-Pilot complete! Key found: ${state.attack.result.key}`);
+        } else {
+          addMessage("agent", "🔒 Auto-Pilot complete. Key not found in wordlist.");
+        }
+      }, 0);
     }
-  }, [state.attack.stage, state.attack.result]);
+  }, [state.attack.stage, state.attack.result, autoPilotRunning, addMessage]);
 
   return (
     <motion.div
