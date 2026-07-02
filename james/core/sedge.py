@@ -1,8 +1,6 @@
 """
 SELF-EVOLVING DECISION GRAPH ENGINE (SEDGE) SYSTEM.
 
-ADDED TRIVIAL CHANGE TO FORCE PR DIFF.
-
 This module implements the core idea of the Self-Evolving Decision Graph Engine
 (SEDGE). It features state nodes and learning paths to optimally guide the
 system evolution autonomously.
