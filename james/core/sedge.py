@@ -56,6 +56,12 @@ class DecisionGraph:
     def add_edge(self, edge: Edge):
         self.edges.setdefault(edge.from_node, []).append(edge)
 
+    def get_best_next(self, node_id: str):
+        edges = self.edges.get(node_id, [])
+        if not edges:
+            return None
+        return max(edges, key=lambda e: e.score())
+
     def get_node(self, node_id: str) -> Node | None:
         return self.nodes.get(node_id)
 
@@ -96,14 +102,6 @@ class DecisionGraph:
     def clear(self) -> None:
         self.nodes.clear()
         self.edges.clear()
-
-    def get_best_next(self, node_id: str):
-        edges = self.edges.get(node_id, [])
-
-        if not edges:
-            return None
-
-        return max(edges, key=lambda e: e.score())
 
 
 class LearningEngine:
