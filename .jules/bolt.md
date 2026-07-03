@@ -39,3 +39,6 @@
 ## 2025-07-03 - React 19 Compiler Optimization Bailouts
 **Learning:** In React 19, the React Compiler automatically memoizes components to optimize performance. However, if hooks are incorrectly ordered (e.g., accessing a useCallback function like addMessage inside a useEffect before it is declared), the compiler throws a "Cannot access variable before it is declared" error and completely skips optimizing the component. This strips away all automatic memoization, causing heavy re-renders. Furthermore, calling setState synchronously within a useEffect triggers cascading renders that block the main thread.
 **Action:** Always declare functions wrapped in useCallback or useMemo before they are accessed in useEffect hooks. To fix synchronous cascading renders in effects responding to external state changes, defer the state update using setTimeout(..., 0). This ensures the React Compiler can successfully optimize the component.
+## 2024-07-03 - James Backend Dependencies
+**Learning:** When running backend tests in the James repository (e.g., testing the FastAPI server or PyQt5 components), ensure required dependencies are installed via `pip install keyring fastapi uvicorn PyQt5 pytest httpx` to prevent module not found errors.
+**Action:** Install required dependencies before running unit tests with `python3 -m unittest discover`.

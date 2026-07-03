@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 import random
 from james.tools.constants import (
-    SEDGE_EPSILON,
+
     OUTCOME_SUCCESS,
     OUTCOME_FAILURE,
     OUTCOME_PARTIAL,
@@ -107,18 +107,20 @@ class DecisionGraph:
 
 
 class LearningEngine:
-    def update(self, graph: DecisionGraph, path: List[str], outcome: str):
+    def update(self, graph: DecisionGraph,
+               path: List[str], success: bool = None, outcome: str = None):
+        val = success if success is not None else outcome
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
             edges = graph.edges.get(frm, [])
             for e in edges:
                 if e.to_node == to:
                     e.visits += 1
-                    if outcome == OUTCOME_SUCCESS or outcome is True:
+                    if val == OUTCOME_SUCCESS or val is True:
                         e.success_weight += 1.0
-                    elif outcome == OUTCOME_FAILURE or outcome is False:
+                    elif val == OUTCOME_FAILURE or val is False:
                         e.failure_weight += 1.0
-                    elif outcome == OUTCOME_PARTIAL:
+                    elif val == OUTCOME_PARTIAL:
                         e.success_weight += 0.5
                         e.failure_weight += 0.5
 
@@ -163,8 +165,9 @@ class SelfEvolvingAgent:
 
         return next_node
 
-    def feedback(self, outcome: str):
-        self.learner.update(self.graph, self.current_path, outcome)
+    def feedback(self, success: bool = None, outcome: str = None):
+        val = success if success is not None else outcome
+        self.learner.update(self.graph, self.current_path, val)
 
         # reset episode
         self.current_node = "START"
