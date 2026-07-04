@@ -31,8 +31,10 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QSpinBox,
     QSplitter,
+    QShortcut,
 )
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtGui import QColor, QFont
 
 from james.gui.toast import show_toast
@@ -630,6 +632,17 @@ class AutoPilotTab(QWidget):
         self._elapsed_timer.timeout.connect(self._tick_elapsed)
         self._build_ui()
         self._connect_signals()
+        self._build_shortcuts()
+
+
+    def _build_shortcuts(self):
+        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_run)
+
+    def _toggle_run(self):
+        if self.btn_start.isEnabled():
+            self.btn_start.click()
+        elif self.btn_stop.isEnabled():
+            self.btn_stop.click()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -647,8 +660,10 @@ class AutoPilotTab(QWidget):
         action_row = QHBoxLayout()
         action_row.setSpacing(8)
         self.btn_start = QPushButton("  START FULL AUTO-PILOT  ")
+        self.btn_start.setToolTip("Start full Auto-Pilot (Ctrl+S)")
         self.btn_start.setObjectName("primaryBtn")
         self.btn_stop = QPushButton("Abort")
+        self.btn_stop.setToolTip("Abort Auto-Pilot (Ctrl+S)")
         self.btn_stop.setObjectName("dangerBtn")
         self.btn_stop.setFixedWidth(80)
         self.btn_stop.setEnabled(False)

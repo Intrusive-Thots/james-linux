@@ -117,6 +117,36 @@ class TestGUITooltips(unittest.TestCase):
             "Auto-install missing dependencies (Ctrl+I)",
         )
 
+
+    def test_airgeddon_tab_tooltips(self):
+        from james.gui.tabs.airgeddon_tab import AirgeddonTab
+        tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), AirgeddonTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "AirgeddonTab not found")
+        self.assertEqual(tab.btn_refresh.toolTip(), "Refresh network interfaces (Ctrl+R)")
+        self.assertEqual(tab.btn_scan_start.toolTip(), "Start network scan (Ctrl+S)")
+        self.assertEqual(tab.btn_scan_stop.toolTip(), "Stop network scan (Ctrl+S)")
+
+    def test_autopilot_tab_tooltips(self):
+        from james.gui.tabs.autopilot_tab import AutoPilotTab
+        tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), AutoPilotTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "AutoPilotTab not found")
+        self.assertEqual(tab.btn_start.toolTip(), "Start full Auto-Pilot (Ctrl+S)")
+        self.assertEqual(tab.btn_stop.toolTip(), "Abort Auto-Pilot (Ctrl+S)")
+
     def test_setup_tab_tooltips(self):
         from james.gui.tabs.setup_tab import SetupTab
         setup_tab = next(
