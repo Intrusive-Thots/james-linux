@@ -197,6 +197,41 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+I shortcut not found in TroubleshootTab"
         )
 
+
+    def test_airgeddon_tab_shortcuts(self):
+        from james.gui.tabs.airgeddon_tab import AirgeddonTab
+        tab = next(
+            (
+                self.window.tabs.widget(i)
+                for i in range(self.window.tabs.count())
+                if isinstance(self.window.tabs.widget(i), AirgeddonTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "AirgeddonTab not found")
+
+        shortcuts = tab.findChildren(QShortcut)
+        keys = [s.key().toString() for s in shortcuts]
+        self.assertIn("Ctrl+R", keys)
+        self.assertIn("Ctrl+S", keys)
+        self.assertIn("Ctrl+C", keys)
+
+    def test_autopilot_tab_shortcuts(self):
+        from james.gui.tabs.autopilot_tab import AutoPilotTab
+        tab = next(
+            (
+                self.window.tabs.widget(i)
+                for i in range(self.window.tabs.count())
+                if isinstance(self.window.tabs.widget(i), AutoPilotTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "AutoPilotTab not found")
+
+        shortcuts = tab.findChildren(QShortcut)
+        keys = [s.key().toString() for s in shortcuts]
+        self.assertIn("Ctrl+S", keys)
+
     def test_setup_tab_shortcuts(self):
         from james.gui.tabs.setup_tab import SetupTab
         setup_tab = next(

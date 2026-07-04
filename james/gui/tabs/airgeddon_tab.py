@@ -24,9 +24,11 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QFrame,
     QLineEdit,
+    QShortcut,
+    QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QKeySequence
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
@@ -52,6 +54,31 @@ class AirgeddonTab(QWidget):
 
         self._build_ui()
         self._connect_signals()
+        self._build_shortcuts()
+
+
+    def _build_shortcuts(self):
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.btn_refresh.click)
+        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_scan)
+
+        ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
+        ap_copy.setContext(Qt.WidgetShortcut)
+        ap_copy.activated.connect(self._copy_selected)
+
+    def _toggle_scan(self):
+        if self.btn_scan_start.isEnabled():
+            self.btn_scan_start.click()
+        elif self.btn_scan_stop.isEnabled():
+            self.btn_scan_stop.click()
+
+    def _copy_selected(self):
+        if self.ap_table.hasFocus():
+            row = self.ap_table.currentRow()
+            if row >= 0:
+                bssid = (self.ap_table.item(row, 1) or QTableWidgetItem("")).text()
+                if bssid:
+                    QApplication.clipboard().setText(bssid)
+                    show_toast(self.main_window, "BSSID copied", "info")
 
     def _build_ui(self):
         # Inherit the global Design System v3 stylesheet (no inline override)
@@ -74,6 +101,7 @@ class AirgeddonTab(QWidget):
         iface_layout.addWidget(self.iface_combo)
 
         self.btn_refresh = QPushButton("↻ Refresh")
+        self.btn_refresh.setToolTip("Refresh network interfaces (Ctrl+R)")
         self.btn_refresh.setMinimumHeight(30)
         iface_layout.addWidget(self.btn_refresh)
         iface_layout.addStretch()
@@ -88,8 +116,10 @@ class AirgeddonTab(QWidget):
 
         btn_bar = QHBoxLayout()
         self.btn_scan_start = QPushButton("▶ Start Network Scan")
+        self.btn_scan_start.setToolTip("Start network scan (Ctrl+S)")
         self.btn_scan_start.setMinimumHeight(40)
         self.btn_scan_stop = QPushButton("⏹ Stop Scan")
+        self.btn_scan_stop.setToolTip("Stop network scan (Ctrl+S)")
         self.btn_scan_stop.setMinimumHeight(40)
         self.btn_scan_stop.setEnabled(False)
         self.lbl_stats = QLabel("APs: 0")
