@@ -58,8 +58,13 @@ class AirgeddonTab(QWidget):
 
 
     def _build_shortcuts(self):
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.btn_refresh.click)
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_scan)
+        sc_r = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_r.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_r.activated.connect(self.btn_refresh.click)
+
+        sc_s = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc_s.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_s.activated.connect(self._toggle_scan)
 
         ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
         ap_copy.setContext(Qt.WidgetShortcut)
