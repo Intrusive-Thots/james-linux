@@ -32,9 +32,16 @@ export function useWebSocket({
   const [connected, setConnected] = useState(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage;
 
-  const connect = useCallback(() => {
+  // ⚡ Bolt: Update ref in useEffect to avoid mutating during render,
+  // which breaks React 19 Compiler memoization rules.
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  // ⚡ Bolt: Use a named function inside useCallback so it can safely self-reference
+  // avoiding static analysis errors that break React Compiler optimization.
+  const connect = useCallback(function connectFn() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const ws = new WebSocket(url);
@@ -56,7 +63,7 @@ export function useWebSocket({
     ws.onclose = () => {
       console.log("[WS] Disconnected — reconnecting in", reconnectDelay, "ms");
       setConnected(false);
-      reconnectTimer.current = setTimeout(connect, reconnectDelay);
+      reconnectTimer.current = setTimeout(connectFn, reconnectDelay);
     };
 
     ws.onerror = (err) => {

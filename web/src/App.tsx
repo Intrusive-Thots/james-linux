@@ -142,7 +142,7 @@ export default function App() {
     if (initialized.current) return;
     initialized.current = true;
     addLog("info", "JAMES v2.0 — Tactical UI online.");
-  }, []);
+  }, [addLog]);
 
   // ── Global Keyboard Shortcuts ──────────────────────────────
   useEffect(() => {

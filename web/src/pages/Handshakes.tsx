@@ -27,8 +27,9 @@ const item = {
 };
 
 export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
+  const { handshakes } = state;
   const { cracked, pending } = useMemo(() => {
-    return state.handshakes.reduce(
+    return handshakes.reduce(
       (acc, h) => {
         if (h.cracked) acc.cracked.push(h);
         else acc.pending.push(h);
@@ -36,7 +37,7 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
       },
       { cracked: [] as typeof state.handshakes, pending: [] as typeof state.handshakes }
     );
-  }, [state.handshakes]);
+  }, [handshakes]);
 
   return (
     <motion.div
