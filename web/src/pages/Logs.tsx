@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ScrollText,
@@ -29,6 +29,36 @@ const LEVEL_COLORS: Record<LogEntry["level"], string> = {
   error: "text-danger",
   success: "text-success",
 };
+
+// ⚡ Bolt: Extract log row into a memoized component to prevent re-rendering
+// all 500 logs every time a single new log is added to the global state.
+const LogRow = React.memo(function LogRow({ log }: { log: LogEntry }) {
+  const LevelIcon = LEVEL_ICONS[log.level];
+  return (
+    <div className="log-entry flex items-start gap-sm py-[3px] px-sm rounded-[4px] hover:bg-bg-elevated/50 transition-colors">
+      <span className="text-text-muted font-mono flex-shrink-0 select-all">
+        {log.timestamp}
+      </span>
+      <LevelIcon
+        className={cn(
+          "w-3.5 h-3.5 flex-shrink-0 mt-[2px]",
+          LEVEL_COLORS[log.level]
+        )}
+      />
+      <span
+        className={cn(
+          "text-xs font-semibold uppercase w-[56px] flex-shrink-0",
+          LEVEL_COLORS[log.level]
+        )}
+      >
+        {log.level}
+      </span>
+      <span className="text-text-primary font-mono text-small flex-1">
+        {log.message}
+      </span>
+    </div>
+  );
+});
 
 export function Logs({ state }: LogsProps) {
   const [filter, setFilter] = useState("");
@@ -142,36 +172,9 @@ export function Logs({ state }: LogsProps) {
               </div>
             ) : (
               <div className="space-y-[1px]">
-                {filtered.map((log) => {
-                  const LevelIcon = LEVEL_ICONS[log.level];
-                  return (
-                    <div
-                      key={log.id}
-                      className="log-entry flex items-start gap-sm py-[3px] px-sm rounded-[4px] hover:bg-bg-elevated/50 transition-colors"
-                    >
-                      <span className="text-text-muted font-mono flex-shrink-0 select-all">
-                        {log.timestamp}
-                      </span>
-                      <LevelIcon
-                        className={cn(
-                          "w-3.5 h-3.5 flex-shrink-0 mt-[2px]",
-                          LEVEL_COLORS[log.level]
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "text-xs font-semibold uppercase w-[56px] flex-shrink-0",
-                          LEVEL_COLORS[log.level]
-                        )}
-                      >
-                        {log.level}
-                      </span>
-                      <span className="text-text-primary font-mono text-small flex-1">
-                        {log.message}
-                      </span>
-                    </div>
-                  );
-                })}
+                {filtered.map((log) => (
+                  <LogRow key={log.id} log={log} />
+                ))}
               </div>
             )}
           </div>

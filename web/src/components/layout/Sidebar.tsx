@@ -35,17 +35,26 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
-  let lastSection: string | undefined;
-
   return (
     <aside className="w-[260px] h-full border-r border-border flex-shrink-0 flex flex-col bg-bg-panel/50">
       {/* Nav Items */}
       <nav className="flex-1 py-lg px-sm overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item, index) => {
           const isActive = currentPage === item.id;
           const Icon = item.icon;
-          const showSection = item.section && item.section !== lastSection;
-          if (item.section) lastSection = item.section;
+
+          let showSection = false;
+          if (item.section) {
+            // Find the last section before this item
+            let prevSection;
+            for (let i = index - 1; i >= 0; i--) {
+              if (NAV_ITEMS[i].section) {
+                prevSection = NAV_ITEMS[i].section;
+                break;
+              }
+            }
+            showSection = item.section !== prevSection;
+          }
 
           return (
             <div key={item.id}>

@@ -42,3 +42,6 @@
 ## 2024-07-03 - James Backend Dependencies
 **Learning:** When running backend tests in the James repository (e.g., testing the FastAPI server or PyQt5 components), ensure required dependencies are installed via `pip install keyring fastapi uvicorn PyQt5 pytest httpx` to prevent module not found errors.
 **Action:** Install required dependencies before running unit tests with `python3 -m unittest discover`.
+## 2025-07-04 - React Performance - Memoizing List Items for Fast-Updating Streams
+**Learning:** In a console component like Logs.tsx that displays a large, fast-updating stream of items (e.g., up to 500 logs), rendering them as inline JSX inside a .map() causes the entire list to re-render every time a single new item is added. Even if the array reference changes, the older log objects maintain their referential identity.
+**Action:** Extract the list item into a separate component wrapped in React.memo(). This allows React to bail out of rendering the 499 unchanged items, drastically reducing main thread blocking during high-frequency log streams.

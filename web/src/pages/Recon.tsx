@@ -94,8 +94,9 @@ export function Recon({
       });
   }, [state.aps, filter, sortKey, sortDir]);
 
+  const { aps } = state;
   const { encCount, openCount, totalClients } = useMemo(() => {
-    const { enc, clients } = state.aps.reduce(
+    const { enc, clients } = aps.reduce(
       (acc, ap) => {
         if (!ap.privacy.includes("OPN")) acc.enc++;
         acc.clients += ap.clients;
@@ -105,10 +106,10 @@ export function Recon({
     );
     return {
       encCount: enc,
-      openCount: state.aps.length - enc,
+      openCount: aps.length - enc,
       totalClients: clients,
     };
-  }, [state.aps]);
+  }, [aps]);
 
   return (
     <motion.div
