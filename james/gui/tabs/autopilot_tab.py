@@ -636,7 +636,9 @@ class AutoPilotTab(QWidget):
 
 
     def _build_shortcuts(self):
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_run)
+        sc_s = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc_s.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_s.activated.connect(self._toggle_run)
 
     def _toggle_run(self):
         if self.btn_start.isEnabled():

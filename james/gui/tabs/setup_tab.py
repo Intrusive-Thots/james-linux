@@ -96,9 +96,17 @@ class SetupTab(QWidget):
         self.btn_restart_nm.clicked.connect(self.restart_nm)
         self.btn_flush_iptables.clicked.connect(self.flush_iptables)
 
-        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self.setup_ics)
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.restart_nm)
-        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self.flush_iptables)
+        sc_b = QShortcut(QKeySequence("Ctrl+B"), self)
+        sc_b.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_b.activated.connect(self.setup_ics)
+
+        sc_r = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_r.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_r.activated.connect(self.restart_nm)
+
+        sc_f = QShortcut(QKeySequence("Ctrl+F"), self)
+        sc_f.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_f.activated.connect(self.flush_iptables)
 
     def setup_ics(self):
         lan = self.txt_lan_iface.text().strip()

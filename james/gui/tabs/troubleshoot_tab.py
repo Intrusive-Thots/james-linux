@@ -145,8 +145,13 @@ class TroubleshootTab(QWidget):
         self.btn_check_deps.clicked.connect(self.check_deps)
         self.btn_install_deps.clicked.connect(self.install_deps)
 
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.check_deps)
-        QShortcut(QKeySequence("Ctrl+I"), self).activated.connect(self.install_deps)
+        sc_r = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_r.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_r.activated.connect(self.check_deps)
+
+        sc_i = QShortcut(QKeySequence("Ctrl+I"), self)
+        sc_i.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_i.activated.connect(self.install_deps)
 
         self.btn_view_logs.clicked.connect(
             lambda: self._run_cmd("dmesg | tail -n 60")

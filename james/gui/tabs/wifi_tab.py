@@ -190,23 +190,23 @@ class WiFiArsenalTab(QWidget):
     def _build_shortcuts(self):
         """Build keyboard shortcuts for the Wi-Fi Arsenal tab."""
         # Refresh Interfaces
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(
-            self.btn_refresh.click
-        )
+        sc_r = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_r.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_r.activated.connect(self.btn_refresh.click)
 
-        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(
-            self.btn_hw_info.click
-        )
+        sc_h = QShortcut(QKeySequence("Ctrl+H"), self)
+        sc_h.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_h.activated.connect(self.btn_hw_info.click)
 
         # Toggle Scan
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(
-            self._toggle_scan
-        )
+        sc_s = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc_s.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_s.activated.connect(self._toggle_scan)
 
         # Toggle Monitor Mode
-        QShortcut(QKeySequence("Ctrl+M"), self).activated.connect(
-            self._toggle_monitor
-        )
+        sc_m = QShortcut(QKeySequence("Ctrl+M"), self)
+        sc_m.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_m.activated.connect(self._toggle_monitor)
 
         # Copy Selected AP BSSID or Client MAC (only when tables are focused to avoid blocking global copy)
         ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
