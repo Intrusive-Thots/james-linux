@@ -19,7 +19,8 @@ from james.tools.constants import (
 
 @dataclass
 class Node:
-    """Represents a state or action node in the SEDGE decision graph system."""
+    """Represents a state or action node in the SEDGE decision graph system
+    (Self-Evolving Decision Graph Engine)."""
     id: str
     state_type: str  # "scan", "analysis", "action"
     metadata: Dict = field(default_factory=dict)
