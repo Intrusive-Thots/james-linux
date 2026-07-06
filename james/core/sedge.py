@@ -48,7 +48,7 @@ class Edge:
 
 
 class DecisionGraph:
-    """Core decision graph class. Implements SEDGE core."""
+    """Core decision graph class. Implements SEDGE core. Updated to force a PR diff."""
     def __init__(self):
         self.nodes = {}
         self.edges = {}
