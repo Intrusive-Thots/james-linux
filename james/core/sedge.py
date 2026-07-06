@@ -108,6 +108,7 @@ class DecisionGraph:
 
 
 class LearningEngine:
+    """Handles learning updates for the decision graph."""
     def update(self, graph: DecisionGraph,
                path: List[str], success: bool = None, outcome: str = None):
         val = success if success is not None else outcome
