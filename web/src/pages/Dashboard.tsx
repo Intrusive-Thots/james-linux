@@ -14,6 +14,7 @@ import {
   Lock,
   Unlock,
   Radio,
+} from "lucide-react";
 import { useMemo } from "react";
 import type { AppState, PageId, AP } from "../hooks/useAppState";
 import { RadarScanner } from "../components/ui/RadarScanner";
@@ -59,7 +60,6 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
     }
     return count;
   }, [state.logs]);
-  const recentLogs = useMemo(() => state.logs.slice(-8), [state.logs]);
 
   const activeAttack = state.attack.stage !== "idle";
   const selectedAP = state.selectedAP;
@@ -384,11 +384,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                 value={state.attack.stage === "cracking" ? "Hashcat Running" : "Standby"}
                 status={state.attack.stage === "cracking" ? "active" : "idle"}
               />
-              <StatusRow
-                label="Uptime"
-                value={formatUptime(state.sessionUptime)}
-                status="ok"
-              />
+
             </div>
           </motion.div>
 
@@ -531,9 +527,3 @@ function StatusRow({
   );
 }
 
-function formatUptime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}

@@ -175,7 +175,7 @@ export default function App() {
             break;
           case "Digit5":
             e.preventDefault();
-            setPage("agent");
+            setWorkspace("agent");
             break;
           case "Digit6":
             e.preventDefault();
@@ -183,7 +183,7 @@ export default function App() {
             break;
           case "Digit7":
             e.preventDefault();
-            setPage("settings");
+            setWorkspace("settings");
             break;
         }
       }
