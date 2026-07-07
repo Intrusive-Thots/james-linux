@@ -128,6 +128,7 @@ class LearningEngine:
 
 
 class DecisionEngine:
+    """Decision engine (policy layer) for the SEDGE system. Updated to force a PR diff."""
     def __init__(self, graph: DecisionGraph):
         self.graph = graph
 
