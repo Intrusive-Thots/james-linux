@@ -29,6 +29,8 @@ interface ChatMessage {
 
 export function Agent({ state, connected, send, addLog, lastAgentResponse }: AgentProps) {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [autoPilotRunning, setAutoPilotRunning] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -72,6 +74,8 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     }
 
     setInput("");
+    setHistory((prev) => [...prev, cmd]);
+    setHistoryIdx(-1);
     addMessage("user", cmd);
     setProcessing(true);
     send("agent_command", { command: cmd });
@@ -111,6 +115,25 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendCommand();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (history.length > 0) {
+        const nextIdx = historyIdx === -1 ? history.length - 1 : Math.max(0, historyIdx - 1);
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx]);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (history.length > 0 && historyIdx !== -1) {
+        const nextIdx = historyIdx + 1;
+        if (nextIdx >= history.length) {
+          setHistoryIdx(-1);
+          setInput("");
+        } else {
+          setHistoryIdx(nextIdx);
+          setInput(history[nextIdx]);
+        }
+      }
     }
   };
 
