@@ -4,8 +4,6 @@ import {
   FileKey,
   Key,
   Wifi,
-  Shield,
-  Activity,
   AlertTriangle,
   ArrowRight,
   Crosshair,
@@ -21,6 +19,7 @@ import type { AppState, PageId, AP } from "../hooks/useAppState";
 import { RadarScanner } from "../components/ui/RadarScanner";
 import { SignalScope } from "../components/ui/SignalScope";
 import { ProgressBar } from "../components/ui/ProgressBar";
+import { ActivityCard } from "../components/ui/ActivityCard";
 import { cn } from "../lib/utils";
 interface DashboardProps {
   state: AppState;
@@ -328,14 +327,6 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                     active={state.scanning}
                   />
                   <ActionButton
-                    label="Launch Auto-Pilot"
-                    description="Autonomous scan/capture/crack pipeline"
-                    icon={Shield}
-                    onClick={() => onNavigate("attacks")}
-                    variant="danger"
-                    active={state.attack.stage !== "idle" && !selectedAP}
-                  />
-                  <ActionButton
                     label="View Handshake Vault"
                     description={`${pendingCount} pending · ${crackedCount} cracked keys`}
                     icon={FileKey}
@@ -355,10 +346,10 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
         </div>
 
-        {/* System Status Table + Recent Logs */}
+        {/* System Status + Activity */}
         <div className="grid grid-cols-12 gap-lg">
           {/* System Status Details */}
-          <motion.div variants={item} className="col-span-5 card">
+          <motion.div variants={item} className="col-span-7 card">
             <div className="card-header mb-md pb-xs">
               <div className="card-title">
                 <Wifi className="w-5 h-5 text-accent-cyan" />
@@ -394,61 +385,16 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                 status={state.attack.stage === "cracking" ? "active" : "idle"}
               />
               <StatusRow
-                label="Uptime Ticker"
+                label="Uptime"
                 value={formatUptime(state.sessionUptime)}
                 status="ok"
               />
             </div>
           </motion.div>
 
-          {/* Recent Activity Logs */}
-          <motion.div variants={item} className="col-span-7 card flex flex-col">
-            <div className="card-header pb-xs mb-md">
-              <div className="card-title">
-                <Activity className="w-5 h-5 text-accent-cyan" />
-                Console Logs
-              </div>
-              <button
-                className="btn-ghost btn-sm text-xs font-semibold"
-                onClick={() => onNavigate("logs")}
-              >
-                Open Terminal
-                <ArrowRight className="w-3.5 h-3.5 ml-xs" />
-              </button>
-            </div>
-
-            <div className="flex-1 min-h-[160px] bg-black/45 border border-border/40 rounded-btn p-md font-mono text-small overflow-y-auto max-h-[220px]">
-              {recentLogs.length === 0 ? (
-                <p className="text-text-muted py-xl text-center">
-                  No activity logged. Trigger a scan or run an attack command to output terminal logs.
-                </p>
-              ) : (
-                <div className="space-y-[4px]">
-                  {recentLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex items-start gap-xs text-[11px] leading-relaxed border-b border-white/[0.02] pb-[2px]"
-                    >
-                      <span className="text-text-muted flex-shrink-0 select-none">
-                        [{log.timestamp}]
-                      </span>
-                      <span
-                        className={cn(
-                          "font-bold uppercase tracking-wider select-none text-[9px] px-1 py-[1px] rounded-[3px] border mr-xs min-w-[50px] text-center",
-                          log.level === "info" && "bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20",
-                          log.level === "warn" && "bg-warning/10 text-warning border-warning/20",
-                          log.level === "error" && "bg-danger/10 text-danger border-danger/20",
-                          log.level === "success" && "bg-success/10 text-success border-success/20"
-                        )}
-                      >
-                        {log.level}
-                      </span>
-                      <span className="text-text-primary whitespace-pre-wrap">{log.message}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Activity Card */}
+          <motion.div variants={item} className="col-span-5">
+            <ActivityCard state={state} />
           </motion.div>
         </div>
       </div>

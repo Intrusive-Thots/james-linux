@@ -9,3 +9,9 @@ Action: Always build deep, step-by-step progress tracking for long-running pente
 ## 2026-06-01 - Smart Attack Advisor (AP Analysis → Auto-Strategy)
 Learning: Beginners should never choose between "PMKID", "deauth", or "handshake" — these terms mean nothing to them. By analyzing the target AP's properties (WPA2/WPA3, client count, signal strength), we can auto-select the optimal attack and explain the reasoning in one sentence of plain English. The key insight: AP metadata (clients=0 → PMKID, clients>0 → deauth, WPA3 → PMKID-only warning, OPN → skip) is a perfect decision tree that replaces ALL strategy UI for beginners. The recommendation badge (color + icon + explanation) gives confidence without requiring knowledge.
 Action: For any multi-strategy tool, build an analysis layer that examines the target's properties and auto-selects the best approach, showing the user a plain-English recommendation instead of technical options. Always include a manual override for power users.
+
+### Epic Password Cracked Celebration Overlay
+**Goal:** Create a massive, beautiful visual reward when a password is fully cracked, making the user feel like an elite hacker and massively improving the beginner wow-factor.
+**Action:** Created `PasswordCrackedOverlay.tsx`, a full-screen semi-transparent takeover that triggers upon a successful WPA decryption. It features a hacker-matrix style text descramble animation that resolves into the cracked password, glowing "SYSTEM COMPROMISED" neon aesthetics, and an easy one-click copy button.
+**Why it works:** Beginners play games for the reward. Seeing a tiny "Success: Key found" text is anti-climactic after waiting 5 minutes for a crack to finish. The Epic Overlay provides instant dopamine and reinforces that the tool is incredibly powerful.
+**Next steps for this pattern:** We can add similar full-screen "Danger" overlays if an Evil Twin attack successfully captures a portal login, or if WPS Pixie Dust succeeds.

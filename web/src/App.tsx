@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { TopNav } from "./components/layout/TopNav";
-import { Sidebar } from "./components/layout/Sidebar";
+import { WorkspaceTabs } from "./components/layout/WorkspaceTabs";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Dashboard } from "./pages/Dashboard";
 import { Recon } from "./pages/Recon";
 import { Attacks } from "./pages/Attacks";
 import { Handshakes } from "./pages/Handshakes";
 import { Logs } from "./pages/Logs";
-import { Agent } from "./pages/Agent";
+import { AutoPilot } from "./pages/AutoPilot";
+import { AgentConsole } from "./pages/AgentConsole";
 import { SettingsPage } from "./pages/Settings";
 import { useAppState } from "./hooks/useAppState";
 import { useWebSocket, type WSMessage } from "./hooks/useWebSocket";
@@ -17,6 +18,8 @@ const API_WS_URL = import.meta.env.VITE_API_WS_URL || "ws://localhost:8745/ws";
 export default function App() {
   const {
     state,
+    setWorkspace,
+    setSubPage,
     setPage,
     addLog,
     setAdapter,
@@ -90,6 +93,7 @@ export default function App() {
 
         case "error":
           addLog("error", msg.message);
+          window.dispatchEvent(new CustomEvent("ws_error", { detail: msg }));
           break;
 
         case "handshake_data":
@@ -124,6 +128,7 @@ export default function App() {
           break;
 
         case "result":
+          window.dispatchEvent(new CustomEvent("ws_result", { detail: msg }));
           // Forward result messages for agent commands
           if (msg.action === "agent_command" && msg.data?.response) {
             setLastAgentResponse({ response: msg.data.response, ts: Date.now() });
@@ -211,78 +216,136 @@ export default function App() {
     addLog("info", "Scan stopped. Restoring managed mode.");
   }, [state.adapter, connected, send, addLog, setAdapter, setScanning]);
 
+  // ── Logs shortcut → navigate to agent/logs ─────────────────
+  const handleLogsClick = useCallback(() => {
+    setWorkspace("agent");
+    setSubPage("logs");
+  }, [setWorkspace, setSubPage]);
+
   // ── Page rendering ────────────────────────────────────────
   const renderPage = () => {
-    switch (state.currentPage) {
-      case "dashboard":
-        return (
-          <Dashboard
-            state={state}
-            onNavigate={setPage}
-            send={send}
-            onSelectAP={selectAP}
-          />
-        );
-      case "recon":
-        return (
-          <Recon
-            state={state}
-            onSelectAP={selectAP}
-            onStartScan={handleStartScan}
-            onStopScan={handleStopScan}
-            onNavigate={setPage}
-            send={send}
-            addLog={addLog}
-          />
-        );
-      case "attacks":
-        return (
-          <Attacks
-            state={state}
-            connected={connected}
-            onSetAttack={setAttack}
-            addLog={addLog}
-            send={send}
-          />
-        );
-      case "handshakes":
-        return <Handshakes state={state} onRemoveHandshake={removeHandshake} />;
-      case "agent":
-        return (
-          <Agent
-            state={state}
-            connected={connected}
-            send={send}
-            addLog={addLog}
-            lastAgentResponse={lastAgentResponse}
-          />
-        );
-      case "logs":
-        return <Logs state={state} />;
-      case "settings":
-        return <SettingsPage />;
-      default:
-        return (
-          <Dashboard
-            state={state}
-            onNavigate={setPage}
-            send={send}
-            onSelectAP={selectAP}
-          />
-        );
+    const { currentWorkspace, currentSubPage } = state;
+
+    // AGENT workspace
+    if (currentWorkspace === "agent") {
+      switch (currentSubPage) {
+        case "dashboard":
+          return (
+            <Dashboard
+              state={state}
+              onNavigate={setPage}
+              send={send}
+              onSelectAP={selectAP}
+            />
+          );
+        case "recon":
+          return (
+            <Recon
+              state={state}
+              onSelectAP={selectAP}
+              onStartScan={handleStartScan}
+              onStopScan={handleStopScan}
+              onNavigate={setPage}
+              send={send}
+              addLog={addLog}
+            />
+          );
+        case "attacks":
+          return (
+            <Attacks
+              state={state}
+              connected={connected}
+              onSetAttack={setAttack}
+              addLog={addLog}
+              send={send}
+            />
+          );
+        case "handshakes":
+          return <Handshakes state={state} onRemoveHandshake={removeHandshake} />;
+        case "logs":
+          return <Logs state={state} />;
+        default:
+          return (
+            <Dashboard
+              state={state}
+              onNavigate={setPage}
+              send={send}
+              onSelectAP={selectAP}
+            />
+          );
+      }
     }
+
+    // AUTO workspace
+    if (currentWorkspace === "auto") {
+      switch (currentSubPage) {
+        case "autopilot":
+          return (
+            <AutoPilot
+              state={state}
+              connected={connected}
+              send={send}
+              addLog={addLog}
+            />
+          );
+        case "console":
+          return (
+            <AgentConsole
+              state={state}
+              connected={connected}
+              send={send}
+              addLog={addLog}
+              lastAgentResponse={lastAgentResponse}
+            />
+          );
+        default:
+          return (
+            <AutoPilot
+              state={state}
+              connected={connected}
+              send={send}
+              addLog={addLog}
+            />
+          );
+      }
+    }
+
+    // SETTINGS workspace
+    if (currentWorkspace === "settings") {
+      return (
+        <SettingsPage
+          activePanel={currentSubPage}
+          state={state}
+          setAdapter={setAdapter}
+          send={send}
+          connected={connected}
+        />
+      );
+    }
+
+    return (
+      <Dashboard
+        state={state}
+        onNavigate={setPage}
+        send={send}
+        onSelectAP={selectAP}
+      />
+    );
   };
 
   return (
     <div className="h-screen w-screen flex flex-col bg-bg overflow-hidden">
-      <TopNav state={state} connected={connected} />
+      <TopNav state={state} connected={connected} onLogsClick={handleLogsClick} />
+      <WorkspaceTabs
+        currentWorkspace={state.currentWorkspace}
+        currentSubPage={state.currentSubPage}
+        onWorkspaceChange={setWorkspace}
+        onSubPageChange={setSubPage}
+      />
 
-      <div className="flex flex-1 min-h-0">
-        <Sidebar currentPage={state.currentPage} onNavigate={setPage} />
-        <main className="flex-1 min-w-0 overflow-hidden bg-bg">
-          {renderPage()}
-        </main>
-      </div>
+      <main className="flex-1 min-h-0 overflow-hidden bg-bg">
+        {renderPage()}
+      </main>
 
       <StatusBar state={state} />
     </div>

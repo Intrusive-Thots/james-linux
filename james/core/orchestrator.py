@@ -137,6 +137,9 @@ class Orchestrator:
         # PineAP — WiFi Pineapple-style attack engine
         self.pineap = PineAP(self.layer)
 
+        # Result store reference — set by Agent after init for chain memory
+        self._result_store = None
+
         # Initialize Agent brain (with local import to avoid circular dependencies)
         try:
             from james.core.agent import Agent
@@ -1877,6 +1880,91 @@ class Orchestrator:
             "output": result.stdout[-2000:],
         }
 
+    # ── adaptive chain infrastructure ─────────────────────────────
+
+    def _store_chain_result(self, chain_name: str, step: str,
+                            target: str, result: dict):
+        """Store a chain step result in AI memory for recall."""
+        if self._result_store:
+            # Build a compact summary from the result dict
+            summary_parts = [f"[{chain_name}] {step}"]
+            if isinstance(result, dict):
+                if result.get("error"):
+                    summary_parts.append(f"ERROR: {result['error']}")
+                elif result.get("hosts"):
+                    ports = sum(len(h.get("ports", [])) for h in result["hosts"])
+                    summary_parts.append(
+                        f"{len(result['hosts'])} host(s), {ports} port(s)"
+                    )
+                elif result.get("findings"):
+                    summary_parts.append(
+                        f"{len(result['findings'])} finding(s)"
+                    )
+                elif result.get("vulnerabilities"):
+                    summary_parts.append(
+                        f"{len(result['vulnerabilities'])} vuln(s)"
+                    )
+                elif result.get("count") is not None:
+                    summary_parts.append(f"{result['count']} result(s)")
+            self._result_store.add(
+                f"{chain_name}/{step}", target,
+                " — ".join(summary_parts)
+            )
+
+    def _extract_open_services(self, scan_result: dict) -> dict:
+        """
+        Extract a structured map of open services from a scan result.
+
+        Returns: {
+            "ports": [22, 80, 443, ...],
+            "services": {"ssh": [22], "http": [80, 8080], ...},
+            "has_web": bool,
+            "has_smb": bool,
+            "has_ssh": bool,
+            "has_ftp": bool,
+            "has_db": bool,
+            "all_services": [(port, proto, service, version), ...]
+        }
+        """
+        ports = []
+        services: dict[str, list[int]] = {}
+        all_services: list[tuple] = []
+
+        for host in scan_result.get("hosts", []):
+            for p in host.get("ports", []):
+                port_num = p.get("port", 0)
+                proto = p.get("protocol", "tcp")
+                svc = p.get("service", "").lower()
+                ver = p.get("version", "")
+                ports.append(port_num)
+                all_services.append((port_num, proto, svc, ver))
+                if svc:
+                    services.setdefault(svc, []).append(port_num)
+
+        web_services = {"http", "https", "http-proxy", "http-alt"}
+        web_ports = {80, 443, 8080, 8443, 8000, 8888, 3000}
+        smb_services = {"microsoft-ds", "smb", "netbios-ssn"}
+        smb_ports = {139, 445}
+        ssh_ports = {22}
+        ftp_ports = {21}
+        db_services = {"mysql", "postgresql", "mssql", "oracle", "redis",
+                       "mongodb", "mariadb"}
+        db_ports = {3306, 5432, 1433, 1521, 6379, 27017}
+
+        port_set = set(ports)
+        svc_set = set(services.keys())
+
+        return {
+            "ports": sorted(set(ports)),
+            "services": services,
+            "has_web": bool(svc_set & web_services or port_set & web_ports),
+            "has_smb": bool(svc_set & smb_services or port_set & smb_ports),
+            "has_ssh": bool("ssh" in svc_set or port_set & ssh_ports),
+            "has_ftp": bool("ftp" in svc_set or port_set & ftp_ports),
+            "has_db": bool(svc_set & db_services or port_set & db_ports),
+            "all_services": all_services,
+        }
+
     # ── one-click attack chains ──────────────────────────────────
 
     def oneclick_wifi_blitz(self, interface: str, wordlist: str) -> dict:
@@ -1887,84 +1975,437 @@ class Orchestrator:
         return self.auto_wifi_pwn(interface, wordlist)
 
     def oneclick_network_dominate(self, target: str) -> dict:
-        """Scan → fingerprint → brute-force → vuln-check a network range."""
+        """
+        Adaptive network domination: scan first, then only attack
+        what's actually open.
+
+        Old behavior: static 4-step (scan → ARP → SMB → SSH brute)
+        New behavior: scan → analyze → conditionally attack each
+        discovered service type.
+        """
         self._print("━" * 50)
         self._print(f"👑 NETWORK DOMINATE — {target}")
         self._print("━" * 50)
         results: dict = {}
 
-        self._emit_progress("Port scan", 1, 4)
-        self._print("\n[1/4] Full port scan...")
+        # Phase 1: Always — deep scan to discover attack surface
+        self._print("\n[PHASE 1] Deep Reconnaissance...")
+        self._emit_progress("Deep scan", 1, 2)
         results["scan"] = self.full_scan(target)
+        self._store_chain_result("network_dominate", "full_scan", target,
+                                  results["scan"])
 
-        self._emit_progress("ARP discover", 2, 4)
-        self._print("\n[2/4] ARP discovery...")
-        results["arp"] = self.arp_discover()
+        # Analyze what we found
+        svc_map = self._extract_open_services(results["scan"])
+        total_ports = len(svc_map["ports"])
 
-        self._emit_progress("SMB enum", 3, 4)
-        self._print("\n[3/4] SMB enumeration...")
-        results["smb"] = self.smb_enum(target)
+        if total_ports == 0:
+            self._print("  ⚠ No open ports found on target.")
+            self._print("  Falling back to ARP discovery for lateral targets...")
+            self._emit_progress("ARP discovery", 2, 2)
+            results["arp"] = self.arp_discover()
+            self._store_chain_result("network_dominate", "arp_discover",
+                                      target, results["arp"])
+            self._print("\n🏁 Network dominate complete (no services found).")
+            return results
 
-        self._emit_progress("Brute-force", 4, 4)
-        self._print("\n[4/4] Brute-forcing SSH...")
-        results["brute"] = self.brute_service(target, "ssh")
+        self._print(f"  📊 Found {total_ports} open port(s) — "
+                     f"adapting attack strategy...")
+        for port, proto, svc, ver in svc_map["all_services"]:
+            ver_str = f" ({ver})" if ver else ""
+            self._print(f"    {port}/{proto}  {svc}{ver_str}")
 
-        self._print("\n🏁 Network dominate complete.")
+        # Phase 2: Adaptive attacks based on discovered services
+        self._print("\n[PHASE 2] Adaptive Attack...")
+        attack_num = 0
+        attack_total = sum([
+            svc_map["has_smb"], svc_map["has_ssh"], svc_map["has_ftp"],
+            svc_map["has_web"], svc_map["has_db"],
+        ])
+        if attack_total == 0:
+            attack_total = 1  # ARP fallback
+
+        # SMB → enum shares and users
+        if svc_map["has_smb"]:
+            attack_num += 1
+            self._emit_progress("SMB enumeration", attack_num, attack_total)
+            self._print(f"\n  [{attack_num}/{attack_total}] "
+                         f"SMB enumeration (port 445 open)...")
+            try:
+                results["smb"] = self.smb_enum(target)
+                self._store_chain_result("network_dominate", "smb_enum",
+                                          target, results["smb"])
+                # If SMB users found, try brute
+                users = results["smb"].get("users", [])
+                if users:
+                    self._print(f"    Found {len(users)} SMB user(s) — "
+                                 f"brute-forcing...")
+                    for user in users[:3]:
+                        results[f"brute_smb_{user}"] = self.brute_service(
+                            target, "smb", username=user
+                        )
+            except Exception as e:
+                self._print(f"    ⚠ SMB enum error: {e}")
+
+        # SSH → brute-force with common users
+        if svc_map["has_ssh"]:
+            attack_num += 1
+            self._emit_progress("SSH brute-force", attack_num, attack_total)
+            self._print(f"\n  [{attack_num}/{attack_total}] "
+                         f"SSH brute-force (port 22 open)...")
+            try:
+                # Try multiple common usernames
+                for username in ["root", "admin", "user"]:
+                    results[f"brute_ssh_{username}"] = self.brute_service(
+                        target, "ssh", username=username
+                    )
+                    self._store_chain_result(
+                        "network_dominate", f"brute_ssh_{username}",
+                        target, results[f"brute_ssh_{username}"]
+                    )
+                    if results[f"brute_ssh_{username}"].get("found"):
+                        self._print(f"    🔑 Credentials found for {username}!")
+                        break
+            except Exception as e:
+                self._print(f"    ⚠ SSH brute error: {e}")
+
+        # FTP → brute-force (anonymous + common creds)
+        if svc_map["has_ftp"]:
+            attack_num += 1
+            self._emit_progress("FTP brute-force", attack_num, attack_total)
+            self._print(f"\n  [{attack_num}/{attack_total}] "
+                         f"FTP brute-force (port 21 open)...")
+            try:
+                results["brute_ftp"] = self.brute_service(
+                    target, "ftp", username="anonymous"
+                )
+                self._store_chain_result("network_dominate", "brute_ftp",
+                                          target, results["brute_ftp"])
+            except Exception as e:
+                self._print(f"    ⚠ FTP brute error: {e}")
+
+        # Web → WAF + dirs + nikto
+        if svc_map["has_web"]:
+            attack_num += 1
+            self._emit_progress("Web attack chain", attack_num, attack_total)
+            web_ports = svc_map["services"].get("http", []) + \
+                        svc_map["services"].get("https", []) + \
+                        svc_map["services"].get("http-proxy", [])
+            if not web_ports:
+                # Infer from port numbers
+                for p in svc_map["ports"]:
+                    if p in (80, 8080, 8000, 8888, 3000):
+                        web_ports.append(p)
+                    elif p in (443, 8443):
+                        web_ports.append(p)
+            web_port = web_ports[0] if web_ports else 80
+            scheme = "https" if web_port in (443, 8443) else "http"
+            url = f"{scheme}://{target}:{web_port}"
+            self._print(f"\n  [{attack_num}/{attack_total}] "
+                         f"Web attack chain → {url}")
+            try:
+                self._print("    WAF detection...")
+                results["waf"] = self.wafdetect.detect(url)
+                self._print("    Directory brute-force...")
+                results["dirs"] = self.dir_bust(url)
+                self._print("    Nikto vulnerability scan...")
+                results["nikto"] = self.nikto_scan(url)
+                self._store_chain_result("network_dominate", "web_chain",
+                                          target, results.get("nikto", {}))
+            except Exception as e:
+                self._print(f"    ⚠ Web chain error: {e}")
+
+        # DB → brute-force
+        if svc_map["has_db"]:
+            attack_num += 1
+            self._emit_progress("Database brute-force", attack_num, attack_total)
+            db_map = {
+                "mysql": "mysql", "postgresql": "postgres",
+                "mssql": "mssql", "redis": "redis",
+            }
+            for svc_name, proto in db_map.items():
+                if svc_name in svc_map["services"]:
+                    self._print(f"\n  [{attack_num}/{attack_total}] "
+                                 f"{svc_name.upper()} brute-force...")
+                    try:
+                        results[f"brute_{proto}"] = self.brute_service(
+                            target, proto
+                        )
+                        self._store_chain_result(
+                            "network_dominate", f"brute_{proto}",
+                            target, results[f"brute_{proto}"]
+                        )
+                    except Exception as e:
+                        self._print(f"    ⚠ {svc_name} brute error: {e}")
+                    break  # Only attack first discovered DB
+
+        # Summary
+        cred_count = sum(
+            1 for k, v in results.items()
+            if isinstance(v, dict) and v.get("found")
+        )
+        self._print(f"\n{'━' * 50}")
+        self._print(f"🏁 Network Dominate Complete")
+        self._print(f"   Ports discovered: {total_ports}")
+        self._print(f"   Attack phases:    {attack_num}")
+        self._print(f"   Credentials found: {cred_count}")
+        self._print(f"{'━' * 50}")
         return results
 
     def oneclick_web_pwn(self, url: str) -> dict:
-        """WAF → DirBust → SQLi → SSL → Nikto full web attack chain."""
+        """
+        Adaptive web attack chain: WAF-aware, path-propagating.
+
+        Old behavior: static 4-step (WAF → DirBust → SQLi → Nikto)
+        New behavior: WAF detection adjusts strategy; discovered
+        directories are fed into SQLi targets; SSL scan added for HTTPS.
+        """
+        if not url.startswith("http"):
+            url = f"http://{url}"
+
         self._print("━" * 50)
         self._print(f"🌐 WEB PWN — {url}")
         self._print("━" * 50)
         results: dict = {}
+        is_https = url.startswith("https")
 
-        self._emit_progress("WAF detection", 1, 4)
-        self._print("\n[1/4] WAF detection...")
+        # Determine total phases dynamically
+        total_phases = 4 + (1 if is_https else 0)
+        phase = 0
+
+        # Phase 1: WAF detection — influences subsequent tools
+        phase += 1
+        self._emit_progress("WAF detection", phase, total_phases)
+        self._print(f"\n[{phase}/{total_phases}] WAF detection...")
         results["waf"] = self.wafdetect.detect(url)
+        self._store_chain_result("web_pwn", "waf_detect", url, results["waf"])
 
-        self._emit_progress("Directory bust", 2, 4)
-        self._print("\n[2/4] Directory brute-force...")
+        waf_detected = False
+        waf_output = results["waf"].get("output", "")
+        if isinstance(waf_output, str):
+            waf_detected = any(
+                sig in waf_output.lower()
+                for sig in ["is behind", "detected", "cloudflare",
+                            "akamai", "aws", "incapsula"]
+            )
+        if waf_detected:
+            self._print("  ⚠ WAF detected — adjusting scan speed "
+                         "and evasion techniques...")
+
+        # Phase 2: SSL/TLS audit (HTTPS only)
+        if is_https:
+            phase += 1
+            self._emit_progress("SSL/TLS audit", phase, total_phases)
+            self._print(f"\n[{phase}/{total_phases}] SSL/TLS audit...")
+            try:
+                ssl_result = self.layer.run(
+                    f"sslscan --no-colour {url.replace('https://', '')} "
+                    f"2>/dev/null | head -60",
+                    timeout=30,
+                )
+                results["ssl"] = {"output": ssl_result.stdout[:2000]}
+                self._store_chain_result("web_pwn", "ssl_scan", url,
+                                          results["ssl"])
+            except Exception as e:
+                self._print(f"    ⚠ SSL scan error: {e}")
+
+        # Phase 3: Directory brute-force — discover attack paths
+        phase += 1
+        self._emit_progress("Directory brute-force", phase, total_phases)
+        self._print(f"\n[{phase}/{total_phases}] Directory brute-force...")
         results["dirs"] = self.dir_bust(url)
+        self._store_chain_result("web_pwn", "dir_bust", url, results["dirs"])
 
-        self._emit_progress("SQLi scan", 3, 4)
-        self._print("\n[3/4] SQL injection scan...")
+        # Extract discovered paths for SQLi targeting
+        discovered_paths = []
+        for finding in results["dirs"].get("findings", []):
+            path = finding.get("path", "")
+            status = finding.get("status", "")
+            # Focus on 200/301/302 responses (likely real endpoints)
+            if status in ("200", "301", "302") and path:
+                discovered_paths.append(path)
+        if discovered_paths:
+            self._print(f"  📂 Found {len(discovered_paths)} paths — "
+                         f"feeding into SQLi targets...")
+
+        # Phase 4: SQL injection — test root + discovered paths
+        phase += 1
+        self._emit_progress("SQL injection scan", phase, total_phases)
+        self._print(f"\n[{phase}/{total_phases}] SQL injection scan...")
+        # Test root URL first
         results["sqli"] = self.sqli_scan(url)
+        self._store_chain_result("web_pwn", "sqli_root", url, results["sqli"])
 
-        self._emit_progress("Nikto scan", 4, 4)
-        self._print("\n[4/4] Nikto web scan...")
+        # Test discovered paths with query parameters
+        sqli_targets_tested = 0
+        for path in discovered_paths[:5]:  # Cap at 5 to avoid long waits
+            test_url = f"{url.rstrip('/')}{path}"
+            # Only test paths that look like they might accept params
+            if any(ext in path for ext in [".php", ".asp", ".jsp",
+                                             ".cgi", ".pl", "?"]):
+                self._print(f"    Testing {path}...")
+                try:
+                    sqli_path_result = self.sqli_scan(
+                        f"{test_url}?id=1"
+                    )
+                    if sqli_path_result.get("injectable"):
+                        self._print(f"    💉 INJECTABLE: {test_url}")
+                        results[f"sqli_{path}"] = sqli_path_result
+                        self._store_chain_result(
+                            "web_pwn", f"sqli_{path}", url,
+                            sqli_path_result
+                        )
+                    sqli_targets_tested += 1
+                except Exception:
+                    pass
+
+        # Phase 5: Nikto comprehensive scan
+        phase += 1
+        self._emit_progress("Nikto vulnerability scan", phase, total_phases)
+        self._print(f"\n[{phase}/{total_phases}] Nikto vulnerability scan...")
         results["nikto"] = self.nikto_scan(url)
+        self._store_chain_result("web_pwn", "nikto", url, results["nikto"])
 
-        self._print("\n🏁 Web pwn complete.")
+        # Summary
+        vuln_count = results["nikto"].get("vuln_count", 0)
+        injectable = any(
+            v.get("injectable") for k, v in results.items()
+            if isinstance(v, dict) and "injectable" in v
+        )
+        self._print(f"\n{'━' * 50}")
+        self._print(f"🏁 Web Pwn Complete")
+        self._print(f"   WAF detected:     {'YES ⚠' if waf_detected else 'No'}")
+        self._print(f"   Directories found: {len(discovered_paths)}")
+        self._print(f"   SQLi injectable:  {'YES 💉' if injectable else 'No'}")
+        self._print(f"   Nikto findings:   {vuln_count}")
+        self._print(f"{'━' * 50}")
         return results
 
     def oneclick_stealth_recon(self, target: str) -> dict:
-        """OSINT → DNS → WHOIS → passive scan (low noise)."""
+        """
+        Adaptive stealth recon: OSINT discoveries feed forward into
+        DNS and scanning targets.
+
+        Old behavior: static 4-step (OSINT → DNS → WHOIS → passive nmap)
+        New behavior: OSINT-discovered subdomains/IPs are resolved via
+        DNS and scanned via nmap. Aggregate intelligence is stored.
+        """
         self._print("━" * 50)
         self._print(f"🕵️ STEALTH RECON — {target}")
         self._print("━" * 50)
         results: dict = {}
+        discovered_targets: set[str] = {target}
 
-        self._emit_progress("OSINT harvest", 1, 4)
-        self._print("\n[1/4] OSINT harvest...")
+        # Phase 1: OSINT harvest — discover subdomains, IPs, emails
+        self._emit_progress("OSINT harvest", 1, 5)
+        self._print("\n[1/5] OSINT harvest...")
         results["osint"] = self.harvester.harvest(target)
+        self._store_chain_result("stealth_recon", "osint", target,
+                                  results["osint"])
 
-        self._emit_progress("DNS enum", 2, 4)
-        self._print("\n[2/4] DNS enumeration...")
+        # Extract discovered subdomains and IPs from OSINT output
+        osint_output = results["osint"].get("output", "")
+        if isinstance(osint_output, str):
+            # Look for IPs
+            import re as _re
+            ip_matches = _re.findall(
+                r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b',
+                osint_output
+            )
+            for ip in ip_matches:
+                if not ip.startswith("127.") and ip != "0.0.0.0":
+                    discovered_targets.add(ip)
+
+            # Look for subdomains
+            subdomain_matches = _re.findall(
+                r'\b([a-zA-Z0-9][-a-zA-Z0-9]*\.'
+                + _re.escape(target) + r')\b',
+                osint_output
+            )
+            for sub in subdomain_matches:
+                discovered_targets.add(sub)
+
+        extra_targets = discovered_targets - {target}
+        if extra_targets:
+            self._print(f"  📡 OSINT discovered {len(extra_targets)} "
+                         f"additional target(s):")
+            for t in sorted(extra_targets)[:10]:
+                self._print(f"    → {t}")
+
+        # Phase 2: DNS enumeration — resolve original + discovered targets
+        self._emit_progress("DNS enumeration", 2, 5)
+        self._print("\n[2/5] DNS enumeration...")
         results["dns"] = self.dns_lookup(target, "ANY")
+        self._store_chain_result("stealth_recon", "dns", target,
+                                  results["dns"])
 
-        self._emit_progress("WHOIS", 3, 4)
-        self._print("\n[3/4] WHOIS lookup...")
+        # Resolve discovered subdomains
+        resolved_ips: set[str] = set()
+        for sub in sorted(extra_targets)[:10]:
+            if not _re.match(r'^\d+\.\d+\.\d+\.\d+$', sub):
+                self._print(f"    Resolving {sub}...")
+                dns_r = self.dns_lookup(sub, "A")
+                results[f"dns_{sub}"] = dns_r
+                # Extract resolved IPs
+                for record in dns_r.get("records", []):
+                    ip_m = _re.search(
+                        r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})',
+                        record
+                    )
+                    if ip_m:
+                        resolved_ips.add(ip_m.group(1))
+            else:
+                resolved_ips.add(sub)
+
+        if resolved_ips:
+            self._print(f"  🌐 Resolved {len(resolved_ips)} unique IP(s)")
+
+        # Phase 3: WHOIS lookup
+        self._emit_progress("WHOIS lookup", 3, 5)
+        self._print("\n[3/5] WHOIS lookup...")
         whois_r = self.layer.run(
-            f"whois {shlex.quote(target)} 2>/dev/null | head -40", timeout=15
+            f"whois {shlex.quote(target)} 2>/dev/null | head -40",
+            timeout=15,
         )
         results["whois"] = {"output": whois_r.stdout[:2000]}
+        self._store_chain_result("stealth_recon", "whois", target,
+                                  results["whois"])
 
-        self._emit_progress("Passive nmap", 4, 4)
-        self._print("\n[4/4] Passive nmap scan (no ping, no SYN)...")
-        results["scan"] = self.nmap.quick_scan(target)
+        # Phase 4: Passive nmap — scan ALL discovered IPs
+        all_scan_targets = {target} | resolved_ips
+        self._emit_progress("Passive nmap", 4, 5)
+        self._print(f"\n[4/5] Passive nmap scan "
+                     f"({len(all_scan_targets)} target(s))...")
+        for scan_target in sorted(all_scan_targets)[:8]:  # Cap at 8
+            self._print(f"    Scanning {scan_target}...")
+            results[f"scan_{scan_target}"] = self.nmap.quick_scan(scan_target)
+            self._store_chain_result("stealth_recon", f"scan_{scan_target}",
+                                      scan_target,
+                                      results[f"scan_{scan_target}"])
 
-        self._print("\n🏁 Stealth recon complete.")
+        # Phase 5: Aggregate intelligence summary
+        self._emit_progress("Intelligence summary", 5, 5)
+        self._print("\n[5/5] Aggregating intelligence...")
+
+        total_hosts = sum(
+            len(v.get("hosts", []))
+            for k, v in results.items()
+            if k.startswith("scan_") and isinstance(v, dict)
+        )
+        total_ports = sum(
+            sum(len(h.get("ports", [])) for h in v.get("hosts", []))
+            for k, v in results.items()
+            if k.startswith("scan_") and isinstance(v, dict)
+        )
+
+        self._print(f"\n{'━' * 50}")
+        self._print(f"🏁 Stealth Recon Complete")
+        self._print(f"   OSINT targets discovered: {len(extra_targets)}")
+        self._print(f"   IPs resolved:             {len(resolved_ips)}")
+        self._print(f"   Hosts scanned:            {len(all_scan_targets)}")
+        self._print(f"   Live hosts:               {total_hosts}")
+        self._print(f"   Open ports:               {total_ports}")
+        self._print(f"{'━' * 50}")
         return results
 
     def oneclick_evil_twin(

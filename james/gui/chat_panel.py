@@ -71,7 +71,12 @@ class AgentWorker(QThread):
         try:
             # Try the agent first; fall back to raw orchestrator text
             if hasattr(self.orchestrator, "agent") and self.orchestrator.agent:
-                result = self.orchestrator.agent.handle(self.command)
+                result = self.orchestrator.agent.process(self.command)
+                # agent.process returns a string directly
+                if isinstance(result, str):
+                    self.result_signal.emit(result)
+                    return
+                result = {"output": str(result)}
             elif hasattr(self.orchestrator, "handle_command"):
                 result = self.orchestrator.handle_command(self.command)
             else:

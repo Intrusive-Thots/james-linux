@@ -12,7 +12,6 @@ import {
   Radio,
   List,
   Swords,
-  Bot,
   XCircle,
   KeyRound,
   ShieldAlert,
@@ -182,24 +181,6 @@ export function Recon({
     onNavigate("attacks");
   }, [state.selectedAP, state.adapter, send, addLog, onNavigate]);
 
-  const handleAutopilot = useCallback(() => {
-    if (!state.adapter) {
-      addLog?.("error", "No wireless adapter detected. Configure one in Settings.");
-      return;
-    }
-    if (!send) {
-      addLog?.("error", "Backend offline. Reconnect or restart the API server.");
-      return;
-    }
-
-    addLog?.("info", "Auto-Pilot: Full autonomous scan → capture → crack pipeline");
-    
-    send("auto_pilot", {
-      interface: state.adapter,
-    });
-
-    onNavigate("attacks");
-  }, [state.adapter, send, addLog, onNavigate]);
 
   const handleSort = useCallback(
     (key: SortKey) => {
@@ -532,7 +513,7 @@ export function Recon({
                   {rec.actionLabel}
                 </button>
 
-                <div className="grid grid-cols-3 gap-sm">
+                <div className="grid grid-cols-2 gap-sm">
                   {/* Always show a PMKID button for manual override */}
                   <button
                     className="btn-secondary w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs"
@@ -541,13 +522,6 @@ export function Recon({
                   >
                     <KeyRound className="w-3.5 h-3.5" />
                     PMKID
-                  </button>
-                  <button
-                    className="btn-secondary w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs border-accent-purple/20 hover:border-accent-purple/40 text-accent-purple"
-                    onClick={handleAutopilot}
-                  >
-                    <Bot className="w-3.5 h-3.5" />
-                    Autopilot
                   </button>
                   <button
                     className="btn-ghost w-full justify-center text-[10px] font-bold tracking-wider uppercase h-8 flex items-center gap-xs"

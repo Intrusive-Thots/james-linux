@@ -103,8 +103,7 @@ export function Logs({ state }: LogsProps) {
           <div>
             <h2 className="text-h2 text-text-primary mb-[2px]">System Logs</h2>
             <p className="text-body text-text-secondary">
-              {state.logs.length} entries · Auto-scroll{" "}
-              {autoScroll ? "ON" : "OFF"}
+              {state.logs.length} entries · Single source of truth for all activity.
             </p>
           </div>
           <div className="flex items-center gap-sm">
@@ -123,6 +122,37 @@ export function Logs({ state }: LogsProps) {
               Export
             </button>
           </div>
+        </div>
+
+        {/* Summary Widgets */}
+        <div className="grid grid-cols-3 gap-md flex-shrink-0">
+          <SummaryWidget
+            label="Current Task"
+            value={
+              state.scanning
+                ? "Area reconnaissance active"
+                : state.attack.stage === "capturing"
+                  ? state.attack.stage_name || "Capturing handshake"
+                  : state.attack.stage === "cracking"
+                    ? state.attack.stage_name || "Cracking password"
+                    : "Idle"
+            }
+            variant="cyan"
+          />
+          <SummaryWidget
+            label="Last Error"
+            value={
+              state.logs.filter((l) => l.level === "error").slice(-1)[0]?.message || "None"
+            }
+            variant="danger"
+          />
+          <SummaryWidget
+            label="Last Success"
+            value={
+              state.logs.filter((l) => l.level === "success").slice(-1)[0]?.message || "None"
+            }
+            variant="success"
+          />
         </div>
 
         {/* Filter Bar */}
@@ -180,5 +210,37 @@ export function Logs({ state }: LogsProps) {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function SummaryWidget({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: string;
+  variant: "cyan" | "danger" | "success";
+}) {
+  const colors = {
+    cyan: "border-accent-cyan/20 bg-accent-cyan/5",
+    danger: "border-danger/20 bg-danger/5",
+    success: "border-success/20 bg-success/5",
+  };
+  const textColor = {
+    cyan: "text-accent-cyan",
+    danger: "text-danger",
+    success: "text-success",
+  };
+
+  return (
+    <div className={cn("rounded-btn border p-md", colors[variant])}>
+      <span className={cn("text-[10px] font-bold uppercase tracking-wider block", textColor[variant])}>
+        {label}
+      </span>
+      <span className="text-small text-text-primary font-mono truncate block mt-[2px]">
+        {value}
+      </span>
+    </div>
   );
 }

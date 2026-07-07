@@ -32,8 +32,8 @@ class TestGUITooltips(unittest.TestCase):
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
         )
         self.assertEqual(
-            self.main_window._btn_kill.toolTip(),
-            "Kill JAMES and restore networking (Ctrl+K)",
+            self.main_window._btn_power.toolTip(),
+            "Restart, stop, or reboot",
         )
 
         # To get the dynamically created buttons we need to search for them or find them by text/properties
@@ -98,14 +98,11 @@ class TestGUITooltips(unittest.TestCase):
 
     def test_troubleshoot_tab_tooltips(self):
         from james.gui.tabs.troubleshoot_tab import TroubleshootTab
-        troubleshoot_tab = next(
-            (
-                self.main_window.tabs.widget(i)
-                for i in range(self.main_window.tabs.count())
-                if isinstance(self.main_window.tabs.widget(i), TroubleshootTab)
-            ),
-            None,
-        )
+        # TroubleshootTab is now nested inside the Config tab's sub-tabs
+        troubleshoot_tab = None
+        for w in self.main_window.findChildren(TroubleshootTab):
+            troubleshoot_tab = w
+            break
         self.assertIsNotNone(troubleshoot_tab, "TroubleshootTab not found")
 
         self.assertEqual(

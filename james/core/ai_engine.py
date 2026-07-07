@@ -5,11 +5,21 @@ Replaces the old raw-JSON LLM dispatch with proper Gemini tool_use.
 Every JAMES action is declared as a FunctionDeclaration so Gemini can
 pick the right tool with validated params. Conversational fallback
 lets the LLM advise, explain, and strategize when no tool is needed.
+
+Enhanced with:
+  - ResultStore: persistent ring-buffer of tool results for memory/recall
+  - Adaptive system prompt: phase-aware, result-aware context injection
+  - Result analysis: post-action AI interpretation + next-step suggestions
+  - Enhanced chain execution: self-correcting, context-mutating agentic loop
 """
 
 import json
 import logging
 import os
+import re
+from collections import deque
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -22,7 +32,150 @@ try:
 except ImportError:
     HAS_GENAI = False
 
-from james.core.primers import get_primer, SYSTEM_PRIMER
+from james.core.primers import get_primer, get_combined_primer, SYSTEM_PRIMER
+
+
+# ── ResultStore: persistent ring-buffer of tool results ──────────
+
+
+class ResultStore:
+    """
+    Persistent memory of recent tool results.
+
+    Stores the last MAX_RESULTS action outputs in a ring buffer, keyed
+    by (action, target). Persists to ~/.james/ai_memory.json across
+    restarts so the AI can recall past findings.
+    """
+
+    MAX_RESULTS = 50
+    SUMMARY_LEN = 600  # max chars per result summary
+    MEMORY_FILE = Path.home() / ".james" / "ai_memory.json"
+
+    def __init__(self):
+        self._store: deque = deque(maxlen=self.MAX_RESULTS)
+        self._load()
+
+    def add(self, action: str, target: str, result_summary: str,
+            extra: Optional[dict] = None):
+        """Record a tool result."""
+        entry = {
+            "action": action,
+            "target": target,
+            "summary": result_summary[:self.SUMMARY_LEN],
+            "timestamp": datetime.now().isoformat(),
+            "extra": extra or {},
+        }
+        self._store.append(entry)
+        self._save()
+
+    def get_recent(self, n: int = 10) -> list[dict]:
+        """Return the N most recent results (newest first)."""
+        items = list(self._store)
+        return list(reversed(items[-n:]))
+
+    def search(self, query: str, n: int = 5) -> list[dict]:
+        """Find results matching a query string (target or action)."""
+        query_lower = query.lower()
+        matches = []
+        for entry in reversed(self._store):
+            if (query_lower in entry["target"].lower()
+                    or query_lower in entry["action"].lower()
+                    or query_lower in entry["summary"].lower()):
+                matches.append(entry)
+                if len(matches) >= n:
+                    break
+        return matches
+
+    def get_for_target(self, target: str) -> list[dict]:
+        """Get all results for a specific target."""
+        return [e for e in self._store if e["target"] == target]
+
+    def build_context_block(self, n: int = 8) -> str:
+        """Build a compressed context string for system prompt injection."""
+        recent = self.get_recent(n)
+        if not recent:
+            return ""
+        lines = ["\nRECENT RESULTS (most recent first):"]
+        for entry in recent:
+            ts = entry["timestamp"][11:16]  # HH:MM
+            # Truncate summary for prompt efficiency
+            summary = entry["summary"][:200]
+            if len(entry["summary"]) > 200:
+                summary += "…"
+            lines.append(
+                f"  [{ts}] {entry['action']}({entry['target']}): {summary}"
+            )
+        return "\n".join(lines)
+
+    def build_knowledge_block(self, context: dict) -> str:
+        """
+        Build a 'WHAT WE KNOW' summary from results + context.
+
+        Synthesizes discovered hosts, ports, keys, and captures into
+        a compact knowledge block the AI can reason over.
+        """
+        lines = []
+
+        # Discovered services from context
+        svcs = context.get("discovered_services", {})
+        if svcs:
+            lines.append("\nDISCOVERED INFRASTRUCTURE:")
+            for target, info in list(svcs.items())[:5]:
+                ports = info.get("ports", [])
+                services = info.get("services", [])
+                if ports:
+                    lines.append(
+                        f"  {target}: ports={', '.join(ports[:10])} "
+                        f"services={', '.join(services[:8])}"
+                    )
+
+        # Cracked keys
+        loot = context.get("cracked_keys", {})
+        if loot:
+            lines.append(f"\nCRACKED CREDENTIALS: {len(loot)} key(s) in loot")
+
+        # Capture files
+        cap = context.get("capture_file")
+        if cap:
+            lines.append(f"\nACTIVE CAPTURE: {cap}")
+
+        # Scan history
+        history = context.get("scan_history", [])
+        if history:
+            lines.append(
+                f"\nSCAN HISTORY: {len(history)} scan(s) performed"
+            )
+
+        return "\n".join(lines) if lines else ""
+
+    def _load(self):
+        """Load persisted memory from disk."""
+        try:
+            if self.MEMORY_FILE.exists():
+                data = json.loads(self.MEMORY_FILE.read_text())
+                if isinstance(data, list):
+                    for entry in data[-self.MAX_RESULTS:]:
+                        self._store.append(entry)
+                    logger.info(
+                        "Loaded %d results from AI memory", len(self._store)
+                    )
+        except Exception as e:
+            logger.warning("Failed to load AI memory: %s", e)
+
+    def _save(self):
+        """Persist memory to disk."""
+        try:
+            self.MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self.MEMORY_FILE.write_text(
+                json.dumps(list(self._store), indent=1, default=str)
+            )
+        except Exception as e:
+            logger.warning("Failed to save AI memory: %s", e)
+
+    def clear(self):
+        """Wipe all stored results."""
+        self._store.clear()
+        self._save()
 
 # ── ActionParams: unified param object for regex + LLM dispatch ──
 
@@ -567,6 +720,12 @@ class GeminiEngine:
 
     Uses function calling to route user intent to the correct tool,
     and generates conversational responses when no tool is appropriate.
+
+    Enhanced with:
+      - ResultStore for persistent tool-result memory
+      - Adaptive system prompt with phase detection + result injection
+      - Post-action result analysis for smart next-step suggestions
+      - Self-correcting agentic chain execution
     """
 
     MAX_HISTORY = 30  # sliding window of conversation turns
@@ -576,6 +735,7 @@ class GeminiEngine:
         self.available = False
         self._tools = []
         self._history: list = []  # Gemini Content objects
+        self.results = ResultStore()
 
         if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
             try:
@@ -589,20 +749,107 @@ class GeminiEngine:
             except Exception as e:
                 logger.warning("GeminiEngine init failed: %s", e)
 
-    def _build_system_prompt(self, context: dict) -> str:
-        """Build a context-aware system prompt with the right phase primer."""
+    # ── Adaptive System Prompt ─────────────────────────────────────
+
+    def _detect_phase(self, context: dict) -> str:
+        """
+        Detect the current attack phase from context signals.
+
+        Returns one of: 'recon', 'wifi', 'web', 'exploitation',
+        'cracking', 'post-exploit', 'stealth'
+        """
+        # Check for active cracking
+        if context.get("capture_file"):
+            return "cracking"
+
+        # Check for Wi-Fi operations
+        if context.get("monitor_interface") or context.get("target_bssid"):
+            return "wifi"
+
+        # Check for web operations
+        if context.get("target_url"):
+            return "web"
+
+        # Check for active exploitation indicators
+        svcs = context.get("discovered_services", {})
+        if svcs:
+            # If we have services AND have done brute/exploit, we're in exploit phase
+            history = context.get("scan_history", [])
+            if len(history) >= 2:
+                return "exploitation"
+
+        # Check for post-exploit
+        loot = context.get("cracked_keys", {})
+        if loot:
+            return "post-exploit"
+
+        # Check for stealth mode
+        if context.get("stealth_mode"):
+            return "stealth"
+
+        # Default: recon if we have a target, system otherwise
+        if context.get("target") or context.get("domain"):
+            return "recon"
+
+        return "system"
+
+    def _build_urgency_signals(self, context: dict) -> str:
+        """Generate urgency hints based on actionable state."""
+        signals = []
+
+        # Uncapped handshake waiting to be cracked
+        cap = context.get("capture_file")
+        if cap and not context.get("cracked_keys", {}).get(
+            context.get("target_bssid", "")
+        ):
+            signals.append(
+                "⚡ URGENT: Captured handshake awaiting crack → "
+                f"'{cap}'. Recommend 'crack wpa {cap}' immediately."
+            )
+
+        # Vulnerable services discovered but not exploited
+        svcs = context.get("discovered_services", {})
+        for target, info in svcs.items():
+            services = info.get("services", [])
+            attackable = [
+                s for s in services
+                if s in ("ssh", "ftp", "http", "smb", "mysql", "telnet",
+                         "vnc", "rdp", "microsoft-ds")
+            ]
+            if attackable:
+                signals.append(
+                    f"🎯 OPPORTUNITY: {target} has attackable services: "
+                    f"{', '.join(attackable)}. "
+                    f"Recommend 'network dominate {target}'."
+                )
+
+        return "\n".join(signals) if signals else ""
+
+    def _build_system_prompt(self, context: dict,
+                              result_store: Optional['ResultStore'] = None
+                              ) -> str:
+        """
+        Build a deeply context-aware system prompt.
+
+        Adapts to:
+          - Current attack phase (auto-detected from context)
+          - Recent tool results (from ResultStore)
+          - Discovered infrastructure
+          - Urgency signals (uncapped handshakes, vulnerable services)
+          - Engagement progress metrics
+        """
+        store = result_store or self.results
         parts = [SYSTEM_PRIMER]
 
-        # Auto-detect phase from context and inject relevant primer
-        if context.get("monitor_interface") or context.get("target_bssid"):
-            parts.append(get_primer("wifi"))
-        elif context.get("target_url"):
-            parts.append(get_primer("web"))
-        elif context.get("target"):
-            parts.append(get_primer("recon"))
+        # ── Phase-specific primer ──
+        phase = self._detect_phase(context)
+        phase_primer = get_primer(phase)
+        if phase_primer != SYSTEM_PRIMER:
+            parts.append(phase_primer)
 
-        # Inject live context
+        # ── Live session state ──
         ctx_lines = ["\n\nCURRENT SESSION STATE:"]
+        ctx_lines.append(f"  Phase: {phase.upper()}")
         for key in (
             "target",
             "interface",
@@ -616,32 +863,60 @@ class GeminiEngine:
             "victim",
             "lhost",
             "lport",
+            "capture_file",
         ):
             val = context.get(key)
             if val:
                 ctx_lines.append(f"  {key}: {val}")
 
-        svcs = context.get("discovered_services", {})
-        if svcs:
-            ctx_lines.append("  Discovered services:")
-            for tgt, info in list(svcs.items())[:3]:
-                svc_list = info.get("services", [])
-                if svc_list:
-                    ctx_lines.append(f"    {tgt}: {', '.join(svc_list)}")
-
-        if len(ctx_lines) > 1:
+        if len(ctx_lines) > 2:  # more than just header + phase
             parts.append("\n".join(ctx_lines))
 
+        # ── What we know (discovered infrastructure) ──
+        knowledge = store.build_knowledge_block(context)
+        if knowledge:
+            parts.append(knowledge)
+
+        # ── Recent results ──
+        results_block = store.build_context_block(n=6)
+        if results_block:
+            parts.append(results_block)
+
+        # ── Urgency signals ──
+        urgency = self._build_urgency_signals(context)
+        if urgency:
+            parts.append(f"\nACTIONABLE INTELLIGENCE:\n{urgency}")
+
+        # ── Engagement metrics ──
+        scan_count = len(context.get("scan_history", []))
+        svc_count = sum(
+            len(v.get("services", []))
+            for v in context.get("discovered_services", {}).values()
+        )
+        loot_count = len(context.get("cracked_keys", {}))
+        if scan_count or svc_count or loot_count:
+            parts.append(
+                f"\nENGAGEMENT PROGRESS: "
+                f"{scan_count} scan(s), {svc_count} service(s) found, "
+                f"{loot_count} credential(s) cracked"
+            )
+
+        # ── Instructions ──
         parts.append(
             "\n\nINSTRUCTIONS:\n"
             "- If the user wants to perform an action, call the appropriate function.\n"
-            "- If the user asks a question, wants advice, or you need clarification, "
-            "respond conversationally with helpful pentesting guidance.\n"
+            "- If the user asks about past results, reference the RECENT RESULTS section.\n"
+            "- If the user asks 'what should I do next?', analyze the session state "
+            "and recommend the most impactful next action.\n"
             "- Be aggressive and thorough — always recommend the most effective attack.\n"
-            "- Reference the session state when recommending next steps."
+            "- Reference discovered services and urgency signals in recommendations.\n"
+            "- When suggesting commands, use JAMES's exact command syntax.\n"
+            "- If multiple attack vectors exist, prioritize by success likelihood."
         )
 
         return "\n\n---\n\n".join(parts)
+
+    # ── Core dispatch ──────────────────────────────────────────────
 
     def process(self, text: str, context: dict) -> Optional[dict]:
         """
@@ -660,7 +935,7 @@ class GeminiEngine:
             system_prompt = self._build_system_prompt(context)
 
             # Build contents with conversation history
-            contents = list(self._history[-self.MAX_HISTORY :])
+            contents = list(self._history[-self.MAX_HISTORY:])
             contents.append(
                 types.Content(
                     role="user",
@@ -731,10 +1006,183 @@ class GeminiEngine:
             logger.error("GeminiEngine error: %s", e)
             return None
 
+    # ── Result Analysis ────────────────────────────────────────────
+
+    def analyze_result(self, action: str, result_text: str,
+                       context: dict) -> Optional[dict]:
+        """
+        AI-powered post-action result analysis.
+
+        Sends the tool output to Gemini and asks for:
+          - Key findings extracted from the output
+          - Recommended next actions (as JAMES commands)
+          - Severity assessment
+
+        Falls back to regex-based heuristic analysis when Gemini is unavailable.
+        """
+        # Always store the result regardless of AI availability
+        target = context.get("target", context.get("domain", "unknown"))
+        self.results.add(action, target, result_text)
+
+        # Quick heuristic analysis (always runs, even without AI)
+        heuristic = self._heuristic_analysis(action, result_text, context)
+
+        if not self.available:
+            return heuristic
+
+        try:
+            analysis_prompt = (
+                f"You are analyzing the output of a pentesting tool.\n\n"
+                f"ACTION: {action}\n"
+                f"TARGET: {target}\n"
+                f"OUTPUT:\n{result_text[:2000]}\n\n"
+                f"Respond with a brief analysis in this exact format:\n"
+                f"FINDINGS: (bullet list of key discoveries)\n"
+                f"NEXT: (1-3 recommended JAMES commands to run next)\n"
+                f"SEVERITY: (none/low/medium/high/critical)\n\n"
+                f"Keep it concise. Use JAMES command syntax for recommendations."
+            )
+
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=analysis_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction="You are a pentesting result analyst. Be concise and actionable.",
+                    temperature=0.1,
+                ),
+            )
+
+            if response.candidates and response.candidates[0].content.parts:
+                ai_text = response.candidates[0].content.parts[0].text
+                parsed = self._parse_analysis(ai_text)
+                if parsed:
+                    # Merge AI analysis with heuristic findings
+                    if heuristic and heuristic.get("next_steps"):
+                        # Deduplicate
+                        existing = set(parsed.get("next_steps", []))
+                        for step in heuristic["next_steps"]:
+                            if step not in existing:
+                                parsed.setdefault("next_steps", []).append(step)
+                    return parsed
+
+        except Exception as e:
+            logger.error("Result analysis error: %s", e)
+
+        return heuristic
+
+    def _parse_analysis(self, text: str) -> Optional[dict]:
+        """Parse structured analysis response from AI."""
+        result = {"findings": [], "next_steps": [], "severity": "none",
+                  "raw": text}
+
+        for line in text.split("\n"):
+            line = line.strip()
+            if line.startswith("FINDINGS:"):
+                continue
+            elif line.startswith("NEXT:"):
+                continue
+            elif line.startswith("SEVERITY:"):
+                sev = line.split(":", 1)[1].strip().lower()
+                if sev in ("none", "low", "medium", "high", "critical"):
+                    result["severity"] = sev
+            elif line.startswith("- ") or line.startswith("• "):
+                item = line[2:].strip()
+                if result["next_steps"] or "NEXT" in text[:text.index(line)] if line in text else False:
+                    # This is in the NEXT section
+                    pass
+                result["findings"].append(item)
+
+        # Extract next steps from lines after "NEXT:"
+        in_next = False
+        for line in text.split("\n"):
+            line = line.strip()
+            if "NEXT:" in line:
+                in_next = True
+                # Check if there's content on the same line
+                after = line.split("NEXT:", 1)[1].strip()
+                if after and after.startswith("- "):
+                    result["next_steps"].append(after[2:].strip())
+                continue
+            if "SEVERITY:" in line:
+                in_next = False
+                continue
+            if in_next and (line.startswith("- ") or line.startswith("• ")
+                           or line.startswith("* ")):
+                result["next_steps"].append(line[2:].strip())
+
+        return result if result["findings"] or result["next_steps"] else None
+
+    def _heuristic_analysis(self, action: str, result_text: str,
+                            context: dict) -> Optional[dict]:
+        """
+        Regex-based result analysis fallback (no API needed).
+
+        Detects common patterns in tool output and suggests next steps.
+        """
+        findings = []
+        next_steps = []
+        severity = "none"
+        target = context.get("target", "")
+
+        lower = result_text.lower()
+
+        # Scan results: detect open ports
+        port_matches = re.findall(r'(\d+)/(?:tcp|udp)\s+open\s+(\S+)', result_text)
+        if port_matches:
+            findings.append(f"{len(port_matches)} open port(s) found")
+            severity = "medium" if len(port_matches) > 3 else "low"
+
+            for port, svc in port_matches[:3]:
+                if svc in ("ssh", "ftp", "telnet"):
+                    next_steps.append(f"brute {target} {svc}")
+                elif svc in ("http", "https"):
+                    next_steps.append(f"web pwn http://{target}:{port}")
+                elif svc in ("microsoft-ds", "smb"):
+                    next_steps.append(f"smb enum {target}")
+
+        # Handshake capture
+        if "handshake" in lower and ("captured" in lower or "found" in lower):
+            findings.append("WPA handshake captured successfully")
+            severity = "high"
+            cap_file = context.get("capture_file", "")
+            if cap_file:
+                next_steps.append(f"crack wpa {cap_file}")
+
+        # Key found
+        if "key found" in lower or "password:" in lower:
+            findings.append("Credential cracked!")
+            severity = "critical"
+            next_steps.append("show loot")
+
+        # Vulnerability detected
+        if "vulnerab" in lower or "injectable" in lower or "cve-" in lower:
+            findings.append("Vulnerabilities detected")
+            severity = "high"
+
+        # No results
+        if "no hosts" in lower or "no open ports" in lower or "not found" in lower:
+            findings.append("No results from this scan")
+            if target:
+                next_steps.append(f"full scan {target}")
+
+        if not findings:
+            return None
+
+        return {
+            "findings": findings,
+            "next_steps": next_steps,
+            "severity": severity,
+        }
+
+    # ── Conversational fallback ────────────────────────────────────
+
     def chat_only(self, text: str, context: dict) -> Optional[str]:
         """
         LLM-only conversational response (no function calling).
         Used as smart fallback when regex also fails to match.
+
+        Enhanced: injects recent results and engagement state so the AI
+        can give context-aware advice.
         """
         if not self.available:
             return None
@@ -744,7 +1192,9 @@ class GeminiEngine:
                 self._build_system_prompt(context)
                 + "\n\nYou are responding to a query that doesn't match any tool. "
                 "Provide helpful pentesting advice, explain concepts, or suggest "
-                "which JAMES command the user should try. Be concise but thorough."
+                "which JAMES command the user should try. Be concise but thorough.\n"
+                "If the user is asking about past results or what was found, "
+                "reference the RECENT RESULTS section in your context."
             )
 
             response = self.client.models.generate_content(
@@ -764,6 +1214,8 @@ class GeminiEngine:
             logger.error("GeminiEngine chat_only error: %s", e)
             return None
 
+    # ── Enhanced Chain Execution ───────────────────────────────────
+
     def run_chain(
         self,
         goal: str,
@@ -776,9 +1228,11 @@ class GeminiEngine:
         """
         Agentic loop: AI plans and chains tools until the goal is met.
 
-        The AI calls a tool, observes the result, then decides the next
-        tool — repeating until it returns a text summary or the step
-        limit is reached.
+        Enhanced with:
+          - Result-aware continuation: each step gets analysis of prior output
+          - Self-correction: failures trigger alternative strategies
+          - Context mutation: discoveries update session state automatically
+          - Progress tracking: structured events for GUI rendering
 
         Args:
             goal:       User's natural language objective
@@ -798,11 +1252,14 @@ class GeminiEngine:
         chain_prompt = (
             self._build_system_prompt(context) + "\n\nMULTI-STEP MODE:\n"
             "You are executing a multi-step pentesting workflow.\n"
-            "After each tool result, decide: call the next tool, or "
-            "return a final text summary if the objective is complete.\n"
-            "- Analyze each result before choosing the next action.\n"
+            "After each tool result, analyze the output carefully:\n"
+            "- Extract key findings (open ports, services, vulnerabilities)\n"
+            "- Decide the most effective next tool based on what you found\n"
+            "- If a step fails, try an alternative approach instead of repeating\n"
             "- Stop when the goal is achieved or no further progress is possible.\n"
-            "- Your final text response should summarize everything that was done and found."
+            "- Your final text response should summarize everything found.\n\n"
+            "IMPORTANT: Read each tool result before choosing the next action. "
+            "Adapt your strategy based on what each step reveals."
         )
 
         # Start the conversation with the user's goal
@@ -814,6 +1271,7 @@ class GeminiEngine:
         ]
 
         step_log = []
+        failed_actions = set()  # Track failures for self-correction
 
         try:
             for step in range(1, max_steps + 1):
@@ -858,9 +1316,17 @@ class GeminiEngine:
                     # Execute the tool
                     try:
                         result_str = execute_fn(action, params)
+                        success = True
                     except Exception as e:
                         result_str = f"[ERROR] {action} failed: {e}"
+                        success = False
+                        failed_actions.add(action)
                         logger.error("Chain step %d error: %s", step, e)
+
+                    # Store result in memory
+                    target = args.get("target", args.get("interface",
+                                args.get("domain", "unknown")))
+                    self.results.add(action, str(target), result_str[:500])
 
                     # Truncate very long results to avoid blowing context
                     if len(result_str) > 3000:
@@ -872,6 +1338,7 @@ class GeminiEngine:
                             "action": action,
                             "args": args,
                             "result": result_str[:500],
+                            "success": success,
                         }
                     )
 
@@ -881,14 +1348,25 @@ class GeminiEngine:
                     # Append the model's function call to conversation
                     contents.append(candidate.content)
 
-                    # Append the function result
+                    # Build enhanced result feedback
+                    feedback_parts = [result_str]
+                    if not success:
+                        feedback_parts.append(
+                            f"\n⚠ This action FAILED. Previously failed: "
+                            f"{', '.join(failed_actions)}. "
+                            f"Try an alternative approach."
+                        )
+
+                    # Append the function result with analysis hints
                     contents.append(
                         types.Content(
                             role="user",
                             parts=[
                                 types.Part.from_function_response(
                                     name=action,
-                                    response={"result": result_str},
+                                    response={
+                                        "result": "\n".join(feedback_parts)
+                                    },
                                 )
                             ],
                         )
@@ -947,8 +1425,10 @@ class GeminiEngine:
                 # Fallback: manual summary
                 lines = [f"⚡ Chain completed ({len(step_log)} steps):"]
                 for entry in step_log:
+                    status = "✅" if entry.get("success", True) else "❌"
                     lines.append(
-                        f"  Step {entry['step']}: {entry['action']} → {entry['result'][:100]}"
+                        f"  {status} Step {entry['step']}: {entry['action']} → "
+                        f"{entry['result'][:100]}"
                     )
                 return "\n".join(lines)
 
@@ -968,3 +1448,9 @@ class GeminiEngine:
     def clear_history(self):
         """Reset conversation memory."""
         self._history.clear()
+
+    def clear_all(self):
+        """Reset conversation memory AND result store."""
+        self._history.clear()
+        self.results.clear()
+

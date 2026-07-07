@@ -382,8 +382,16 @@ async def _dispatch(orch, action: str, params: dict) -> Any:
         return await asyncio.to_thread(orch.system_check)
     elif action == "interfaces":
         return await asyncio.to_thread(orch.wifi_interfaces)
+    elif action == "toggle_net_guard":
+        enabled = params.get("enabled", True)
+        orch.net_guard.enabled = enabled
+        await _log("info" if enabled else "warn", f"NetworkGuard self-protection {'enabled' if enabled else 'disabled'}.")
+        return {"enabled": orch.net_guard.enabled}
+    elif action == "get_net_guard_status":
+        return {"enabled": orch.net_guard.enabled}
     else:
         raise ValueError(f"Unknown action: {action}")
+
 
 
 # ── Scan ────────────────────────────────────────────────────────

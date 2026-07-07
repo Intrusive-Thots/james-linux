@@ -28,12 +28,14 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+Shift+C", keys)
         self.assertIn("Ctrl+C", keys)
         self.assertIn("Ctrl+K", keys)
+        self.assertIn("Ctrl+Shift+K", keys)
+        self.assertIn("Ctrl+Shift+R", keys)
+        self.assertIn("Ctrl+B", keys)
         self.assertIn("Ctrl+1", keys)
         self.assertIn("Ctrl+2", keys)
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
-        self.assertIn("Ctrl+6", keys)
         self.assertIn("Ctrl+Tab", keys)
         self.assertIn("Ctrl+Shift+Tab", keys)
 
@@ -176,14 +178,11 @@ class TestMainWindowShortcuts(unittest.TestCase):
 
     def test_troubleshoot_tab_shortcuts(self):
         from james.gui.tabs.troubleshoot_tab import TroubleshootTab
-        troubleshoot_tab = next(
-            (
-                self.window.tabs.widget(i)
-                for i in range(self.window.tabs.count())
-                if isinstance(self.window.tabs.widget(i), TroubleshootTab)
-            ),
-            None,
-        )
+        # TroubleshootTab is now nested inside the Config tab's sub-tabs
+        troubleshoot_tab = None
+        for w in self.window.findChildren(TroubleshootTab):
+            troubleshoot_tab = w
+            break
         self.assertIsNotNone(troubleshoot_tab, "TroubleshootTab not found")
 
         shortcuts = troubleshoot_tab.findChildren(QShortcut)
