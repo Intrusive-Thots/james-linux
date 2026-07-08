@@ -61,18 +61,18 @@ export function Recon({
   // Filter & sort
   const filtered = useMemo(() => {
     const q = filter ? filter.toLowerCase() : "";
-    const filteredAps = state.aps.reduce((acc, ap) => {
+    const filteredAps: typeof state.aps = [];
+    for (const ap of state.aps) {
       if (!q) {
-        acc.push(ap);
+        filteredAps.push(ap);
       } else if (
         ap.essid.toLowerCase().includes(q) ||
         ap.bssid.toLowerCase().includes(q) ||
         ap.vendor.toLowerCase().includes(q)
       ) {
-        acc.push(ap);
+        filteredAps.push(ap);
       }
-      return acc;
-    }, [] as typeof state.aps);
+    }
 
     return filteredAps
       .sort((a, b) => {
@@ -96,14 +96,12 @@ export function Recon({
 
   const { aps } = state;
   const { encCount, openCount, totalClients } = useMemo(() => {
-    const { enc, clients } = aps.reduce(
-      (acc, ap) => {
-        if (!ap.privacy.includes("OPN")) acc.enc++;
-        acc.clients += ap.clients;
-        return acc;
-      },
-      { enc: 0, clients: 0 }
-    );
+    let enc = 0;
+    let clients = 0;
+    for (const ap of aps) {
+      if (!ap.privacy.includes("OPN")) enc++;
+      clients += ap.clients;
+    }
     return {
       encCount: enc,
       openCount: aps.length - enc,

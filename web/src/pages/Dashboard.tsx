@@ -32,18 +32,21 @@ const item = {
 
 export function Dashboard({ state, onNavigate }: DashboardProps) {
   const { crackedCount, pendingCount } = useMemo(() => {
-    return state.handshakes.reduce(
-      (acc, h) => {
-        if (h.cracked) acc.crackedCount++;
-        else acc.pendingCount++;
-        return acc;
-      },
-      { crackedCount: 0, pendingCount: 0 }
-    );
+    let crackedCount = 0;
+    let pendingCount = 0;
+    for (const h of state.handshakes) {
+      if (h.cracked) crackedCount++;
+      else pendingCount++;
+    }
+    return { crackedCount, pendingCount };
   }, [state.handshakes]);
 
   const errorCount = useMemo(() => {
-    return state.logs.reduce((count, l) => (l.level === "error" ? count + 1 : count), 0);
+    let count = 0;
+    for (const l of state.logs) {
+      if (l.level === "error") count++;
+    }
+    return count;
   }, [state.logs]);
   const recentLogs = useMemo(() => state.logs.slice(-8), [state.logs]);
 
