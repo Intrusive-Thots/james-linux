@@ -52,3 +52,6 @@
 ## 2025-07-06 - React Performance - Use for...of over reduce() for derived state
 **Learning:** In a React application, standard `for...of` loops for array filtering and count aggregation are considerably faster than `array.reduce()` since they bypass the function call overhead on every iteration block. During rapid global state updates where arrays like `state.aps` or `state.logs` re-evaluate on each tick, the cumulative time saved across numerous `useMemo` blocks reduces main thread blocking.
 **Action:** Replaced computationally expensive `array.reduce()` instances that perform array mutations or count aggregations in hooks with raw `for...of` loops.
+## 2024-05-18 - [Optimize generator.py wordlist iterations]
+**Learning:** [Using a set comprehension and `update()` instead of a nested `for` loop with `add()` and string concatenation reduces CPU usage.]
+**Action:** [Use set comprehensions and f-strings to optimize iteration speeds where appropriate.]
