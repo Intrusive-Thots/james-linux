@@ -52,3 +52,6 @@
 ## 2025-07-06 - React Performance - Use for...of over reduce() for derived state
 **Learning:** In a React application, standard `for...of` loops for array filtering and count aggregation are considerably faster than `array.reduce()` since they bypass the function call overhead on every iteration block. During rapid global state updates where arrays like `state.aps` or `state.logs` re-evaluate on each tick, the cumulative time saved across numerous `useMemo` blocks reduces main thread blocking.
 **Action:** Replaced computationally expensive `array.reduce()` instances that perform array mutations or count aggregations in hooks with raw `for...of` loops.
+## 2024-05-24 - Optimize XML Parsing Loops in Parrot
+**Learning:** In Python's `xml.etree.ElementTree`, executing the XPath-like `.findall(".//tag")` recursively searches the entire subtree, which can be noticeably slow on large trees due to heavy XPath evaluation overhead.
+**Action:** When searching for child elements with known exact paths (e.g., `<ports><port>...</port></ports>`), use explicit paths like `.find("ports")` followed by direct iteration `.iter("port")` to bypass recursive XPath parsing and intermediate list allocations.
