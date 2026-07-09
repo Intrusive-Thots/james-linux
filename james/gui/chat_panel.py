@@ -628,13 +628,13 @@ class _HistoryLineEdit(QLineEdit):
                 self.setCursorPosition(len(self.text()))
         elif event.key() == Qt.Key_Down:
             if self._history:
-                self._idx = min(len(self._history) - 1, self._idx + 1)
-                self.setText(
-                    self._history[self._idx]
-                    if self._idx < len(self._history)
-                    else ""
-                )
-                self.setCursorPosition(len(self.text()))
+                if self._idx < len(self._history) - 1:
+                    self._idx += 1
+                    self.setText(self._history[self._idx])
+                    self.setCursorPosition(len(self.text()))
+                else:
+                    self._idx = len(self._history)
+                    self.setText("")
         else:
             self._idx = len(self._history)
             super().keyPressEvent(event)

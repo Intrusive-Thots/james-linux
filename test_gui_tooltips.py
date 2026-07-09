@@ -25,8 +25,7 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.main_window.tabs.tabToolTip(1), "Wi-Fi auditing and tools (Ctrl+2)")
         self.assertEqual(self.main_window.tabs.tabToolTip(2), "Automated routines (Ctrl+3)")
         self.assertEqual(self.main_window.tabs.tabToolTip(3), "Evil Twin pipeline (Ctrl+4)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration (Ctrl+5)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(5), "Diagnostics and dependencies (Ctrl+6)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration and diagnostics (Ctrl+5)")
 
         self.assertEqual(
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
@@ -146,14 +145,10 @@ class TestGUITooltips(unittest.TestCase):
 
     def test_setup_tab_tooltips(self):
         from james.gui.tabs.setup_tab import SetupTab
-        setup_tab = next(
-            (
-                self.main_window.tabs.widget(i)
-                for i in range(self.main_window.tabs.count())
-                if isinstance(self.main_window.tabs.widget(i), SetupTab)
-            ),
-            None,
-        )
+        setup_tab = None
+        for w in self.main_window.findChildren(SetupTab):
+            setup_tab = w
+            break
         self.assertIsNotNone(setup_tab, "SetupTab not found")
 
         self.assertEqual(

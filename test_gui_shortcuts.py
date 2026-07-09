@@ -233,14 +233,10 @@ class TestMainWindowShortcuts(unittest.TestCase):
 
     def test_setup_tab_shortcuts(self):
         from james.gui.tabs.setup_tab import SetupTab
-        setup_tab = next(
-            (
-                self.window.tabs.widget(i)
-                for i in range(self.window.tabs.count())
-                if isinstance(self.window.tabs.widget(i), SetupTab)
-            ),
-            None,
-        )
+        setup_tab = None
+        for w in self.window.findChildren(SetupTab):
+            setup_tab = w
+            break
         self.assertIsNotNone(setup_tab, "SetupTab not found")
 
         shortcuts = setup_tab.findChildren(QShortcut)
