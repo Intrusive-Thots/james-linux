@@ -446,9 +446,10 @@ async def _action_capture(orch, params: dict):
 
         # Auto-transition to cracking
         await asyncio.sleep(1)
-        wordlist = await asyncio.to_thread(
-            orch.find_wordlist, "wifi"
-        ) or await asyncio.to_thread(orch.find_wordlist, "password")
+        wifi_task = asyncio.to_thread(orch.find_wordlist, "wifi")
+        pass_task = asyncio.to_thread(orch.find_wordlist, "password")
+        wifi_wordlist, pass_wordlist = await asyncio.gather(wifi_task, pass_task)
+        wordlist = wifi_wordlist or pass_wordlist
         if wordlist:
             await _log(
                 "info",
