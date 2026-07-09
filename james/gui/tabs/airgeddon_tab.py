@@ -21,14 +21,11 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QComboBox,
     QPlainTextEdit,
-    QMessageBox,
-    QFrame,
-    QLineEdit,
     QShortcut,
     QApplication,
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint
-from PyQt5.QtGui import QColor, QKeySequence
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QKeySequence
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
