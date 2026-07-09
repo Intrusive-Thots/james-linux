@@ -52,3 +52,6 @@
 ## 2025-07-06 - React Performance - Use for...of over reduce() for derived state
 **Learning:** In a React application, standard `for...of` loops for array filtering and count aggregation are considerably faster than `array.reduce()` since they bypass the function call overhead on every iteration block. During rapid global state updates where arrays like `state.aps` or `state.logs` re-evaluate on each tick, the cumulative time saved across numerous `useMemo` blocks reduces main thread blocking.
 **Action:** Replaced computationally expensive `array.reduce()` instances that perform array mutations or count aggregations in hooks with raw `for...of` loops.
+## 2025-07-09 - [Optimize Async Tasks with asyncio.gather]
+**Learning:** Sequential execution of independent `await` calls (e.g., awaiting two separate I/O operations one after the other) introduces unnecessary delays. When tasks do not depend on each other, they can be executed concurrently.
+**Action:** Use `asyncio.gather()` to run independent asynchronous tasks in parallel. This significantly reduces total execution time by overlapping I/O wait periods.
