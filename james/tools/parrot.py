@@ -749,7 +749,7 @@ class Nmap:
                 addr_el = host_el.find("address")
                 addr = addr_el.get("addr", "") if addr_el is not None else ""
                 ports = []
-                for port_el in host_el.findall(".//port"):
+                for port_el in host_el.iter("port"):
                     state_el = port_el.find("state")
                     if (
                         state_el is not None
@@ -1234,7 +1234,7 @@ class IoTTools:
         try:
             root = ET.fromstring(output)
             for host_el in root.findall("host"):
-                for port_el in host_el.findall(".//port"):
+                for port_el in host_el.iter("port"):
                     state_el = port_el.find("state")
                     if (
                         state_el is not None
