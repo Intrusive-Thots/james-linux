@@ -36,6 +36,7 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
+        self.assertIn("Ctrl+6", keys)
         self.assertIn("Ctrl+Tab", keys)
         self.assertIn("Ctrl+Shift+Tab", keys)
 

@@ -50,6 +50,7 @@ from james.gui.tabs.autopilot_tab import AutoPilotTab
 from james.gui.tabs.setup_tab import SetupTab
 from james.gui.tabs.troubleshoot_tab import TroubleshootTab
 from james.gui.tabs.airgeddon_tab import AirgeddonTab
+from james.gui.tabs.lab_tab import LabTab
 from james.gui.tabs.activity_tab import ActivitySidebar
 from james.gui.chat_panel import ChatPanel
 from james.gui.setup_wizard import SetupWizard
@@ -204,8 +205,8 @@ class MainWindow(QMainWindow):
             self.restart_james
         )
 
-        # Tabs (now 1-5)
-        for i in range(1, 6):
+        # Tabs (now 1-6)
+        for i in range(1, 7):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
             shortcut.activated.connect(lambda idx=i - 1: self._switch_tab(idx))
 
@@ -301,6 +302,7 @@ class MainWindow(QMainWindow):
         self.wifi_tab = WiFiArsenalTab(self)
         self.autopilot_tab = AutoPilotTab(self)
         self.airgeddon_tab = AirgeddonTab(self)
+        self.lab_tab = LabTab(self)
 
         # Merged Config tab (Setup + Troubleshoot)
         self.config_tab = self._build_config_tab()
@@ -317,8 +319,11 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
         self.tabs.setTabToolTip(3, "Evil Twin pipeline (Ctrl+4)")
 
+        self.tabs.addTab(self.lab_tab, "🔬 Lab")
+        self.tabs.setTabToolTip(4, "Experimental wireless assessments (Ctrl+5)")
+
         self.tabs.addTab(self.config_tab, "⚙ Config")
-        self.tabs.setTabToolTip(4, "System configuration and diagnostics (Ctrl+5)")
+        self.tabs.setTabToolTip(5, "System configuration and diagnostics (Ctrl+6)")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 

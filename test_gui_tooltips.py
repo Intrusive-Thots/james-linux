@@ -25,7 +25,8 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.main_window.tabs.tabToolTip(1), "Wi-Fi auditing and tools (Ctrl+2)")
         self.assertEqual(self.main_window.tabs.tabToolTip(2), "Automated routines (Ctrl+3)")
         self.assertEqual(self.main_window.tabs.tabToolTip(3), "Evil Twin pipeline (Ctrl+4)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration and diagnostics (Ctrl+5)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(4), "Experimental wireless assessments (Ctrl+5)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(5), "System configuration and diagnostics (Ctrl+6)")
 
         self.assertEqual(
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
