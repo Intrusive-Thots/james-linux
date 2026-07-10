@@ -22,6 +22,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -711,6 +712,35 @@ class GeminiEngine:
         self._tools = []
         self.results = ResultStore()
 
+        self.local_ollama_available = False
+        self.local_model = "dolphin-mistral"
+
+        # Check local Ollama availability
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                # Prioritize dolphin-mistral, then llama3.2, then any model
+                target_models = ["dolphin-mistral", "llama3.2"]
+                found = False
+                for tm in target_models:
+                    for m in models:
+                        if tm in m:
+                            self.local_model = m
+                            self.local_ollama_available = True
+                            found = True
+                            break
+                    if found:
+                        break
+                if not found and models:
+                    self.local_model = models[0]
+                    self.local_ollama_available = True
+                
+                if self.local_ollama_available:
+                    logger.info("Local Ollama engine activated using model: %s", self.local_model)
+        except Exception as e:
+            logger.debug("Local Ollama service check failed: %s", e)
+
         if HAS_ANTIGRAVITY and os.environ.get("GEMINI_API_KEY"):
             try:
                 self._tools = self._create_dynamic_tools()
@@ -781,6 +811,26 @@ class GeminiEngine:
             dynamic_tools.append(tool_func)
 
         return dynamic_tools
+
+    def _call_ollama(self, messages: list[dict]) -> Optional[str]:
+        """Call local Ollama chat API endpoint."""
+        url = "http://localhost:11434/api/chat"
+        payload = {
+            "model": self.local_model,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": 0.1}
+        }
+        try:
+            r = requests.post(url, json=payload, timeout=60)
+            if r.status_code == 200:
+                res_data = r.json()
+                message = res_data.get("message", {})
+                content = message.get("content", "")
+                return content
+        except Exception as e:
+            logger.error("Ollama API call failed: %s", e)
+        return None
 
     # ── Adaptive System Prompt ─────────────────────────────────────
 
@@ -949,6 +999,18 @@ class GeminiEngine:
         Send user text to Gemini via google-antigravity Agent.
         """
         if not self.available:
+            if self.local_ollama_available:
+                system_prompt = self._build_system_prompt(context)
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                logger.info("Ollama Session Start: model=%s", self.local_model)
+                logger.info("Ollama User Input: %s", text)
+                content = self._call_ollama(messages)
+                if content:
+                    logger.info("Ollama Chat Response: %s", content)
+                    return {"type": "chat", "message": content}
             return None
 
         async def _run():
@@ -998,6 +1060,37 @@ class GeminiEngine:
         heuristic = self._heuristic_analysis(action, result_text, context)
 
         if not self.available:
+            if self.local_ollama_available:
+                try:
+                    analysis_prompt = (
+                        f"You are analyzing the output of a pentesting tool.\n\n"
+                        f"ACTION: {action}\n"
+                        f"TARGET: {target}\n"
+                        f"OUTPUT:\n{result_text[:2000]}\n\n"
+                        f"Respond with a brief analysis in this exact format:\n"
+                        f"FINDINGS: (bullet list of key discoveries)\n"
+                        f"NEXT: (1-3 recommended JAMES commands to run next)\n"
+                        f"SEVERITY: (none/low/medium/high/critical)\n\n"
+                        f"Keep it concise. Use JAMES command syntax for recommendations."
+                    )
+                    messages = [
+                        {"role": "system", "content": "You are a pentesting result analyst. Be concise and actionable."},
+                        {"role": "user", "content": analysis_prompt}
+                    ]
+                    logger.info("Ollama Analyzing tool result for action: %s", action)
+                    ai_text = self._call_ollama(messages)
+                    if ai_text:
+                        logger.info("Ollama Analysis Result: %s", ai_text)
+                        parsed = self._parse_analysis(ai_text)
+                        if parsed:
+                            if heuristic and heuristic.get("next_steps"):
+                                existing = set(parsed.get("next_steps", []))
+                                for step in heuristic["next_steps"]:
+                                    if step not in existing:
+                                        parsed.setdefault("next_steps", []).append(step)
+                            return parsed
+                except Exception as e:
+                    logger.error("Ollama result analysis error: %s", e)
             return heuristic
 
         try:
@@ -1143,6 +1236,24 @@ class GeminiEngine:
         Conversational response using google-antigravity Agent (no tools).
         """
         if not self.available:
+            if self.local_ollama_available:
+                system_prompt = (
+                    self._build_system_prompt(context)
+                    + "\n\nYou are responding to a query that doesn't match any tool. "
+                    "Provide helpful pentesting advice, explain concepts, or suggest "
+                    "which JAMES command the user should try. Be concise but thorough.\n"
+                    "If the user is asking about past results or what was found, "
+                    "reference the RECENT RESULTS section in your context."
+                )
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                logger.info("Ollama Chat Only - User Input: %s", text)
+                content = self._call_ollama(messages)
+                if content:
+                    logger.info("Ollama Chat Only - Response: %s", content)
+                    return content
             return None
 
         async def _run():
@@ -1189,6 +1300,75 @@ class GeminiEngine:
         Chained execution using google-antigravity Agent.
         """
         if not self.available:
+            if self.local_ollama_available:
+                logger.info("Ollama Chain Start: goal='%s'", goal)
+                system_prompt = (
+                    self._build_system_prompt(context) + "\n\nMULTI-STEP MODE:\n"
+                    "You are executing a multi-step pentesting workflow. "
+                    "You have access to the registered tools. To run a tool, you must reply "
+                    "with a JSON object containing 'action' (tool name) and 'params' (dict of args). "
+                    "Example:\n"
+                    "```json\n"
+                    "{\n"
+                    "  \"action\": \"quick_recon\",\n"
+                    "  \"params\": {\"target\": \"192.168.1.1\"}\n"
+                    "}\n"
+                    "```\n"
+                    "After getting the tool output, analyze it and choose the next tool or "
+                    "provide your final summary if the goal is achieved. "
+                    "If you are finished, just respond with your final analysis (no JSON)."
+                )
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": goal}
+                ]
+                
+                step_log = []
+                for step in range(1, max_steps + 1):
+                    content = self._call_ollama(messages)
+                    if not content:
+                        break
+                        
+                    tool_call = None
+                    try:
+                        match = re.search(r"(\{.*\})", content.replace("\n", " "), re.DOTALL)
+                        if match:
+                            parsed_json = json.loads(match.group(1))
+                            if "action" in parsed_json:
+                                tool_call = parsed_json
+                    except Exception:
+                        pass
+                        
+                    if tool_call:
+                        action = tool_call["action"]
+                        args = tool_call.get("params", {})
+                        
+                        logger.info("Ollama Chain Step %d: %s(%s)", step, action, args)
+                        if on_step:
+                            on_step(step, action, f"Executing {action}...")
+                            
+                        pmap = PARAM_MAP.get(action, {})
+                        params = ActionParams.from_function_call(action, args, pmap)
+                        
+                        try:
+                            result_str = execute_fn(action, params)
+                            success = True
+                        except Exception as e:
+                            result_str = f"[ERROR] {action} failed: {e}"
+                            success = False
+                            
+                        target = args.get("target", args.get("interface", "unknown"))
+                        self.results.add(action, str(target), result_str[:500])
+                        
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({
+                            "role": "user",
+                            "content": f"TOOL OUTPUT:\n{result_str[:2000]}"
+                        })
+                    else:
+                        logger.info("Ollama Chain Complete.")
+                        return content
+                return "Chain stopped: max steps reached."
             return None
 
         async def _run():
