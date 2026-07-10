@@ -331,6 +331,7 @@ class Agent:
         self.history: list[dict] = []
         self.last_intent: str = "default"
         self.ai = GeminiEngine()
+        self.ai.agent_ref = self
         self.attack_plan: Optional[AttackPlan] = None
 
         # Wire AI's ResultStore into orchestrator for chain memory
