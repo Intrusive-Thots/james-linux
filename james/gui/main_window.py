@@ -222,6 +222,11 @@ class MainWindow(QMainWindow):
             self._toggle_sidebar
         )
 
+        # Open Web HUD
+        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(
+            self._open_web_hud
+        )
+
         # Show setup wizard on first run
         if SetupWizard.should_show():
             QTimer.singleShot(500, self._show_setup_wizard)
@@ -250,6 +255,14 @@ class MainWindow(QMainWindow):
             self.activity_sidebar._expand()
         else:
             self.activity_sidebar._collapse()
+
+    def _open_web_hud(self):
+        """Open the React Tactical Web HUD in the default system browser."""
+        from PyQt5.QtGui import QDesktopServices
+        from PyQt5.QtCore import QUrl
+        url = QUrl("http://localhost:5173/")
+        logger.info("Opening Web HUD: %s", url.toString())
+        QDesktopServices.openUrl(url)
 
     # ── UI Construction ───────────────────────────────────────────────
 
@@ -474,8 +487,14 @@ class MainWindow(QMainWindow):
 
         self._btn_power.setMenu(power_menu)
 
+        self._btn_hud = QPushButton("🌐 Web HUD")
+        self._btn_hud.setMinimumWidth(80)
+        self._btn_hud.setToolTip("Open React Tactical Web HUD (Ctrl+H)")
+        self._btn_hud.clicked.connect(self._open_web_hud)
+
         layout.addWidget(self._btn_sidebar)
         layout.addWidget(self._btn_logs)
+        layout.addWidget(self._btn_hud)
         layout.addWidget(self._btn_power)
 
         return header
