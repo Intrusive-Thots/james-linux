@@ -58,3 +58,7 @@
 ## 2024-07-09 - Improve Chat Panel History Navigation UX
 **Learning:** In the chat panel's command history (`_HistoryLineEdit`), users experienced friction when pressing the down arrow past the most recent command, as it kept the last command visible instead of clearing the input line for a new command. This required manual clearing before typing.
 **Action:** Modified `_HistoryLineEdit.keyPressEvent` for `Qt.Key_Down` to accurately manage the history index (`_idx`). It now checks if the index is beyond the end of the history list, and if so, sets the input text to empty, providing a smoother and more expected user experience for command history navigation. Also fixed broken tests related to setup tab finding in the GUI tests.
+
+## 2024-05-18 - Avoid array.filter on frequently updating global state
+**Learning:** In the React frontend (`web/`), using `array.filter().length` or similar methods on frequently updating global state arrays (like `logs`, `aps`, `handshakes`) inside components creates unnecessary intermediate array allocations on every render tick.
+**Action:** Replace `array.filter(condition)` with single-pass `for...of` loops or `reduce` inside `useMemo` hooks. This improves performance by avoiding intermediate array allocations, especially for high-frequency updates.

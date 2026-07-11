@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -42,6 +42,15 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
     state.attack.stage === "capturing" || state.attack.stage === "cracking";
   const isComplete = state.attack.stage === "complete";
 
+  const crackedCount = useMemo(() => {
+    let count = 0;
+    for (const h of state.handshakes) {
+      if (h.cracked) count++;
+    }
+    return count;
+  }, [state.handshakes]);
+
+
   // Timer
   useEffect(() => {
     if (!running || !startTime) return;
@@ -54,14 +63,16 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
   // Watch attack state for completion
   useEffect(() => {
     if (running && isComplete) {
-      setRunning(false);
-      if (state.attack.result?.found) {
-        addLog("success", `Auto-Pilot complete! Key: ${state.attack.result.key}`);
-      } else {
-        addLog("warn", "Auto-Pilot complete. Key not found in wordlist.");
-      }
+      setTimeout(() => {
+        setRunning(false);
+        if (state.attack.result?.found) {
+          addLog("success", `Auto-Pilot complete! Key: ${state.attack.result.key}`);
+        } else {
+          addLog("warn", "Auto-Pilot complete. Key not found in wordlist.");
+        }
+      }, 0);
     }
-  }, [isComplete, running, state.attack.result]);
+  }, [isComplete, running, state.attack.result, addLog]);
 
   const handleStart = () => {
     if (!connected) {
@@ -343,7 +354,7 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
                 <MetricRow label="Handshakes" value={String(state.handshakes.length)} />
                 <MetricRow
                   label="Keys Cracked"
-                  value={String(state.handshakes.filter((h) => h.cracked).length)}
+                  value={String(crackedCount)}
                 />
               </div>
             </div>
