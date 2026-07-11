@@ -91,6 +91,24 @@ export function Logs({ state }: LogsProps) {
     return acc;
   }, [state.logs]);
 
+  const { lastError, lastSuccess } = useMemo(() => {
+    let lastError = "None";
+    let lastSuccess = "None";
+    for (let i = state.logs.length - 1; i >= 0; i--) {
+      const l = state.logs[i];
+      if (lastError === "None" && l.level === "error") {
+        lastError = l.message;
+      }
+      if (lastSuccess === "None" && l.level === "success") {
+        lastSuccess = l.message;
+      }
+      if (lastError !== "None" && lastSuccess !== "None") {
+        break;
+      }
+    }
+    return { lastError, lastSuccess };
+  }, [state.logs]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -142,14 +160,14 @@ export function Logs({ state }: LogsProps) {
           <SummaryWidget
             label="Last Error"
             value={
-              state.logs.filter((l) => l.level === "error").slice(-1)[0]?.message || "None"
+              lastError
             }
             variant="danger"
           />
           <SummaryWidget
             label="Last Success"
             value={
-              state.logs.filter((l) => l.level === "success").slice(-1)[0]?.message || "None"
+              lastSuccess
             }
             variant="success"
           />

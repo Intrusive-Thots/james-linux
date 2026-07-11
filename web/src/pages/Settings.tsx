@@ -585,8 +585,12 @@ function DependenciesPanel() {
     { name: "macchanger", status: "installed" as const, version: "1.7.0" },
   ];
 
-  const installed = deps.filter((d) => d.status === "installed").length;
-  const missing = deps.filter((d) => d.status === "missing").length;
+  let installed = 0;
+  let missing = 0;
+  for (const d of deps) {
+    if (d.status === "installed") installed++;
+    if (d.status === "missing") missing++;
+  }
 
   return (
     <div className="space-y-lg">

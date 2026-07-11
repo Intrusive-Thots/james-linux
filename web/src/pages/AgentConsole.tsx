@@ -39,15 +39,6 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
     }
   }, [messages]);
 
-  // Watch for agent responses
-  useEffect(() => {
-    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
-      lastResponseTs.current = lastAgentResponse.ts;
-      addMessage("agent", lastAgentResponse.response);
-      setProcessing(false);
-    }
-  }, [lastAgentResponse]);
-
   const addMessage = useCallback((role: "user" | "agent", content: string) => {
     setMessages((prev) => [
       ...prev,
@@ -59,6 +50,15 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
       },
     ]);
   }, []);
+
+  // Watch for agent responses
+  useEffect(() => {
+    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
+      lastResponseTs.current = lastAgentResponse.ts;
+      addMessage("agent", lastAgentResponse.response);
+      setProcessing(false);
+    }
+  }, [lastAgentResponse, addMessage]);
 
   const handleSendCommand = () => {
     const cmd = input.trim();

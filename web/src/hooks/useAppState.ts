@@ -178,10 +178,16 @@ export function useAppState() {
   }, []);
 
   const removeHandshake = useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      handshakes: s.handshakes.filter((h) => h.id !== id),
-    }));
+    setState((s) => {
+      const newHandshakes = [];
+      for (const h of s.handshakes) {
+        if (h.id !== id) newHandshakes.push(h);
+      }
+      return {
+        ...s,
+        handshakes: newHandshakes,
+      };
+    });
   }, []);
 
   return {
