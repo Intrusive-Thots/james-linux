@@ -16,8 +16,8 @@ describe('utils', () => {
 
   describe('downloadFile', () => {
     beforeEach(() => {
-      global.URL.createObjectURL = vi.fn(() => 'blob:test-url');
-      global.URL.revokeObjectURL = vi.fn();
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:test-url');
+      globalThis.URL.revokeObjectURL = vi.fn();
     });
 
     it('creates a download link and triggers click', () => {
@@ -27,11 +27,11 @@ describe('utils', () => {
 
       downloadFile('test.csv', 'a,b\n1,2', 'text/csv');
 
-      expect(global.URL.createObjectURL).toHaveBeenCalled();
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
       expect(appendChildSpy).toHaveBeenCalled();
       expect(clickSpy).toHaveBeenCalled();
       expect(removeChildSpy).toHaveBeenCalled();
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
     });
   });
 

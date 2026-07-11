@@ -62,3 +62,5 @@
 ## 2024-05-18 - Avoid array.filter on frequently updating global state
 **Learning:** In the React frontend (`web/`), using `array.filter().length` or similar methods on frequently updating global state arrays (like `logs`, `aps`, `handshakes`) inside components creates unnecessary intermediate array allocations on every render tick.
 **Action:** Replace `array.filter(condition)` with single-pass `for...of` loops or `reduce` inside `useMemo` hooks. This improves performance by avoiding intermediate array allocations, especially for high-frequency updates.
+
+- Implemented global keyboard shortcuts (`Ctrl+K` for focus commands and `Ctrl+F` for focus search) across various views via a custom `useShortcutFocus` React hook for enhanced UX.

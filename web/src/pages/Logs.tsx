@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LogEntry, AppState } from "../hooks/useAppState";
 import { cn, downloadFile } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface LogsProps {
   state: AppState;
@@ -65,6 +66,7 @@ export function Logs({ state }: LogsProps) {
   const [levelFilter, setLevelFilter] = useState<LogEntry["level"] | "all">("all");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const searchInputRef = useShortcutFocus("f", true);
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -179,7 +181,8 @@ export function Logs({ state }: LogsProps) {
             <Search className="w-4 h-4 text-text-muted absolute left-[10px] top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search logs…"
+              ref={searchInputRef}
+              placeholder="Search logs… (Ctrl+F)"
               className="w-full h-9 pl-8 pr-md text-body bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
