@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { AppState } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface AgentProps {
   state: AppState;
@@ -35,6 +36,7 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
   const [autoPilotRunning, setAutoPilotRunning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useShortcutFocus("k", true);
   const lastResponseTs = useRef(0);
 
   // Auto-scroll chat
@@ -274,7 +276,8 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
           <div className="flex items-center gap-sm pt-md border-t border-border">
             <input
               type="text"
-              placeholder="Type a command (scan, status, loot, help)…"
+              ref={commandInputRef}
+              placeholder="Type a command (scan, status, loot, help)… (Ctrl+K)"
               className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={input}
               onChange={(e) => setInput(e.target.value)}
