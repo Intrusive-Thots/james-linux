@@ -191,7 +191,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setPage]);
+  }, [setPage, setWorkspace]);
 
   // ── Scan handlers ──────────────────────────────────────────
   const handleStartScan = useCallback(() => {
