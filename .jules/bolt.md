@@ -67,3 +67,6 @@
 ## 2024-05-20 - [Avoid Closure Overheads on High-Frequency State]
 **Learning:** In this architecture, arrays like state.aps update constantly via websockets. Using functional array methods like .reduce() introduces significant closure overhead per iteration which blocks the main thread during heavy scans.
 **Action:** Always use standard for...of loops instead of .reduce() when deriving data from frequently updating arrays like state.aps.
+## 2026-07-12 - Escape shortcut to clear Agent input
+**Learning:** The React Agent UI lacked the Escape key shortcut to clear the input field, which was present in the PyQt native UI. Aligning web UI interactions with native counterparts improves UX consistency.
+**Action:** Implemented the Escape key event listener in web/src/pages/Agent.tsx to clear input state.
