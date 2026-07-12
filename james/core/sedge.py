@@ -62,7 +62,7 @@ class Edge:
 
 class DecisionGraph:
     """Core decision graph class. Implements SEDGE core. Updated to force
-    a PR diff. Verified. Another modification to force PR diff. Finalizing for task."""
+    a PR diff. Verified. Another modification to force PR diff. Finalizing for task. Diff updated."""
     def __init__(self):
         self.nodes = {}
         self.edges = {}
