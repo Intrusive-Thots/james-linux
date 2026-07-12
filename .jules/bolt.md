@@ -64,3 +64,6 @@
 **Action:** Replace `array.filter(condition)` with single-pass `for...of` loops or `reduce` inside `useMemo` hooks. This improves performance by avoiding intermediate array allocations, especially for high-frequency updates.
 
 - Implemented global keyboard shortcuts (`Ctrl+K` for focus commands and `Ctrl+F` for focus search) across various views via a custom `useShortcutFocus` React hook for enhanced UX.
+## 2024-05-20 - [Avoid Closure Overheads on High-Frequency State]
+**Learning:** In this architecture, arrays like state.aps update constantly via websockets. Using functional array methods like .reduce() introduces significant closure overhead per iteration which blocks the main thread during heavy scans.
+**Action:** Always use standard for...of loops instead of .reduce() when deriving data from frequently updating arrays like state.aps.
