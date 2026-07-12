@@ -117,6 +117,10 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendCommand();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setInput("");
+      setHistoryIdx(-1);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length > 0) {
