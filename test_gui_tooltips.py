@@ -130,6 +130,19 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(tab.btn_scan_start.toolTip(), "Start network scan (Ctrl+S)")
         self.assertEqual(tab.btn_scan_stop.toolTip(), "Stop network scan (Ctrl+S)")
 
+    def test_lab_tab_tooltips(self):
+        from james.gui.tabs.lab_tab import LabTab
+        tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), LabTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "LabTab not found")
+        self.assertEqual(tab.btn_run_fuzz.toolTip(), "Start SAE Fuzzing on the selected interface (Ctrl+F)")
+        self.assertEqual(tab.btn_run_down.toolTip(), "Trigger Downgrade on the selected interface (Ctrl+D)")
     def test_autopilot_tab_tooltips(self):
         from james.gui.tabs.autopilot_tab import AutoPilotTab
         tab = next(

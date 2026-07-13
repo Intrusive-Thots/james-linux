@@ -255,6 +255,22 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+F shortcut not found in SetupTab"
         )
 
+    def test_lab_tab_shortcuts(self):
+        from james.gui.tabs.lab_tab import LabTab
+        tab = next(
+            (
+                self.window.tabs.widget(i)
+                for i in range(self.window.tabs.count())
+                if isinstance(self.window.tabs.widget(i), LabTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "LabTab not found")
+
+        shortcuts = tab.findChildren(QShortcut)
+        keys = [s.key().toString() for s in shortcuts]
+        self.assertIn("Ctrl+F", keys)
+        self.assertIn("Ctrl+D", keys)
     def test_chat_ctrl_enter(self):
         from james.gui.chat_panel import ChatPanel
 

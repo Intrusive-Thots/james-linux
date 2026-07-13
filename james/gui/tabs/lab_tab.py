@@ -1,6 +1,7 @@
 """JAMES — Lab Tab (Experimental WPA3 Features)."""
 
 from PyQt5.QtWidgets import (
+    QShortcut,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -12,6 +13,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QKeySequence
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,6 +73,7 @@ class LabTab(QWidget):
         self.cmb_fuzz_iface.setPlaceholderText("Select Interface")
         self.btn_run_fuzz = QPushButton("⚡ Start SAE Fuzzing")
         self.btn_run_fuzz.setObjectName("warnBtn")
+        self.btn_run_fuzz.setToolTip("Start SAE Fuzzing on the selected interface (Ctrl+F)")
         self.btn_run_fuzz.setMinimumHeight(38)
         fuzz_controls.addWidget(self.cmb_fuzz_iface, stretch=1)
         fuzz_controls.addWidget(self.btn_run_fuzz, stretch=1)
@@ -96,6 +99,7 @@ class LabTab(QWidget):
         self.cmb_down_iface.setPlaceholderText("Select Interface")
         self.btn_run_down = QPushButton("🐉 Trigger Downgrade")
         self.btn_run_down.setObjectName("primaryBtn")
+        self.btn_run_down.setToolTip("Trigger Downgrade on the selected interface (Ctrl+D)")
         self.btn_run_down.setMinimumHeight(38)
         down_controls.addWidget(self.cmb_down_iface, stretch=1)
         down_controls.addWidget(self.btn_run_down, stretch=1)
@@ -110,6 +114,16 @@ class LabTab(QWidget):
 
         # Populate interface combo boxes
         self._refresh_interfaces()
+        self._build_shortcuts()
+
+    def _build_shortcuts(self):
+        sc_f = QShortcut(QKeySequence("Ctrl+F"), self)
+        sc_f.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_f.activated.connect(self._on_fuzz_clicked)
+
+        sc_d = QShortcut(QKeySequence("Ctrl+D"), self)
+        sc_d.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_d.activated.connect(self._on_down_clicked)
 
     def _refresh_interfaces(self):
         try:
