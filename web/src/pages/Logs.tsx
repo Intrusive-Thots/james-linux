@@ -75,11 +75,12 @@ export function Logs({ state }: LogsProps) {
   }, [state.logs.length, autoScroll]);
 
   const filtered = useMemo(() => {
-    const q = filter.toLowerCase();
+    const q = filter;
+    const qRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     const acc: LogEntry[] = [];
     for (const log of state.logs) {
       if (levelFilter !== "all" && log.level !== levelFilter) continue;
-      if (q && !log.message.toLowerCase().includes(q)) continue;
+      if (qRegex && !qRegex.test(log.message)) continue;
       acc.push(log);
     }
     return acc;

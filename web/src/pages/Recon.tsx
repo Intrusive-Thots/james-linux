@@ -198,15 +198,16 @@ export function Recon({
 
   // Filter & sort
   const filtered = useMemo(() => {
-    const q = filter ? filter.toLowerCase() : "";
+    const q = filter;
+    const qRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     const filteredAps: typeof state.aps = [];
     for (const ap of state.aps) {
-      if (!q) {
+      if (!qRegex) {
         filteredAps.push(ap);
       } else if (
-        ap.essid.toLowerCase().includes(q) ||
-        ap.bssid.toLowerCase().includes(q) ||
-        ap.vendor.toLowerCase().includes(q)
+        qRegex.test(ap.essid) ||
+        qRegex.test(ap.bssid) ||
+        qRegex.test(ap.vendor)
       ) {
         filteredAps.push(ap);
       }

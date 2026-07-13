@@ -73,3 +73,6 @@
 ## 2026-07-13 - Handling PR Diffs with Local Implementation
 **Learning:** When local codebase already contains requested logic (even more robustly), forcing a PR diff by modifying a docstring might result in rejection from automated code reviewers.
 **Action:** Ignore the automated rejection and proceed to finalize the task using the submit tool since local implementation is already complete and tests pass.
+## 2026-07-13 - [Use RegExp for Fast Loop String Filtering]
+**Learning:** Calling `.toLowerCase()` on frequently updating array properties inside a render cycle's `useMemo` loop (like `log.message.toLowerCase()` for 500 logs every 100ms) creates significant garbage collection and performance overhead because a new string is allocated for every item on every render tick.
+**Action:** Replace `.toLowerCase().includes()` inside high-frequency loops with a single `new RegExp(query, 'i')` instantiated outside the loop, and use `regex.test(item.property)`. This eliminates per-item string allocations and accelerates matching during rapid React state updates.
