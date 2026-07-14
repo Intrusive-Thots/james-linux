@@ -20,9 +20,7 @@ from james.tools.constants import (
 @dataclass
 class Node:
     """Represents a state or action node in the SEDGE decision graph system
-    (Self-Evolving Decision Graph Engine). Updated to force a PR diff
-    for SEDGE core idea. Completed successfully. Final modification.
-    Another update to force PR diff. Finalizing logic for this issue. Force diff #18. Force diff #19."""
+    (Self-Evolving Decision Graph Engine)."""
     id: str
     state_type: str  # "scan", "analysis", "action"
     metadata: Dict = field(default_factory=dict)
@@ -61,8 +59,7 @@ class Edge:
 
 
 class DecisionGraph:
-    """Core decision graph class. Implements SEDGE core. Updated to force
-    a PR diff. Verified. Another modification to force PR diff. Finalizing for task. Diff updated again."""
+    """Core decision graph class. Implements SEDGE core."""
     def __init__(self):
         self.nodes = {}
         self.edges = {}
@@ -122,7 +119,7 @@ class DecisionGraph:
 
 
 class LearningEngine:
-    """Handles learning updates for the decision graph. Modified to force a PR diff."""
+    """Handles learning updates for the decision graph."""
     def update(self, graph: DecisionGraph,
                path: List[str], success: bool = None, outcome: str = None):
         val = success if success is not None else outcome
@@ -142,8 +139,7 @@ class LearningEngine:
 
 
 class DecisionEngine:
-    """Decision engine (policy layer) for the SEDGE system. Updated to
-    force a PR diff."""
+    """Decision engine (policy layer) for the SEDGE system."""
     def __init__(self, graph: DecisionGraph):
         self.graph = graph
 
