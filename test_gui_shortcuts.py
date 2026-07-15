@@ -1,3 +1,4 @@
+from PyQt5.QtCore import Qt
 import sys
 import unittest
 from PyQt5.QtWidgets import QApplication, QShortcut
@@ -332,6 +333,24 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertEqual(anim.propertyName(), b"opacity")
         self.assertEqual(anim.startValue(), 0.0)
         self.assertEqual(anim.endValue(), 1.0)
+
+
+    def test_activity_tab_shortcuts(self):
+
+        """Verify activity tab shortcuts are assigned to their context properly."""
+        from james.gui.tabs.activity_tab import ActivitySidebar
+        sidebar = ActivitySidebar(self.window)
+        shortcuts = sidebar.findChildren(QShortcut)
+        assert len(shortcuts) >= 3
+
+        shortcut_keys = [sc.key().toString() for sc in shortcuts]
+        assert "Ctrl+P" in shortcut_keys
+        assert "Ctrl+L" in shortcut_keys
+        assert "Ctrl+Shift+C" in shortcut_keys
+
+        # Check contexts
+        for sc in shortcuts:
+            assert sc.context() == Qt.WidgetWithChildrenShortcut
 
 
 if __name__ == "__main__":
