@@ -53,6 +53,17 @@ class TestOrchestratorLoot(unittest.TestCase):
         self.assertEqual(disk_data["cracked_keys"][bssid]["essid"], essid)
         self.assertIn("cracked_at", disk_data["cracked_keys"][bssid])
 
+    def test_handle_command(self):
+        """Test orchestrator.handle_command dynamically executes agent.process."""
+        # Eagerly initialize agent if it failed during __init__ (due to missing API keys etc)
+        if not hasattr(self.orchestrator, "agent") or not self.orchestrator.agent:
+            from james.core.agent import Agent
+            self.orchestrator.agent = Agent(self.orchestrator)
+        
+        # Test help command response contains expected reference info
+        res = self.orchestrator.handle_command("help")
+        self.assertIn("JAMES — Command Reference", res)
+
 
 if __name__ == "__main__":
     unittest.main()
