@@ -31,7 +31,6 @@ from PyQt5.QtWidgets import (
     QFrame,
     QCheckBox,
     QSpacerItem,
-    QSizePolicy,
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QColor
