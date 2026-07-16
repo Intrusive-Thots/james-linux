@@ -120,7 +120,7 @@ echo -e "\n${CYAN}[2/5] Python Dependencies${NC}"
 echo "─────────────────────────────────────────"
 
 PY_PKGS=(
-    google-genai
+    google-antigravity
     requests
     scapy
     netifaces

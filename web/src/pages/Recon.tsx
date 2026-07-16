@@ -21,6 +21,7 @@ import type { AP, AppState, PageId } from "../hooks/useAppState";
 import { SignalBars } from "../components/ui/SignalBars";
 import { AirspaceHeatmap } from "../components/ui/AirspaceHeatmap";
 import { cn, downloadFile, toCSV } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface ReconProps {
   state: AppState;
@@ -56,6 +57,7 @@ export function Recon({
   const [sortKey, setSortKey] = useState<SortKey>("power");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filter, setFilter] = useState("");
+  const searchInputRef = useShortcutFocus("f", true);
   const [viewMode, setViewMode] = useState<"list" | "map">("map");
 
   /* ── Smart Attack Advisor ──────────────────────────────────────
@@ -196,15 +198,16 @@ export function Recon({
 
   // Filter & sort
   const filtered = useMemo(() => {
-    const q = filter ? filter.toLowerCase() : "";
+    const q = filter;
+    const qRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     const filteredAps: typeof state.aps = [];
     for (const ap of state.aps) {
-      if (!q) {
+      if (!qRegex) {
         filteredAps.push(ap);
       } else if (
-        ap.essid.toLowerCase().includes(q) ||
-        ap.bssid.toLowerCase().includes(q) ||
-        ap.vendor.toLowerCase().includes(q)
+        qRegex.test(ap.essid) ||
+        qRegex.test(ap.bssid) ||
+        qRegex.test(ap.vendor)
       ) {
         filteredAps.push(ap);
       }
@@ -342,7 +345,8 @@ export function Recon({
                 <Filter className="w-4 h-4 text-text-muted absolute left-[10px] top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Filter by SSID, BSSID, vendor…"
+                  ref={searchInputRef}
+                  placeholder="Filter by SSID, BSSID… (Ctrl+F)"
                   className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[200px] transition-colors"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}

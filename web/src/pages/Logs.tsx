@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LogEntry, AppState } from "../hooks/useAppState";
 import { cn, downloadFile } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface LogsProps {
   state: AppState;
@@ -65,6 +66,7 @@ export function Logs({ state }: LogsProps) {
   const [levelFilter, setLevelFilter] = useState<LogEntry["level"] | "all">("all");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const searchInputRef = useShortcutFocus("f", true);
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -73,11 +75,12 @@ export function Logs({ state }: LogsProps) {
   }, [state.logs.length, autoScroll]);
 
   const filtered = useMemo(() => {
-    const q = filter.toLowerCase();
+    const q = filter;
+    const qRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
     const acc: LogEntry[] = [];
     for (const log of state.logs) {
       if (levelFilter !== "all" && log.level !== levelFilter) continue;
-      if (q && !log.message.toLowerCase().includes(q)) continue;
+      if (qRegex && !qRegex.test(log.message)) continue;
       acc.push(log);
     }
     return acc;
@@ -89,6 +92,24 @@ export function Logs({ state }: LogsProps) {
       acc[l.level]++;
     }
     return acc;
+  }, [state.logs]);
+
+  const { lastError, lastSuccess } = useMemo(() => {
+    let lastError = "None";
+    let lastSuccess = "None";
+    for (let i = state.logs.length - 1; i >= 0; i--) {
+      const l = state.logs[i];
+      if (lastError === "None" && l.level === "error") {
+        lastError = l.message;
+      }
+      if (lastSuccess === "None" && l.level === "success") {
+        lastSuccess = l.message;
+      }
+      if (lastError !== "None" && lastSuccess !== "None") {
+        break;
+      }
+    }
+    return { lastError, lastSuccess };
   }, [state.logs]);
 
   return (
@@ -142,14 +163,14 @@ export function Logs({ state }: LogsProps) {
           <SummaryWidget
             label="Last Error"
             value={
-              state.logs.filter((l) => l.level === "error").slice(-1)[0]?.message || "None"
+              lastError
             }
             variant="danger"
           />
           <SummaryWidget
             label="Last Success"
             value={
-              state.logs.filter((l) => l.level === "success").slice(-1)[0]?.message || "None"
+              lastSuccess
             }
             variant="success"
           />
@@ -161,7 +182,8 @@ export function Logs({ state }: LogsProps) {
             <Search className="w-4 h-4 text-text-muted absolute left-[10px] top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search logs…"
+              ref={searchInputRef}
+              placeholder="Search logs… (Ctrl+F)"
               className="w-full h-9 pl-8 pr-md text-body bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}

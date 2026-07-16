@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { AppState } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface AgentConsoleProps {
   state: AppState;
@@ -30,6 +31,7 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [processing, setProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useShortcutFocus("k", true);
   const lastResponseTs = useRef(0);
 
   // Auto-scroll chat
@@ -38,15 +40,6 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  // Watch for agent responses
-  useEffect(() => {
-    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
-      lastResponseTs.current = lastAgentResponse.ts;
-      addMessage("agent", lastAgentResponse.response);
-      setProcessing(false);
-    }
-  }, [lastAgentResponse]);
 
   const addMessage = useCallback((role: "user" | "agent", content: string) => {
     setMessages((prev) => [
@@ -59,6 +52,15 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
       },
     ]);
   }, []);
+
+  // Watch for agent responses
+  useEffect(() => {
+    if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
+      lastResponseTs.current = lastAgentResponse.ts;
+      addMessage("agent", lastAgentResponse.response);
+      setProcessing(false);
+    }
+  }, [lastAgentResponse, addMessage]);
 
   const handleSendCommand = () => {
     const cmd = input.trim();
@@ -190,7 +192,8 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
           <div className="flex items-center gap-sm pt-md border-t border-border">
             <input
               type="text"
-              placeholder="Type a command (scan, status, loot, help)…"
+              ref={commandInputRef}
+              placeholder="Type a command (scan, status, loot, help)… (Ctrl+K)"
               className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={input}
               onChange={(e) => setInput(e.target.value)}
