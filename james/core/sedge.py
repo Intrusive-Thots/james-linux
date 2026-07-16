@@ -67,12 +67,14 @@ class DecisionGraph:
     def __init__(self):
         self.nodes = {}
         self.edges = {}
+        self.edge_lookup = {}
 
     def add_node(self, node: Node):
         self.nodes[node.id] = node
 
     def add_edge(self, edge: Edge):
         self.edges.setdefault(edge.from_node, []).append(edge)
+        self.edge_lookup.setdefault(edge.from_node, {})[edge.to_node] = edge
 
     def get_best_next(self, node_id: str):
         edges = self.edges.get(node_id, [])
@@ -103,12 +105,11 @@ class DecisionGraph:
         edge_count = 0
 
         for frm, to in zip(path[:-1], path[1:]):
-            edges = self.edges.get(frm, [])
-            for e in edges:
-                if e.to_node == to:
-                    total_score += e.score()
-                    edge_count += 1
-                    break
+            edge_map = self.edge_lookup.get(frm, {})
+            e = edge_map.get(to)
+            if e is not None:
+                total_score += e.score()
+                edge_count += 1
             else:
                 return 0.0  # Path is broken
 
@@ -120,6 +121,7 @@ class DecisionGraph:
     def clear(self) -> None:
         self.nodes.clear()
         self.edges.clear()
+        self.edge_lookup.clear()
 
 
 class LearningEngine:
@@ -129,17 +131,17 @@ class LearningEngine:
         val = success if success is not None else outcome
         for i in range(len(path) - 1):
             frm, to = path[i], path[i + 1]
-            edges = graph.edges.get(frm, [])
-            for e in edges:
-                if e.to_node == to:
-                    e.visits += 1
-                    if val == OUTCOME_SUCCESS or val is True:
-                        e.success_weight += 1.0
-                    elif val == OUTCOME_FAILURE or val is False:
-                        e.failure_weight += 1.0
-                    elif val == OUTCOME_PARTIAL:
-                        e.success_weight += 0.5
-                        e.failure_weight += 0.5
+            edge_map = graph.edge_lookup.get(frm, {})
+            e = edge_map.get(to)
+            if e is not None:
+                e.visits += 1
+                if val == OUTCOME_SUCCESS or val is True:
+                    e.success_weight += 1.0
+                elif val == OUTCOME_FAILURE or val is False:
+                    e.failure_weight += 1.0
+                elif val == OUTCOME_PARTIAL:
+                    e.success_weight += 0.5
+                    e.failure_weight += 0.5
 
 
 class DecisionEngine:
