@@ -64,6 +64,33 @@ class TestSedgeEngine(unittest.TestCase):
         self.assertEqual(start_scan_edge.success_weight, 1.5)
         self.assertEqual(start_scan_edge.failure_weight, 1.5)
 
+    def test_learning_engine_success_bool(self):
+        path = ["START", "SCAN", "ATTACK"]
+        self.learner.update(self.graph, path, success=True)
+
+        start_scan_edge = self.graph.edges["START"][0]
+        self.assertEqual(start_scan_edge.visits, 1)
+        self.assertEqual(start_scan_edge.success_weight, 2.0)
+        self.assertEqual(start_scan_edge.failure_weight, 1.0)
+
+    def test_learning_engine_failure_bool(self):
+        path = ["START", "SCAN", "ATTACK"]
+        self.learner.update(self.graph, path, success=False)
+
+        start_scan_edge = self.graph.edges["START"][0]
+        self.assertEqual(start_scan_edge.visits, 1)
+        self.assertEqual(start_scan_edge.success_weight, 1.0)
+        self.assertEqual(start_scan_edge.failure_weight, 2.0)
+
+    def test_learning_engine_outcome_kwarg(self):
+        path = ["START", "SCAN", "ATTACK"]
+        self.learner.update(self.graph, path, outcome=OUTCOME_SUCCESS)
+
+        start_scan_edge = self.graph.edges["START"][0]
+        self.assertEqual(start_scan_edge.visits, 1)
+        self.assertEqual(start_scan_edge.success_weight, 2.0)
+        self.assertEqual(start_scan_edge.failure_weight, 1.0)
+
     def test_decision_engine_decide(self):
         # With default weights (1.0 success, 1.0 failure), both score exactly 1.0.
         # But here START only has 1 edge.

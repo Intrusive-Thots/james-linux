@@ -11,6 +11,9 @@ export type WSMessage =
       status: string;
       progress: number;
       result?: { found: boolean; key?: string };
+      sub_stage?: number;
+      total_stages?: number;
+      stage_name?: string;
     }
   | { type: "handshake_data"; data: any }
   | { type: "auto_pilot_target"; target: any }

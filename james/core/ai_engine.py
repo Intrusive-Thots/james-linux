@@ -5,24 +5,178 @@ Replaces the old raw-JSON LLM dispatch with proper Gemini tool_use.
 Every JAMES action is declared as a FunctionDeclaration so Gemini can
 pick the right tool with validated params. Conversational fallback
 lets the LLM advise, explain, and strategize when no tool is needed.
+
+Enhanced with:
+  - ResultStore: persistent ring-buffer of tool results for memory/recall
+  - Adaptive system prompt: phase-aware, result-aware context injection
+  - Result analysis: post-action AI interpretation + next-step suggestions
+  - Enhanced chain execution: self-correcting, context-mutating agentic loop
 """
 
+import asyncio
 import json
 import logging
 import os
+import re
+from collections import deque
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
+import requests
 
 logger = logging.getLogger(__name__)
 
 try:
-    from google import genai
-    from google.genai import types
-
-    HAS_GENAI = True
+    from google.antigravity import Agent, LocalAgentConfig
+    import google.antigravity.types as antigravity_types
+    HAS_ANTIGRAVITY = True
 except ImportError:
-    HAS_GENAI = False
+    HAS_ANTIGRAVITY = False
 
-from james.core.primers import get_primer, SYSTEM_PRIMER
+from james.core.primers import get_primer, get_combined_primer, SYSTEM_PRIMER
+
+
+# ── ResultStore: persistent ring-buffer of tool results ──────────
+
+
+class ResultStore:
+    """
+    Persistent memory of recent tool results.
+
+    Stores the last MAX_RESULTS action outputs in a ring buffer, keyed
+    by (action, target). Persists to ~/.james/ai_memory.json across
+    restarts so the AI can recall past findings.
+    """
+
+    MAX_RESULTS = 50
+    SUMMARY_LEN = 600  # max chars per result summary
+    MEMORY_FILE = Path.home() / ".james" / "ai_memory.json"
+
+    def __init__(self):
+        self._store: deque = deque(maxlen=self.MAX_RESULTS)
+        self._load()
+
+    def add(self, action: str, target: str, result_summary: str,
+            extra: Optional[dict] = None):
+        """Record a tool result."""
+        entry = {
+            "action": action,
+            "target": target,
+            "summary": result_summary[:self.SUMMARY_LEN],
+            "timestamp": datetime.now().isoformat(),
+            "extra": extra or {},
+        }
+        self._store.append(entry)
+        self._save()
+
+    def get_recent(self, n: int = 10) -> list[dict]:
+        """Return the N most recent results (newest first)."""
+        items = list(self._store)
+        return list(reversed(items[-n:]))
+
+    def search(self, query: str, n: int = 5) -> list[dict]:
+        """Find results matching a query string (target or action)."""
+        query_lower = query.lower()
+        matches = []
+        for entry in reversed(self._store):
+            if (query_lower in entry["target"].lower()
+                    or query_lower in entry["action"].lower()
+                    or query_lower in entry["summary"].lower()):
+                matches.append(entry)
+                if len(matches) >= n:
+                    break
+        return matches
+
+    def get_for_target(self, target: str) -> list[dict]:
+        """Get all results for a specific target."""
+        return [e for e in self._store if e["target"] == target]
+
+    def build_context_block(self, n: int = 8) -> str:
+        """Build a compressed context string for system prompt injection."""
+        recent = self.get_recent(n)
+        if not recent:
+            return ""
+        lines = ["\nRECENT RESULTS (most recent first):"]
+        for entry in recent:
+            ts = entry["timestamp"][11:16]  # HH:MM
+            # Truncate summary for prompt efficiency
+            summary = entry["summary"][:200]
+            if len(entry["summary"]) > 200:
+                summary += "…"
+            lines.append(
+                f"  [{ts}] {entry['action']}({entry['target']}): {summary}"
+            )
+        return "\n".join(lines)
+
+    def build_knowledge_block(self, context: dict) -> str:
+        """
+        Build a 'WHAT WE KNOW' summary from results + context.
+
+        Synthesizes discovered hosts, ports, keys, and captures into
+        a compact knowledge block the AI can reason over.
+        """
+        lines = []
+
+        # Discovered services from context
+        svcs = context.get("discovered_services", {})
+        if svcs:
+            lines.append("\nDISCOVERED INFRASTRUCTURE:")
+            for target, info in list(svcs.items())[:5]:
+                ports = info.get("ports", [])
+                services = info.get("services", [])
+                if ports:
+                    lines.append(
+                        f"  {target}: ports={', '.join(ports[:10])} "
+                        f"services={', '.join(services[:8])}"
+                    )
+
+        # Cracked keys
+        loot = context.get("cracked_keys", {})
+        if loot:
+            lines.append(f"\nCRACKED CREDENTIALS: {len(loot)} key(s) in loot")
+
+        # Capture files
+        cap = context.get("capture_file")
+        if cap:
+            lines.append(f"\nACTIVE CAPTURE: {cap}")
+
+        # Scan history
+        history = context.get("scan_history", [])
+        if history:
+            lines.append(
+                f"\nSCAN HISTORY: {len(history)} scan(s) performed"
+            )
+
+        return "\n".join(lines) if lines else ""
+
+    def _load(self):
+        """Load persisted memory from disk."""
+        try:
+            if self.MEMORY_FILE.exists():
+                data = json.loads(self.MEMORY_FILE.read_text())
+                if isinstance(data, list):
+                    for entry in data[-self.MAX_RESULTS:]:
+                        self._store.append(entry)
+                    logger.info(
+                        "Loaded %d results from AI memory", len(self._store)
+                    )
+        except Exception as e:
+            logger.warning("Failed to load AI memory: %s", e)
+
+    def _save(self):
+        """Persist memory to disk."""
+        try:
+            self.MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self.MEMORY_FILE.write_text(
+                json.dumps(list(self._store), indent=1, default=str)
+            )
+        except Exception as e:
+            logger.warning("Failed to save AI memory: %s", e)
+
+    def clear(self):
+        """Wipe all stored results."""
+        self._store.clear()
+        self._save()
 
 # ── ActionParams: unified param object for regex + LLM dispatch ──
 
@@ -525,84 +679,253 @@ TOOL_DECLARATIONS = [
 PARAM_MAP = {decl[0]: decl[3] for decl in TOOL_DECLARATIONS}
 
 
-def _build_gemini_tools() -> list:
-    """Build Gemini FunctionDeclaration objects from TOOL_DECLARATIONS."""
-    if not HAS_GENAI:
-        return []
+def _run_sync(coro):
+    """Run an async coroutine synchronously, avoiding loop collision."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
 
-    declarations = []
-    for action, description, params, _pmap in TOOL_DECLARATIONS:
-        properties = {}
-        required = []
-        for pname, (ptype, pdesc, preq) in params.items():
-            properties[pname] = types.Schema(
-                type=ptype.upper(),
-                description=pdesc,
-            )
-            if preq:
-                required.append(pname)
-
-        schema = None
-        if properties:
-            schema = types.Schema(
-                type="OBJECT",
-                properties=properties,
-                required=required if required else None,
-            )
-
-        declarations.append(
-            types.FunctionDeclaration(
-                name=action,
-                description=description,
-                parameters=schema,
-            )
-        )
-
-    return [types.Tool(function_declarations=declarations)]
+    if loop and loop.is_running():
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
+    else:
+        return asyncio.run(coro)
 
 
 class GeminiEngine:
     """
-    Gemini-powered AI brain for JAMES.
+    Gemini-powered AI brain for JAMES, integrated with Google Antigravity SDK.
 
-    Uses function calling to route user intent to the correct tool,
-    and generates conversational responses when no tool is appropriate.
+    Uses dynamic tool registration to run security tools via JamesAgent,
+    and supports self-correcting agentic chaining natively.
     """
 
     MAX_HISTORY = 30  # sliding window of conversation turns
 
     def __init__(self):
-        self.client = None
         self.available = False
+        self.agent_ref = None
         self._tools = []
-        self._history: list = []  # Gemini Content objects
+        self.results = ResultStore()
 
-        if HAS_GENAI and os.environ.get("GEMINI_API_KEY"):
+        self.local_ollama_available = False
+        self.local_model = "dolphin-mistral"
+
+        # Check local Ollama availability
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                # Prioritize dolphin-mistral, then llama3.2, then any model
+                target_models = ["dolphin-mistral", "llama3.2"]
+                found = False
+                for tm in target_models:
+                    for m in models:
+                        if tm in m:
+                            self.local_model = m
+                            self.local_ollama_available = True
+                            found = True
+                            break
+                    if found:
+                        break
+                if not found and models:
+                    self.local_model = models[0]
+                    self.local_ollama_available = True
+                
+                if self.local_ollama_available:
+                    logger.info("Local Ollama engine activated using model: %s", self.local_model)
+        except Exception as e:
+            logger.debug("Local Ollama service check failed: %s", e)
+
+        if HAS_ANTIGRAVITY and os.environ.get("GEMINI_API_KEY"):
             try:
-                self.client = genai.Client()
-                self._tools = _build_gemini_tools()
+                self._tools = self._create_dynamic_tools()
                 self.available = True
                 logger.info(
-                    "GeminiEngine initialized with %d tool declarations",
-                    sum(len(t.function_declarations) for t in self._tools),
+                    "GeminiEngine (Antigravity) initialized with %d dynamic tool wrappers",
+                    len(self._tools),
                 )
             except Exception as e:
-                logger.warning("GeminiEngine init failed: %s", e)
+                logger.warning("GeminiEngine (Antigravity) init failed: %s", e)
 
-    def _build_system_prompt(self, context: dict) -> str:
-        """Build a context-aware system prompt with the right phase primer."""
+    def _create_dynamic_tools(self):
+        """Dynamically build python callables for google-antigravity tools."""
+        dynamic_tools = []
+
+        def make_tool_func(action_name, pmap):
+            def tool_wrapper(**kwargs):
+                logger.info("Gravity SDK Tool Called: %s(%s)", action_name, kwargs)
+                if not self.agent_ref:
+                    logger.error("No agent reference set on GeminiEngine.")
+                    return f"[ERROR] No agent reference in AI engine."
+
+                # Map keyword args to positional index groups using pmap
+                groups = {}
+                for arg_name, group_idx in pmap.items():
+                    val = kwargs.get(arg_name)
+                    if val is not None:
+                        groups[group_idx] = str(val)
+
+                params = ActionParams(groups=groups, _raw=json.dumps(kwargs))
+
+                try:
+                    result = self.agent_ref._dispatch(action_name, params, "")
+                    logger.info("Gravity SDK Tool Result: %s", result[:100] + "..." if len(result) > 100 else result)
+                    return result
+                except Exception as e:
+                    logger.error("Gravity SDK Tool Execution Failed: %s", e)
+                    return f"[ERROR] {e}"
+
+            return tool_wrapper
+
+        for action, description, params, pmap in TOOL_DECLARATIONS:
+            inspect_params = []
+            doc_parts = [description, "\nArgs:"]
+            for pname, (ptype, pdesc, preq) in params.items():
+                py_type = str
+                if ptype == "string":
+                    py_type = str
+                elif ptype == "integer":
+                    py_type = int
+                elif ptype == "boolean":
+                    py_type = bool
+
+                param = inspect.Parameter(
+                    pname,
+                    inspect.Parameter.KEYWORD_ONLY,
+                    annotation=py_type,
+                    default=inspect.Parameter.empty if preq else None
+                )
+                inspect_params.append(param)
+                doc_parts.append(f"    {pname}: {pdesc}")
+
+            sig = inspect.Signature(inspect_params)
+            tool_func = make_tool_func(action, pmap)
+            tool_func.__name__ = action
+            tool_func.__doc__ = "\n".join(doc_parts)
+            tool_func.__signature__ = sig
+            dynamic_tools.append(tool_func)
+
+        return dynamic_tools
+
+    def _call_ollama(self, messages: list[dict]) -> Optional[str]:
+        """Call local Ollama chat API endpoint."""
+        url = "http://localhost:11434/api/chat"
+        payload = {
+            "model": self.local_model,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": 0.1}
+        }
+        try:
+            r = requests.post(url, json=payload, timeout=60)
+            if r.status_code == 200:
+                res_data = r.json()
+                message = res_data.get("message", {})
+                content = message.get("content", "")
+                return content
+        except Exception as e:
+            logger.error("Ollama API call failed: %s", e)
+        return None
+
+    # ── Adaptive System Prompt ─────────────────────────────────────
+
+    def _detect_phase(self, context: dict) -> str:
+        """
+        Detect the current attack phase from context signals.
+
+        Returns one of: 'recon', 'wifi', 'web', 'exploitation',
+        'cracking', 'post-exploit', 'stealth'
+        """
+        # Check for active cracking
+        if context.get("capture_file"):
+            return "cracking"
+
+        # Check for Wi-Fi operations
+        if context.get("monitor_interface") or context.get("target_bssid"):
+            return "wifi"
+
+        # Check for web operations
+        if context.get("target_url"):
+            return "web"
+
+        # Check for active exploitation indicators
+        svcs = context.get("discovered_services", {})
+        if svcs:
+            # If we have services AND have done brute/exploit, we're in exploit phase
+            history = context.get("scan_history", [])
+            if len(history) >= 2:
+                return "exploitation"
+
+        # Check for post-exploit
+        loot = context.get("cracked_keys", {})
+        if loot:
+            return "post-exploit"
+
+        # Check for stealth mode
+        if context.get("stealth_mode"):
+            return "stealth"
+
+        # Default: recon if we have a target, system otherwise
+        if context.get("target") or context.get("domain"):
+            return "recon"
+
+        return "system"
+
+    def _build_urgency_signals(self, context: dict) -> str:
+        """Generate urgency hints based on actionable state."""
+        signals = []
+
+        # Uncapped handshake waiting to be cracked
+        cap = context.get("capture_file")
+        if cap and not context.get("cracked_keys", {}).get(
+            context.get("target_bssid", "")
+        ):
+            signals.append(
+                "⚡ URGENT: Captured handshake awaiting crack → "
+                f"'{cap}'. Recommend 'crack WPA {cap}' immediately."
+            )
+
+        # Vulnerable services discovered but not exploited
+        svcs = context.get("discovered_services", {})
+        for target, info in svcs.items():
+            services = info.get("services", [])
+            attackable = [
+                s for s in services
+                if s in ("ssh", "ftp", "http", "smb", "mysql", "telnet",
+                         "vnc", "rdp", "microsoft-ds")
+            ]
+            if attackable:
+                signals.append(
+                    f"🎯 OPPORTUNITY: {target} has attackable services: "
+                    f"{', '.join(attackable)}. "
+                    f"Recommend 'network dominate {target}'."
+                )
+
+        return "\n".join(signals) if signals else ""
+
+    def _build_system_prompt(self, context: dict,
+                              result_store: Optional['ResultStore'] = None
+                              ) -> str:
+        """
+        Build a deeply context-aware system prompt.
+        """
+        store = result_store or self.results
         parts = [SYSTEM_PRIMER]
 
-        # Auto-detect phase from context and inject relevant primer
-        if context.get("monitor_interface") or context.get("target_bssid"):
-            parts.append(get_primer("wifi"))
-        elif context.get("target_url"):
-            parts.append(get_primer("web"))
-        elif context.get("target"):
-            parts.append(get_primer("recon"))
+        # ── Phase-specific primer ──
+        phase = self._detect_phase(context)
+        phase_primer = get_primer(phase)
+        if phase_primer != SYSTEM_PRIMER:
+            parts.append(phase_primer)
 
-        # Inject live context
+        # ── Live session state ──
         ctx_lines = ["\n\nCURRENT SESSION STATE:"]
+        ctx_lines.append(f"  Phase: {phase.upper()}")
         for key in (
             "target",
             "interface",
@@ -616,153 +939,353 @@ class GeminiEngine:
             "victim",
             "lhost",
             "lport",
+            "capture_file",
         ):
             val = context.get(key)
             if val:
                 ctx_lines.append(f"  {key}: {val}")
 
-        svcs = context.get("discovered_services", {})
-        if svcs:
-            ctx_lines.append("  Discovered services:")
-            for tgt, info in list(svcs.items())[:3]:
-                svc_list = info.get("services", [])
-                if svc_list:
-                    ctx_lines.append(f"    {tgt}: {', '.join(svc_list)}")
-
-        if len(ctx_lines) > 1:
+        if len(ctx_lines) > 2:  # more than just header + phase
             parts.append("\n".join(ctx_lines))
 
+        # ── What we know (discovered infrastructure) ──
+        knowledge = store.build_knowledge_block(context)
+        if knowledge:
+            parts.append(knowledge)
+
+        # ── Recent results ──
+        results_block = store.build_context_block(n=6)
+        if results_block:
+            parts.append(results_block)
+
+        # ── Urgency signals ──
+        urgency = self._build_urgency_signals(context)
+        if urgency:
+            parts.append(f"\nACTIONABLE INTELLIGENCE:\n{urgency}")
+
+        # ── Engagement metrics ──
+        scan_count = len(context.get("scan_history", []))
+        svc_count = sum(
+            len(v.get("services", []))
+            for v in context.get("discovered_services", {}).values()
+        )
+        loot_count = len(context.get("cracked_keys", {}))
+        if scan_count or svc_count or loot_count:
+            parts.append(
+                f"\nENGAGEMENT PROGRESS: "
+                f"{scan_count} scan(s), {svc_count} service(s) found, "
+                f"{loot_count} credential(s) cracked"
+            )
+
+        # ── Instructions ──
         parts.append(
             "\n\nINSTRUCTIONS:\n"
             "- If the user wants to perform an action, call the appropriate function.\n"
-            "- If the user asks a question, wants advice, or you need clarification, "
-            "respond conversationally with helpful pentesting guidance.\n"
+            "- If the user asks about past results, reference the RECENT RESULTS section.\n"
+            "- If the user asks 'what should I do next?', analyze the session state "
+            "and recommend the most impactful next action.\n"
             "- Be aggressive and thorough — always recommend the most effective attack.\n"
-            "- Reference the session state when recommending next steps."
+            "- Reference discovered services and urgency signals in recommendations.\n"
+            "- When suggesting commands, use JAMES's exact command syntax.\n"
+            "- If multiple attack vectors exist, prioritize by success likelihood."
         )
 
         return "\n\n---\n\n".join(parts)
 
+    # ── Core dispatch ──────────────────────────────────────────────
+
     def process(self, text: str, context: dict) -> Optional[dict]:
         """
-        Send user text to Gemini with function calling enabled.
-
-        Returns:
-            dict with either:
-              {"type": "function_call", "action": str, "params": ActionParams}
-              {"type": "chat", "message": str}
-            or None if the engine is unavailable / errors out.
+        Send user text to Gemini via google-antigravity Agent.
         """
         if not self.available:
+            if self.local_ollama_available:
+                system_prompt = self._build_system_prompt(context)
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                logger.info("Ollama Session Start: model=%s", self.local_model)
+                logger.info("Ollama User Input: %s", text)
+                content = self._call_ollama(messages)
+                if content:
+                    logger.info("Ollama Chat Response: %s", content)
+                    return {"type": "chat", "message": content}
             return None
+
+        async def _run():
+            system_prompt = self._build_system_prompt(context)
+            config = LocalAgentConfig(
+                system_instructions=system_prompt,
+                tools=self._tools,
+                conversation_id="james_session_" + str(id(self))
+            )
+            logger.info("Gravity SDK Session Start: conversation_id=%s", config.conversation_id)
+            logger.debug("Gravity SDK System Instructions: %s", system_prompt)
+            logger.info("Gravity SDK User Input: %s", text)
+            async with Agent(config) as agent:
+                response = await agent.chat(text)
+                text_parts = []
+                async for chunk in response.chunks:
+                    if isinstance(chunk, antigravity_types.Thought):
+                        logger.info("Gravity SDK Thought: %s", chunk.text)
+                    elif isinstance(chunk, antigravity_types.Text):
+                        text_parts.append(chunk.text)
+                    elif isinstance(chunk, antigravity_types.ToolCall):
+                        logger.info("Gravity SDK Tool Call: %s(%s)", chunk.name, chunk.args)
+                
+                final_text = "".join(text_parts)
+                logger.info("Gravity SDK Chat Response: %s", final_text)
+                return final_text
 
         try:
-            system_prompt = self._build_system_prompt(context)
-
-            # Build contents with conversation history
-            contents = list(self._history[-self.MAX_HISTORY :])
-            contents.append(
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=text)],
-                )
-            )
-
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.1,
-                    tools=self._tools,
-                ),
-            )
-
-            # Record in history
-            self._history.append(
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=text)],
-                )
-            )
-
-            if not response.candidates:
-                return None
-
-            candidate = response.candidates[0]
-
-            # Check for function call
-            for part in candidate.content.parts:
-                if part.function_call:
-                    fc = part.function_call
-                    action = fc.name
-                    args = dict(fc.args) if fc.args else {}
-
-                    logger.info("Gemini function call: %s(%s)", action, args)
-
-                    # Build ActionParams from the function call
-                    pmap = PARAM_MAP.get(action, {})
-                    params = ActionParams.from_function_call(
-                        action, args, pmap
-                    )
-
-                    # Record the function call in history as model turn
-                    self._history.append(candidate.content)
-
-                    return {
-                        "type": "function_call",
-                        "action": action,
-                        "params": params,
-                    }
-
-            # Text response (conversational)
-            text_response = (
-                candidate.content.parts[0].text
-                if candidate.content.parts
-                else None
-            )
-            if text_response:
-                self._history.append(candidate.content)
-                return {"type": "chat", "message": text_response}
-
+            res_text = _run_sync(_run())
+            if res_text:
+                return {"type": "chat", "message": res_text}
             return None
+        except Exception as e:
+            logger.error("GeminiEngine process error: %s", e)
+            return None
+
+    # ── Result Analysis ────────────────────────────────────────────
+
+    def analyze_result(self, action: str, result_text: str,
+                       context: dict) -> Optional[dict]:
+        """
+        AI-powered result analysis using google-antigravity Agent (no tools).
+        """
+        target = context.get("target", context.get("domain", "unknown"))
+        self.results.add(action, target, result_text)
+
+        heuristic = self._heuristic_analysis(action, result_text, context)
+
+        if not self.available:
+            if self.local_ollama_available:
+                try:
+                    analysis_prompt = (
+                        f"You are analyzing the output of a pentesting tool.\n\n"
+                        f"ACTION: {action}\n"
+                        f"TARGET: {target}\n"
+                        f"OUTPUT:\n{result_text[:2000]}\n\n"
+                        f"Respond with a brief analysis in this exact format:\n"
+                        f"FINDINGS: (bullet list of key discoveries)\n"
+                        f"NEXT: (1-3 recommended JAMES commands to run next)\n"
+                        f"SEVERITY: (none/low/medium/high/critical)\n\n"
+                        f"Keep it concise. Use JAMES command syntax for recommendations."
+                    )
+                    messages = [
+                        {"role": "system", "content": "You are a pentesting result analyst. Be concise and actionable."},
+                        {"role": "user", "content": analysis_prompt}
+                    ]
+                    logger.info("Ollama Analyzing tool result for action: %s", action)
+                    ai_text = self._call_ollama(messages)
+                    if ai_text:
+                        logger.info("Ollama Analysis Result: %s", ai_text)
+                        parsed = self._parse_analysis(ai_text)
+                        if parsed:
+                            if heuristic and heuristic.get("next_steps"):
+                                existing = set(parsed.get("next_steps", []))
+                                for step in heuristic["next_steps"]:
+                                    if step not in existing:
+                                        parsed.setdefault("next_steps", []).append(step)
+                            return parsed
+                except Exception as e:
+                    logger.error("Ollama result analysis error: %s", e)
+            return heuristic
+
+        try:
+            analysis_prompt = (
+                f"You are analyzing the output of a pentesting tool.\n\n"
+                f"ACTION: {action}\n"
+                f"TARGET: {target}\n"
+                f"OUTPUT:\n{result_text[:2000]}\n\n"
+                f"Respond with a brief analysis in this exact format:\n"
+                f"FINDINGS: (bullet list of key discoveries)\n"
+                f"NEXT: (1-3 recommended JAMES commands to run next)\n"
+                f"SEVERITY: (none/low/medium/high/critical)\n\n"
+                f"Keep it concise. Use JAMES command syntax for recommendations."
+            )
+
+            async def _run():
+                config = LocalAgentConfig(
+                    system_instructions="You are a pentesting result analyst. Be concise and actionable.",
+                )
+                logger.info("Gravity SDK Analyzing tool result for action: %s", action)
+                async with Agent(config) as agent:
+                    response = await agent.chat(analysis_prompt)
+                    text_parts = []
+                    async for chunk in response.chunks:
+                        if isinstance(chunk, antigravity_types.Text):
+                            text_parts.append(chunk.text)
+                    final_text = "".join(text_parts)
+                    logger.info("Gravity SDK Analysis Result: %s", final_text)
+                    return final_text
+
+            ai_text = _run_sync(_run())
+            if ai_text:
+                parsed = self._parse_analysis(ai_text)
+                if parsed:
+                    if heuristic and heuristic.get("next_steps"):
+                        existing = set(parsed.get("next_steps", []))
+                        for step in heuristic["next_steps"]:
+                            if step not in existing:
+                                parsed.setdefault("next_steps", []).append(step)
+                    return parsed
 
         except Exception as e:
-            logger.error("GeminiEngine error: %s", e)
+            logger.error("Result analysis error: %s", e)
+
+        return heuristic
+
+    def _parse_analysis(self, text: str) -> Optional[dict]:
+        """Parse structured analysis response from AI."""
+        result = {"findings": [], "next_steps": [], "severity": "none",
+                  "raw": text}
+
+        for line in text.split("\n"):
+            line = line.strip()
+            if line.startswith("FINDINGS:"):
+                continue
+            elif line.startswith("NEXT:"):
+                continue
+            elif line.startswith("SEVERITY:"):
+                sev = line.split(":", 1)[1].strip().lower()
+                if sev in ("none", "low", "medium", "high", "critical"):
+                    result["severity"] = sev
+            elif line.startswith("- ") or line.startswith("• "):
+                item = line[2:].strip()
+                result["findings"].append(item)
+
+        in_next = False
+        for line in text.split("\n"):
+            line = line.strip()
+            if "NEXT:" in line:
+                in_next = True
+                after = line.split("NEXT:", 1)[1].strip()
+                if after and after.startswith("- "):
+                    result["next_steps"].append(after[2:].strip())
+                continue
+            if "SEVERITY:" in line:
+                in_next = False
+                continue
+            if in_next and (line.startswith("- ") or line.startswith("• ")
+                           or line.startswith("* ")):
+                result["next_steps"].append(line[2:].strip())
+
+        return result if result["findings"] or result["next_steps"] else None
+
+    def _heuristic_analysis(self, action: str, result_text: str,
+                             context: dict) -> Optional[dict]:
+        """
+        Regex-based result analysis fallback (no API needed).
+        """
+        findings = []
+        next_steps = []
+        severity = "none"
+        target = context.get("target", "")
+
+        lower = result_text.lower()
+
+        port_matches = re.findall(r'(\d+)/(?:tcp|udp)\s+open\s+(\S+)', result_text)
+        if port_matches:
+            findings.append(f"{len(port_matches)} open port(s) found")
+            severity = "medium" if len(port_matches) > 3 else "low"
+
+            for port, svc in port_matches[:3]:
+                if svc in ("ssh", "ftp", "telnet"):
+                    next_steps.append(f"brute {target} {svc}")
+                elif svc in ("http", "https"):
+                    next_steps.append(f"web pwn http://{target}:{port}")
+                elif svc in ("microsoft-ds", "smb"):
+                    next_steps.append(f"smb enum {target}")
+
+        if "handshake" in lower and ("captured" in lower or "found" in lower):
+            findings.append("WPA handshake captured successfully")
+            severity = "high"
+            cap_file = context.get("capture_file", "")
+            if cap_file:
+                next_steps.append(f"crack wpa {cap_file}")
+
+        if "key found" in lower or "password:" in lower:
+            findings.append("Credential cracked!")
+            severity = "critical"
+            next_steps.append("show loot")
+
+        if "vulnerab" in lower or "injectable" in lower or "cve-" in lower:
+            findings.append("Vulnerabilities detected")
+            severity = "high"
+
+        if "no hosts" in lower or "no open ports" in lower or "not found" in lower:
+            findings.append("No results from this scan")
+            if target:
+                next_steps.append(f"full scan {target}")
+
+        if not findings:
             return None
+
+        return {
+            "findings": findings,
+            "next_steps": next_steps,
+            "severity": severity,
+        }
+
+    # ── Conversational fallback ────────────────────────────────────
 
     def chat_only(self, text: str, context: dict) -> Optional[str]:
         """
-        LLM-only conversational response (no function calling).
-        Used as smart fallback when regex also fails to match.
+        Conversational response using google-antigravity Agent (no tools).
         """
         if not self.available:
+            if self.local_ollama_available:
+                system_prompt = (
+                    self._build_system_prompt(context)
+                    + "\n\nYou are responding to a query that doesn't match any tool. "
+                    "Provide helpful pentesting advice, explain concepts, or suggest "
+                    "which JAMES command the user should try. Be concise but thorough.\n"
+                    "If the user is asking about past results or what was found, "
+                    "reference the RECENT RESULTS section in your context."
+                )
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                logger.info("Ollama Chat Only - User Input: %s", text)
+                content = self._call_ollama(messages)
+                if content:
+                    logger.info("Ollama Chat Only - Response: %s", content)
+                    return content
             return None
 
-        try:
+        async def _run():
             system_prompt = (
                 self._build_system_prompt(context)
                 + "\n\nYou are responding to a query that doesn't match any tool. "
                 "Provide helpful pentesting advice, explain concepts, or suggest "
-                "which JAMES command the user should try. Be concise but thorough."
+                "which JAMES command the user should try. Be concise but thorough.\n"
+                "If the user is asking about past results or what was found, "
+                "reference the RECENT RESULTS section in your context."
             )
-
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=text,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.3,
-                ),
+            config = LocalAgentConfig(
+                system_instructions=system_prompt,
             )
+            logger.info("Gravity SDK Chat Only - User Input: %s", text)
+            async with Agent(config) as agent:
+                response = await agent.chat(text)
+                text_parts = []
+                async for chunk in response.chunks:
+                    if isinstance(chunk, antigravity_types.Text):
+                        text_parts.append(chunk.text)
+                final_text = "".join(text_parts)
+                logger.info("Gravity SDK Chat Only - Response: %s", final_text)
+                return final_text
 
-            if response.candidates and response.candidates[0].content.parts:
-                return response.candidates[0].content.parts[0].text
-            return None
-
+        try:
+            return _run_sync(_run())
         except Exception as e:
             logger.error("GeminiEngine chat_only error: %s", e)
             return None
+
+    # ── Enhanced Chain Execution ───────────────────────────────────
 
     def run_chain(
         self,
@@ -774,197 +1297,127 @@ class GeminiEngine:
         on_step=None,
     ) -> str:
         """
-        Agentic loop: AI plans and chains tools until the goal is met.
-
-        The AI calls a tool, observes the result, then decides the next
-        tool — repeating until it returns a text summary or the step
-        limit is reached.
-
-        Args:
-            goal:       User's natural language objective
-            context:    Current session state dict
-            execute_fn: Callable(action: str, params: ActionParams) -> str
-                        Runs the tool and returns its output string.
-            max_steps:  Safety cap to prevent runaway loops (default 10)
-            on_step:    Optional callback(step: int, action: str, summary: str)
-                        for live UI updates.
-
-        Returns:
-            Final summary string from the AI.
+        Chained execution using google-antigravity Agent.
         """
         if not self.available:
+            if self.local_ollama_available:
+                logger.info("Ollama Chain Start: goal='%s'", goal)
+                system_prompt = (
+                    self._build_system_prompt(context) + "\n\nMULTI-STEP MODE:\n"
+                    "You are executing a multi-step pentesting workflow. "
+                    "You have access to the registered tools. To run a tool, you must reply "
+                    "with a JSON object containing 'action' (tool name) and 'params' (dict of args). "
+                    "Example:\n"
+                    "```json\n"
+                    "{\n"
+                    "  \"action\": \"quick_recon\",\n"
+                    "  \"params\": {\"target\": \"192.168.1.1\"}\n"
+                    "}\n"
+                    "```\n"
+                    "After getting the tool output, analyze it and choose the next tool or "
+                    "provide your final summary if the goal is achieved. "
+                    "If you are finished, just respond with your final analysis (no JSON)."
+                )
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": goal}
+                ]
+                
+                step_log = []
+                for step in range(1, max_steps + 1):
+                    content = self._call_ollama(messages)
+                    if not content:
+                        break
+                        
+                    tool_call = None
+                    try:
+                        match = re.search(r"(\{.*\})", content.replace("\n", " "), re.DOTALL)
+                        if match:
+                            parsed_json = json.loads(match.group(1))
+                            if "action" in parsed_json:
+                                tool_call = parsed_json
+                    except Exception:
+                        pass
+                        
+                    if tool_call:
+                        action = tool_call["action"]
+                        args = tool_call.get("params", {})
+                        
+                        logger.info("Ollama Chain Step %d: %s(%s)", step, action, args)
+                        if on_step:
+                            on_step(step, action, f"Executing {action}...")
+                            
+                        pmap = PARAM_MAP.get(action, {})
+                        params = ActionParams.from_function_call(action, args, pmap)
+                        
+                        try:
+                            result_str = execute_fn(action, params)
+                            success = True
+                        except Exception as e:
+                            result_str = f"[ERROR] {action} failed: {e}"
+                            success = False
+                            
+                        target = args.get("target", args.get("interface", "unknown"))
+                        self.results.add(action, str(target), result_str[:500])
+                        
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({
+                            "role": "user",
+                            "content": f"TOOL OUTPUT:\n{result_str[:2000]}"
+                        })
+                    else:
+                        logger.info("Ollama Chain Complete.")
+                        return content
+                return "Chain stopped: max steps reached."
             return None
 
-        chain_prompt = (
-            self._build_system_prompt(context) + "\n\nMULTI-STEP MODE:\n"
-            "You are executing a multi-step pentesting workflow.\n"
-            "After each tool result, decide: call the next tool, or "
-            "return a final text summary if the objective is complete.\n"
-            "- Analyze each result before choosing the next action.\n"
-            "- Stop when the goal is achieved or no further progress is possible.\n"
-            "- Your final text response should summarize everything that was done and found."
-        )
-
-        # Start the conversation with the user's goal
-        contents = [
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=goal)],
+        async def _run():
+            system_prompt = (
+                self._build_system_prompt(context) + "\n\nMULTI-STEP MODE:\n"
+                "You are executing a multi-step pentesting workflow.\n"
+                "After each tool result, analyze the output carefully:\n"
+                "- Extract key findings (open ports, services, vulnerabilities)\n"
+                "- Decide the most effective next tool based on what you found\n"
+                "- If a step fails, try an alternative approach instead of repeating\n"
+                "- Stop when the goal is achieved or no further progress is possible.\n"
+                "- Your final text response should summarize everything found.\n\n"
+                "IMPORTANT: Read each tool result before choosing the next action. "
+                "Adapt your strategy based on what each step reveals."
             )
-        ]
-
-        step_log = []
+            config = LocalAgentConfig(
+                system_instructions=system_prompt,
+                tools=self._tools,
+                conversation_id="james_chain_" + str(id(self))
+            )
+            logger.info("Gravity SDK Chain Start: goal='%s' conversation_id=%s", goal, config.conversation_id)
+            async with Agent(config) as agent:
+                await agent.conversation.send(goal)
+                step_idx = 1
+                async for step in agent.conversation.receive_steps():
+                    logger.debug("Gravity SDK Chain Step: idx=%d type=%s source=%s target=%s status=%s error=%s",
+                                 step_idx, step.type, step.source, step.target, step.status, step.error)
+                    if step.tool_calls:
+                        for call in step.tool_calls:
+                            logger.info("Gravity SDK Chain Tool Call: %s(%s)", call.name, call.args)
+                            if on_step:
+                                on_step(step_idx, call.name, f"Executing {call.name}...")
+                            step_idx += 1
+                
+                final_response = agent.conversation.last_response
+                logger.info("Gravity SDK Chain End - Final Response: %s", final_response)
+                return final_response
 
         try:
-            for step in range(1, max_steps + 1):
-                response = self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=chain_prompt,
-                        temperature=0.1,
-                        tools=self._tools,
-                    ),
-                )
-
-                if not response.candidates:
-                    break
-
-                candidate = response.candidates[0]
-
-                # Check for function call
-                fc_part = None
-                for part in candidate.content.parts:
-                    if part.function_call:
-                        fc_part = part
-                        break
-
-                if fc_part:
-                    fc = fc_part.function_call
-                    action = fc.name
-                    args = dict(fc.args) if fc.args else {}
-
-                    logger.info("Chain step %d: %s(%s)", step, action, args)
-
-                    # Build ActionParams and execute
-                    pmap = PARAM_MAP.get(action, {})
-                    params = ActionParams.from_function_call(
-                        action, args, pmap
-                    )
-
-                    if on_step:
-                        on_step(step, action, f"Executing {action}...")
-
-                    # Execute the tool
-                    try:
-                        result_str = execute_fn(action, params)
-                    except Exception as e:
-                        result_str = f"[ERROR] {action} failed: {e}"
-                        logger.error("Chain step %d error: %s", step, e)
-
-                    # Truncate very long results to avoid blowing context
-                    if len(result_str) > 3000:
-                        result_str = result_str[:3000] + "\n... (truncated)"
-
-                    step_log.append(
-                        {
-                            "step": step,
-                            "action": action,
-                            "args": args,
-                            "result": result_str[:500],
-                        }
-                    )
-
-                    if on_step:
-                        on_step(step, action, result_str[:200])
-
-                    # Append the model's function call to conversation
-                    contents.append(candidate.content)
-
-                    # Append the function result
-                    contents.append(
-                        types.Content(
-                            role="user",
-                            parts=[
-                                types.Part.from_function_response(
-                                    name=action,
-                                    response={"result": result_str},
-                                )
-                            ],
-                        )
-                    )
-
-                else:
-                    # Text response — chain is complete
-                    text_resp = ""
-                    for part in candidate.content.parts:
-                        if part.text:
-                            text_resp += part.text
-
-                    if text_resp:
-                        logger.info("Chain complete after %d steps", step - 1)
-                        # Record the chain in conversation history
-                        self._history.append(
-                            types.Content(
-                                role="user",
-                                parts=[types.Part.from_text(text=goal)],
-                            )
-                        )
-                        self._history.append(candidate.content)
-                        return text_resp
-
-                    break  # Empty response, bail
-
-            # Hit step limit — ask AI for a summary of what was done
-            if step_log:
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[
-                            types.Part.from_text(
-                                text="Step limit reached. Summarize what was accomplished so far."
-                            )
-                        ],
-                    )
-                )
-                try:
-                    summary_resp = self.client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=chain_prompt,
-                            temperature=0.2,
-                        ),
-                    )
-                    if (
-                        summary_resp.candidates
-                        and summary_resp.candidates[0].content.parts
-                    ):
-                        return summary_resp.candidates[0].content.parts[0].text
-                except Exception:
-                    pass
-
-                # Fallback: manual summary
-                lines = [f"⚡ Chain completed ({len(step_log)} steps):"]
-                for entry in step_log:
-                    lines.append(
-                        f"  Step {entry['step']}: {entry['action']} → {entry['result'][:100]}"
-                    )
-                return "\n".join(lines)
-
-            return None
-
+            return _run_sync(_run())
         except Exception as e:
             logger.error("Chain error: %s", e)
-            if step_log:
-                lines = [
-                    f"⚠ Chain interrupted after {len(step_log)} steps: {e}"
-                ]
-                for entry in step_log:
-                    lines.append(f"  Step {entry['step']}: {entry['action']}")
-                return "\n".join(lines)
             return None
 
     def clear_history(self):
         """Reset conversation memory."""
-        self._history.clear()
+        pass
+
+    def clear_all(self):
+        """Reset conversation memory AND result store."""
+        self.results.clear()
+

@@ -57,5 +57,17 @@ class TestServerConfig(unittest.TestCase):
         )  # auto-generated secrets.token_hex(32)
 
 
+    def test_load_config_invalid_json(self):
+        """Test loading defaults when the file contains malformed JSON."""
+        with open(self.dummy_file, "w") as f:
+            f.write("this is not valid json")
+
+        cfg = config_mod.load_config()
+        self.assertEqual(cfg.host, "0.0.0.0")
+        self.assertEqual(cfg.port, 8443)
+        self.assertTrue(cfg.tls_enabled)
+        self.assertTrue(len(cfg.jwt_secret) > 0)
+
+
 if __name__ == "__main__":
     unittest.main()

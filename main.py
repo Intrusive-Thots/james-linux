@@ -22,8 +22,12 @@ from pathlib import Path
 
 def _setup_logging():
     """Configure logging to write to both console and persistent log files."""
-    log_dir = Path.home() / ".james" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        log_dir = Path.home() / ".james" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        log_dir = Path("./logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
 
     log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     formatter = logging.Formatter(log_format)

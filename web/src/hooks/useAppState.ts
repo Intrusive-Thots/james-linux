@@ -23,27 +23,9 @@ export interface AttackState {
   progress: number;
   status: string;
   result?: { found: boolean; key?: string };
-}
-
-export type PageId =
-  | "dashboard"
-  | "recon"
-  | "attacks"
-  | "handshakes"
-  | "agent"
-  | "logs"
-  | "settings";
-
-export interface AppState {
-  currentPage: PageId;
-  adapter: string | null;
-  adapterMode: "managed" | "monitor" | null;
-  scanning: boolean;
-  aps: AP[];
-  selectedAP: AP | null;
-  attack: AttackState;
-  logs: LogEntry[];
-  handshakes: HandshakeFile[];
+  sub_stage?: number;
+  total_stages?: number;
+  stage_name?: string;
 }
 
 export interface HandshakeFile {
@@ -56,8 +38,47 @@ export interface HandshakeFile {
   key?: string;
 }
 
+// ── Workspace-aware routing ────────────────────────────
+export type WorkspaceId = "agent" | "auto" | "settings";
+
+export type AgentSubPage = "dashboard" | "recon" | "attacks" | "handshakes" | "logs";
+export type AutoSubPage = "autopilot" | "console";
+export type SettingsSubPage = "general" | "interfaces" | "dependencies" | "diagnostics" | "advanced";
+export type SubPageId = AgentSubPage | AutoSubPage | SettingsSubPage;
+
+/** Default sub-page for each workspace */
+export const WORKSPACE_DEFAULTS: Record<WorkspaceId, SubPageId> = {
+  agent: "dashboard",
+  auto: "autopilot",
+  settings: "general",
+};
+
+/** Sub-pages available per workspace */
+export const WORKSPACE_SUBPAGES: Record<WorkspaceId, SubPageId[]> = {
+  agent: ["dashboard", "recon", "attacks", "handshakes", "logs"],
+  auto: ["autopilot", "console"],
+  settings: ["general", "interfaces", "dependencies", "diagnostics", "advanced"],
+};
+
+// ── Backward-compat: flatten for components that still use PageId ──
+export type PageId = SubPageId;
+
+export interface AppState {
+  currentWorkspace: WorkspaceId;
+  currentSubPage: SubPageId;
+  adapter: string | null;
+  adapterMode: "managed" | "monitor" | null;
+  scanning: boolean;
+  aps: AP[];
+  selectedAP: AP | null;
+  attack: AttackState;
+  logs: LogEntry[];
+  handshakes: HandshakeFile[];
+}
+
 const INITIAL_STATE: AppState = {
-  currentPage: "dashboard",
+  currentWorkspace: "agent",
+  currentSubPage: "dashboard",
   adapter: null,
   adapterMode: null,
   scanning: false,
@@ -73,8 +94,32 @@ let logCounter = 0;
 export function useAppState() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
 
+  const setWorkspace = useCallback((workspace: WorkspaceId) => {
+    setState((s) => ({
+      ...s,
+      currentWorkspace: workspace,
+      currentSubPage: WORKSPACE_DEFAULTS[workspace],
+    }));
+  }, []);
+
+  const setSubPage = useCallback((subPage: SubPageId) => {
+    setState((s) => ({ ...s, currentSubPage: subPage }));
+  }, []);
+
+  // Legacy compat — maps old PageId calls to workspace-aware routing
   const setPage = useCallback((page: PageId) => {
-    setState((s) => ({ ...s, currentPage: page }));
+    setState((s) => {
+      for (const [ws, pages] of Object.entries(WORKSPACE_SUBPAGES)) {
+        if (pages.includes(page)) {
+          return {
+            ...s,
+            currentWorkspace: ws as WorkspaceId,
+            currentSubPage: page,
+          };
+        }
+      }
+      return s;
+    });
   }, []);
 
   const addLog = useCallback(
@@ -133,14 +178,22 @@ export function useAppState() {
   }, []);
 
   const removeHandshake = useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      handshakes: s.handshakes.filter((h) => h.id !== id),
-    }));
+    setState((s) => {
+      const newHandshakes = [];
+      for (const h of s.handshakes) {
+        if (h.id !== id) newHandshakes.push(h);
+      }
+      return {
+        ...s,
+        handshakes: newHandshakes,
+      };
+    });
   }, []);
 
   return {
     state,
+    setWorkspace,
+    setSubPage,
     setPage,
     addLog,
     setAdapter,
