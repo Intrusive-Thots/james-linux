@@ -82,3 +82,6 @@
 ## 2026-07-14 - Memoize Array Derivations Alongside Timers
 **Learning:** When a component has a fast-updating local state (like a 1-second timer tick), any unmemoized array derivations (like summing properties over hundreds of objects) will be recalculated on every tick, causing a performance bottleneck.
 **Action:** Always wrap expensive array derivations in `useMemo` when the component also contains independent fast-updating state to prevent unnecessary re-evaluations.
+## 2026-07-15 - Consistent PyQt5 Keyboard Shortcuts
+**Learning:** When developing PyQt5 applications, ensuring consistent keyboard shortcuts and corresponding tooltips across all interactive tabs and panels improves workflow and UX. Adding QShortcut explicitly with Qt.WidgetWithChildrenShortcut context prevents global shortcut conflicts.
+**Action:** Always verify that newly added buttons in panels like ActivitySidebar have a corresponding QShortcut and tooltip indicator.
