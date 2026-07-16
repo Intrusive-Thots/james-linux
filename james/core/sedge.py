@@ -43,7 +43,8 @@ class Edge:
         """
         Computes the proportional utility score for the transition.
 
-        Evaluates the relative ratio of the success weight to the failure weight.
+        Evaluates the relative ratio of the success weight to the failure
+        weight.
         A small epsilon is integrated into the denominator to mitigate
         zero-division anomalies.
 
