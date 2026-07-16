@@ -27,9 +27,10 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QApplication,
     QSizePolicy,
+    QShortcut,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont, QTextCharFormat, QColor, QTextCursor
+from PyQt5.QtGui import QFont, QTextCharFormat, QColor, QTextCursor, QKeySequence
 import logging
 
 logger = logging.getLogger(__name__)
@@ -253,7 +254,7 @@ class ActivitySidebar(QWidget):
         self._btn_pause = QPushButton("⏸")
         self._btn_pause.setFixedSize(26, 24)
         self._btn_pause.setCheckable(True)
-        self._btn_pause.setToolTip("Pause/Resume feed")
+        self._btn_pause.setToolTip("Pause/Resume feed (Ctrl+P)")
         self._btn_pause.setStyleSheet(
             "QPushButton { background: transparent; color: #6E7681;"
             " border: none; font-size: 12px; }"
@@ -290,7 +291,7 @@ class ActivitySidebar(QWidget):
 
         btn_clear = QPushButton("⌫")
         btn_clear.setFixedSize(26, 24)
-        btn_clear.setToolTip("Clear feed")
+        btn_clear.setToolTip("Clear feed (Ctrl+L)")
         btn_clear.setStyleSheet(
             "QPushButton { background: transparent; color: #6E7681;"
             " border: none; font-size: 12px; }"
@@ -300,7 +301,7 @@ class ActivitySidebar(QWidget):
 
         btn_copy = QPushButton("⧉")
         btn_copy.setFixedSize(26, 24)
-        btn_copy.setToolTip("Copy feed")
+        btn_copy.setToolTip("Copy feed (Ctrl+Shift+C)")
         btn_copy.setStyleSheet(
             "QPushButton { background: transparent; color: #6E7681;"
             " border: none; font-size: 13px; }"
@@ -453,6 +454,18 @@ class ActivitySidebar(QWidget):
         self._progress_signal.connect(self._on_progress)
         self._task_signal.connect(self._on_task_update)
         self.expand_requested.connect(self.auto_expand)
+
+        sc_p = QShortcut(QKeySequence("Ctrl+P"), self)
+        sc_p.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_p.activated.connect(lambda: self._btn_pause.click() if self._btn_pause.isEnabled() else None)
+
+        sc_l = QShortcut(QKeySequence("Ctrl+L"), self)
+        sc_l.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_l.activated.connect(self._clear)
+
+        sc_c = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        sc_c.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_c.activated.connect(self._copy)
 
     @pyqtSlot(str, str)
     def _on_append(self, message: str, activity_type: str):

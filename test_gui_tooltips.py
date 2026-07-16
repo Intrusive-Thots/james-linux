@@ -1,6 +1,6 @@
 import sys
 import unittest
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QPushButton
 
 # Create a global application instance
 app = QApplication(sys.argv)
@@ -177,6 +177,26 @@ class TestGUITooltips(unittest.TestCase):
             setup_tab.btn_flush_iptables.toolTip(),
             "Flush iptables (Ctrl+F)",
         )
+
+    def test_activity_tab_tooltips(self):
+
+        """Verify activity tab tooltips are present and include shortcuts."""
+        from james.gui.tabs.activity_tab import ActivitySidebar
+        sidebar = ActivitySidebar(self.main_window)
+
+        # Verify pause button tooltip
+        assert "Ctrl+P" in sidebar._btn_pause.toolTip()
+
+        # We need to find the clear and copy buttons
+        btns = sidebar.findChildren(QPushButton)
+        tooltips = [b.toolTip() for b in btns]
+
+        has_clear = any("Ctrl+L" in tt for tt in tooltips)
+        has_copy = any("Ctrl+Shift+C" in tt for tt in tooltips)
+
+        assert has_clear, "Clear button missing Ctrl+L in tooltip"
+        assert has_copy, "Copy button missing Ctrl+Shift+C in tooltip"
+
 
 if __name__ == "__main__":
     unittest.main()

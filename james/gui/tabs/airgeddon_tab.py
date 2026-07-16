@@ -315,9 +315,9 @@ class AirgeddonTab(QWidget):
         if not rows:
             return
         r = rows[0].row()
-        self.selected_essid = self.ap_table.item(r, 0).text()
-        self.selected_bssid = self.ap_table.item(r, 1).text()
-        self.selected_channel = self.ap_table.item(r, 2).text()
+        self.selected_essid = (self.ap_table.item(r, 0) or QTableWidgetItem("")).text()
+        self.selected_bssid = (self.ap_table.item(r, 1) or QTableWidgetItem("")).text()
+        self.selected_channel = (self.ap_table.item(r, 2) or QTableWidgetItem("")).text()
 
         self.lbl_target.setText(
             f"{self.selected_essid}  ·  {self.selected_bssid}  ·  ch {self.selected_channel}"
