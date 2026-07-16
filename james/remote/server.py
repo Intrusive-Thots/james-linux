@@ -19,6 +19,7 @@ import json
 import logging
 import secrets
 import threading
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 from datetime import datetime
@@ -493,6 +494,16 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logger.debug("Remote: %s", format % args)
 
+    def _send_cors_headers(self):
+        origin = self.headers.get("Origin")
+        allowed_origins = getattr(self.server, "allowed_origins", [])
+        if not allowed_origins:
+            allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+
+        if origin:
+            if origin in allowed_origins or origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
+                self.send_header("Access-Control-Allow-Origin", origin)
+
     def _check_auth(self) -> bool:
         """Verify the Bearer token. Returns True if valid."""
         expected = getattr(self.server, "auth_token", None)
@@ -507,6 +518,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         self.send_response(401)
         self.send_header("Content-Type", "application/json")
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(json.dumps({"error": "unauthorized"}).encode("utf-8"))
         return False
@@ -625,13 +637,14 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def _respond_json(self, data: dict, code: int = 200):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
 
     def do_OPTIONS(self):
         """Handle CORS preflight."""
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors_headers()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers", "Content-Type, Authorization"
@@ -650,13 +663,17 @@ class RemoteServer:
     unauthenticated access from other devices on the LAN.
     """
 
-    def __init__(self, agent, port: int = 1337):
+    def __init__(self, agent, port: int = 1337, allowed_origins: list = None):
         self.agent = agent
         self.port = port
         self.server = None
         self._thread = None
         self.running = False
         self.auth_token = secrets.token_urlsafe(32)
+        self.allowed_origins = allowed_origins or []
+        env_origins = os.environ.get("JAMES_CORS_ORIGINS")
+        if env_origins:
+            self.allowed_origins.extend([o.strip() for o in env_origins.split(",") if o.strip()])
 
     @property
     def url(self) -> str:
@@ -674,6 +691,7 @@ class RemoteServer:
         self.server = HTTPServer(("0.0.0.0", self.port), _RequestHandler)
         self.server.james_agent = self.agent
         self.server.auth_token = self.auth_token
+        self.server.allowed_origins = self.allowed_origins
         self.running = True
 
         self._thread = threading.Thread(
