@@ -169,6 +169,10 @@ class TestSEDGE(unittest.TestCase):
         self.assertEqual(edges[0].success_weight, 1.5)
         self.assertEqual(edges[0].failure_weight, 1.5)
 
+    def test_get_best_next_empty_graph(self):
+        empty_graph = DecisionGraph()
+        self.assertIsNone(empty_graph.get_best_next(STATE_START))
+
     def test_get_best_next_no_edges(self):
         self.assertIsNone(self.graph.get_best_next(ACTION_PASSIVE_SCAN))
 
