@@ -32,6 +32,15 @@ class TestSedgeEdgeCases(unittest.TestCase):
         edge = Edge(from_node="A", to_node="B", success_weight=0.0)
         self.assertEqual(edge.score(), 0.0)
 
+    def test_edge_negative_success_weight_clamps_to_zero(self):
+        edge = Edge(from_node="A", to_node="B", success_weight=-5.0)
+        self.assertEqual(edge.score(), 0.0)
+
+    def test_edge_various_weights(self):
+        edge = Edge(from_node="A", to_node="B", success_weight=10.0, failure_weight=2.0)
+        expected_score = 10.0 / (2.0 + SEDGE_EPSILON)
+        self.assertAlmostEqual(edge.score(), expected_score)
+
 
 if __name__ == "__main__":
     unittest.main()
