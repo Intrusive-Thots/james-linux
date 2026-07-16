@@ -213,6 +213,20 @@
   .badge-muted {
     @apply badge bg-bg-elevated text-text-muted border border-border;
   }
+
+  /* Standard card sizes */
+  .card-sm {
+    min-height: 48px;
+    max-height: 64px;
+  }
+  .card-md {
+    min-height: 100px;
+    max-height: 140px;
+  }
+  .card-lg {
+    min-height: 220px;
+    max-height: 320px;
+  }
 }
 
 /* ── Utility Animations ────────────────────────── */

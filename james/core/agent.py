@@ -4,6 +4,12 @@ JAMES Agent Brain.
 Rule-based command interpreter that understands pentesting intent,
 plans multi-step actions, and drives the orchestrator. Acts as the
 "AI" layer between user natural-language input and tool execution.
+
+Enhanced with:
+  - Result memory: records every tool output for recall/analysis
+  - AI result analysis: post-action interpretation + next-step suggestions
+  - Attack plan tracking: multi-turn plan state across conversation
+  - Improved fallback: context-aware disambiguation
 """
 
 import os
@@ -20,7 +26,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from james.core.ai_engine import GeminiEngine
+from james.core.ai_engine import GeminiEngine, ActionParams, ResultStore
 
 from james.core.orchestrator import Orchestrator
 
@@ -42,6 +48,41 @@ class AgentPlan:
     intent: str
     summary: str
     actions: list[AgentAction] = field(default_factory=list)
+
+
+@dataclass
+class PlanStep:
+    """A single step in a tracked attack plan."""
+
+    description: str
+    action: str
+    status: str = "pending"  # pending / running / done / failed
+    result_summary: str = ""
+
+
+@dataclass
+class AttackPlan:
+    """Multi-turn attack plan tracked across the conversation."""
+
+    goal: str
+    steps: list[PlanStep] = field(default_factory=list)
+    current_step: int = 0
+    status: str = "active"  # active / complete / aborted
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def summary(self) -> str:
+        """Render a compact plan status."""
+        lines = [f"🎯 Attack Plan: {self.goal}"]
+        lines.append(f"   Status: {self.status.upper()}")
+        lines.append("")
+        for i, step in enumerate(self.steps):
+            icon = {"pending": "⬜", "running": "🔄", "done": "✅",
+                    "failed": "❌"}.get(step.status, "⬜")
+            marker = " ◀" if i == self.current_step and self.status == "active" else ""
+            lines.append(f"   {icon} {i+1}. {step.description}{marker}")
+            if step.result_summary:
+                lines.append(f"      └─ {step.result_summary[:80]}")
+        return "\n".join(lines)
 
 
 # ── intent patterns ─────────────────────────────────────────────
@@ -290,6 +331,11 @@ class Agent:
         self.history: list[dict] = []
         self.last_intent: str = "default"
         self.ai = GeminiEngine()
+        self.ai.agent_ref = self
+        self.attack_plan: Optional[AttackPlan] = None
+
+        # Wire AI's ResultStore into orchestrator for chain memory
+        self.orch._result_store = self.ai.results
 
     def _load_context(self) -> dict:
         """Load persisted context from disk."""
@@ -330,6 +376,11 @@ class Agent:
           2. Regex pattern matching (fast, deterministic)
           3. LLM conversational fallback (advice, explanations)
           4. Fuzzy suggestion fallback (offline)
+
+        Post-dispatch:
+          - Records result in ResultStore for memory/recall
+          - Runs AI result analysis for next-step suggestions
+          - Updates attack plan if one is active
         """
         text = user_input.strip()
         if not text:
@@ -339,6 +390,12 @@ class Agent:
         text = self._resolve_pronouns(text)
 
         self.history.append({"role": "user", "content": text})
+
+        # ── Check for recall / plan queries ─────────────────────
+        recall_resp = self._check_recall_query(text)
+        if recall_resp:
+            self.history.append({"role": "agent", "content": recall_resp})
+            return recall_resp
 
         # ── 1. Try Gemini function calling ──────────────────────
         ai_result = self.ai.process(text, self.context)
@@ -360,6 +417,10 @@ class Agent:
                 # Single-action dispatch
                 self.last_intent = action
                 resp = self._dispatch(action, params, text)
+
+                # ── Post-dispatch: record + analyze ─────────────
+                resp = self._post_dispatch(action, resp)
+
                 self.history.append({"role": "agent", "content": resp})
                 self._save_context()
                 return resp
@@ -374,6 +435,9 @@ class Agent:
         if intent is not None:
             self.last_intent = intent
             resp = self._dispatch(intent, match, text)
+
+            # ── Post-dispatch: record + analyze ─────────────────
+            resp = self._post_dispatch(intent, resp)
         else:
             # ── 3. LLM conversational fallback ──────────────────
             self.last_intent = "default"
@@ -386,6 +450,149 @@ class Agent:
         # Persist context after every command
         self._save_context()
         return resp
+
+    # ── post-dispatch: result memory + analysis ──────────────────
+
+    # Intents that produce actionable output worth analyzing
+    _ANALYZABLE_INTENTS = {
+        "quick_recon", "recon", "full_scan", "masscan", "os_detect",
+        "arp_discover", "scan_aps", "nikto_scan", "web_scan", "ssl_scan",
+        "waf_detect", "dir_brute", "sqli", "smb_enum", "dns_lookup",
+        "dns_enum", "osint", "brute", "crack_wpa", "crack_hash",
+        "deauth", "capture", "iot_scan", "ble_scan", "mqtt_scan",
+        "scan_and_attack", "oneclick_network_dominate", "oneclick_web_pwn",
+        "oneclick_stealth_recon",
+    }
+
+    def _post_dispatch(self, action: str, result: str) -> str:
+        """
+        After dispatching a tool: record result, run analysis,
+        and append AI-suggested next steps if available.
+        """
+        if not result or action in ("help", "clear", "show_log",
+                                     "show_loot", "list_skills",
+                                     "list_wordlists", "set_context",
+                                     "show_primer", "net_guard_status",
+                                     "system_check", "show_portal_creds",
+                                     "track_clients", "snoop_dns"):
+            return result
+
+        # Record in result store
+        target = self.context.get("target",
+                    self.context.get("domain", "unknown"))
+        self.ai.results.add(action, target, result[:600])
+
+        # Run analysis on actionable intents
+        if action in self._ANALYZABLE_INTENTS:
+            analysis = self.ai.analyze_result(action, result, self.context)
+            if analysis:
+                # Append analysis hints to the response
+                hints = []
+                if analysis.get("severity") and analysis["severity"] != "none":
+                    sev_icon = {"low": "🟡", "medium": "🟠",
+                                "high": "🔴", "critical": "💀"}.get(
+                        analysis["severity"], "")
+                    hints.append(
+                        f"\n  {sev_icon} Severity: {analysis['severity'].upper()}"
+                    )
+                if analysis.get("next_steps"):
+                    hints.append("\n  🧠 AI recommends:")
+                    for step in analysis["next_steps"][:3]:
+                        hints.append(f"    → {step}")
+                if hints:
+                    result += "\n" + "\n".join(hints)
+
+        # Update attack plan if active
+        if self.attack_plan and self.attack_plan.status == "active":
+            idx = self.attack_plan.current_step
+            if idx < len(self.attack_plan.steps):
+                step = self.attack_plan.steps[idx]
+                step.status = "done"
+                step.result_summary = result[:100]
+                self.attack_plan.current_step += 1
+                if self.attack_plan.current_step >= len(self.attack_plan.steps):
+                    self.attack_plan.status = "complete"
+
+        return result
+
+    # ── recall and plan queries ──────────────────────────────────
+
+    _RECALL_PATTERNS = re.compile(
+        r"(?:"
+        r"what\s+(?:did\s+we|did\s+you|have\s+we)\s+(?:find|found|discover|scan|get)"
+        r"|what\s+(?:was|were)\s+(?:the\s+)?(?:results?|findings?|output)"
+        r"|show\s+(?:me\s+)?(?:results?|findings?|history|memory|what\s+we\s+(?:found|know))"
+        r"|recall|remember"
+        r"|what\s+do\s+we\s+know\s+about"
+        r"|what\s+(?:ports?|services?)\s+(?:did\s+we\s+find|are\s+open|were\s+found)"
+        r")(?:\s+(?:on|about|for|from)\s+(.+))?",
+        re.IGNORECASE,
+    )
+
+    _PLAN_PATTERNS = re.compile(
+        r"(?:"
+        r"what(?:'s|\s+is)\s+(?:the\s+)?plan"
+        r"|show\s+plan"
+        r"|what(?:'s|\s+is)\s+next"
+        r"|next\s+step"
+        r"|plan\s+status"
+        r")",
+        re.IGNORECASE,
+    )
+
+    def _check_recall_query(self, text: str) -> Optional[str]:
+        """Check if user is asking about past results or plan status."""
+        # Plan queries
+        if self._PLAN_PATTERNS.search(text):
+            return self._do_show_plan(None, text)
+
+        # Recall queries
+        m = self._RECALL_PATTERNS.search(text)
+        if m:
+            return self._do_recall(m, text)
+
+        return None
+
+    def _do_recall(self, m, raw) -> str:
+        """Recall past results from the AI memory store."""
+        query = m.group(1).strip() if m.group(1) else ""
+
+        if query:
+            results = self.ai.results.search(query, n=5)
+        else:
+            results = self.ai.results.get_recent(n=8)
+
+        if not results:
+            return "🧠 No results in memory yet. Run a scan or attack first."
+
+        lines = [f"🧠 {'Results for ' + query if query else 'Recent Results'} "
+                 f"({len(results)} entries):"]
+        lines.append("")
+        for entry in results:
+            ts = entry["timestamp"][5:16].replace("T", " ")  # MM-DD HH:MM
+            lines.append(f"  [{ts}] {entry['action']} → {entry['target']}")
+            # Show first 150 chars of summary
+            summary = entry["summary"][:150]
+            if len(entry["summary"]) > 150:
+                summary += "…"
+            for line in summary.split("\n")[:3]:
+                if line.strip():
+                    lines.append(f"    {line.strip()}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _do_show_plan(self, m, raw) -> str:
+        """Show current attack plan status."""
+        if not self.attack_plan:
+            return (
+                "📋 No active attack plan.\n\n"
+                "  💡 Start one with a compound command like:\n"
+                "    • scan and attack 192.168.1.0/24\n"
+                "    • network dominate 10.0.0.1\n"
+                "    • full pentest example.com"
+            )
+        return self.attack_plan.summary()
 
     # ── multi-step chain detection ───────────────────────────────
 
@@ -2123,13 +2330,14 @@ class Agent:
     def _do_clear(self, m, raw) -> str:
         self.context.clear()
         self.history.clear()
-        self.ai.clear_history()
+        self.ai.clear_all()  # clears conversation history AND result store
+        self.attack_plan = None
         # Remove persisted context file
         try:
             self.CONTEXT_FILE.unlink(missing_ok=True)
         except Exception:
             pass
-        return "🔄 Session context and history cleared."
+        return "🔄 Session context, history, and AI memory cleared."
 
     def _do_capture(self, m, raw) -> str:
         iface = (
@@ -2236,6 +2444,15 @@ class Agent:
         target = m.group(1).strip()
         self.context["target"] = target
 
+        # Cross-chain intelligence: check for prior scans
+        prior_results = self.ai.results.search(target, n=3)
+        prior_msg = ""
+        if prior_results:
+            prior_msg = (
+                f"\n   📋 {len(prior_results)} prior result(s) found for "
+                f"{target} — cross-referencing intelligence."
+            )
+
         t = threading.Thread(
             target=self.orch.oneclick_network_dominate,
             args=(target,),
@@ -2245,7 +2462,10 @@ class Agent:
 
         return (
             f"💀 Network Dominate launched → {target}\n\n"
-            f"   Discovery → Fingerprint → Brute-force → Vuln analysis\n\n"
+            f"   Phase 1: Deep scan to discover attack surface\n"
+            f"   Phase 2: Adaptive attack — only targets open services\n"
+            f"            (SSH/FTP/SMB/Web/DB — as discovered)\n"
+            f"{prior_msg}\n"
             f"   Switch to ⚡ Dashboard to watch real-time progress."
         )
 
@@ -2254,6 +2474,15 @@ class Agent:
         self.context["target_url"] = url
         self.context["target"] = url
 
+        # Cross-chain intelligence: check for prior recon
+        prior_results = self.ai.results.search(url, n=3)
+        prior_msg = ""
+        if prior_results:
+            prior_msg = (
+                f"\n   📋 {len(prior_results)} prior result(s) found — "
+                f"cross-referencing intelligence."
+            )
+
         t = threading.Thread(
             target=self.orch.oneclick_web_pwn, args=(url,), daemon=True
         )
@@ -2261,7 +2490,10 @@ class Agent:
 
         return (
             f"🌐 Web Pwn launched → {url}\n\n"
-            f"   WAF detect → Directory brute → SQLi → SSL audit → Nikto\n\n"
+            f"   WAF detect → adapt strategy → DirBust → SQLi on discovered\n"
+            f"   paths → Nikto comprehensive scan"
+            f"{'  (+SSL audit)' if url.startswith('https') else ''}\n"
+            f"{prior_msg}\n"
             f"   Switch to ⚡ Dashboard to watch real-time progress."
         )
 
@@ -2269,6 +2501,15 @@ class Agent:
         target = m.group(1).strip()
         self.context["target"] = target
         self.context["domain"] = target
+
+        # Cross-chain intelligence: check for prior scans
+        prior_results = self.ai.results.search(target, n=3)
+        prior_msg = ""
+        if prior_results:
+            prior_msg = (
+                f"\n   📋 {len(prior_results)} prior result(s) found — "
+                f"cross-referencing intelligence."
+            )
 
         t = threading.Thread(
             target=self.orch.oneclick_stealth_recon,
@@ -2279,8 +2520,10 @@ class Agent:
 
         return (
             f"👁️ Stealth Recon launched → {target}\n\n"
-            f"   OSINT → DNS → WHOIS → Passive scan → SSL cert\n"
-            f"   No active exploitation — safe for pre-engagement.\n\n"
+            f"   OSINT → extract subdomains/IPs → DNS resolve all →\n"
+            f"   WHOIS → passive nmap on ALL discovered targets\n"
+            f"   No active exploitation — safe for pre-engagement.\n"
+            f"{prior_msg}\n"
             f"   Switch to ⚡ Dashboard to watch real-time progress."
         )
 
@@ -2916,6 +3159,7 @@ class Agent:
             return f"🎯 Domain set: {text}\n    Try: osint {text}  or  scan {text}"
 
         # Try LLM conversational response (explain, advise, strategize)
+        # Enhanced: the system prompt now includes recent results + context
         ai_reply = self.ai.chat_only(text, self.context)
         if ai_reply:
             return ai_reply
@@ -2932,7 +3176,8 @@ class Agent:
         return (
             f'🤔 I didn\'t understand: "{text}"\n\n'
             "    Type 'help' to see available commands.\n"
-            "    Or use '! <command>' to run a shell command directly."
+            "    Or use '! <command>' to run a shell command directly.\n"
+            "    Try 'what did we find' to recall past results."
         )
 
     # ── fuzzy command suggestion ─────────────────────────────────
@@ -3013,18 +3258,26 @@ class Agent:
     ]
 
     def _fuzzy_suggest(self, text: str) -> str:
-        """Return the best matching command hint for the given free text."""
+        """Return the best matching command hint using edit distance."""
         words = set(text.lower().split())
         best_cmd = None
         best_score = 0
         for keyword, suggestion in self._KNOWN_COMMANDS:
             kw_words = set(keyword.lower().split())
-            score = len(words & kw_words)
+            # Word overlap score
+            score = len(words & kw_words) * 3
             if score == 0:
+                # Character-level similarity (Levenshtein-lite)
                 for w in words:
-                    if w in keyword or keyword in w:
-                        score = 1
-                        break
+                    for kw in kw_words:
+                        if w in kw or kw in w:
+                            score = max(score, 2)
+                        elif len(w) > 3 and len(kw) > 3:
+                            # Simple edit distance approximation
+                            common = sum(1 for a, b in zip(w, kw) if a == b)
+                            ratio = common / max(len(w), len(kw))
+                            if ratio > 0.6:
+                                score = max(score, 1)
             if score > best_score:
                 best_score = score
                 best_cmd = f"`{suggestion}`"
