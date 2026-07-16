@@ -970,9 +970,10 @@ class WiFiArsenalTab(QWidget):
         self.lbl_target.setText(
             f"{self.selected_essid or '(hidden)'}  ·  {self.selected_bssid}  ·  ch {self.selected_channel}"
         )
-        self.lbl_target.setStyleSheet(
-            "color: #0078D4; font-size: 14px; font-weight: 600;"
-        )
+        self.lbl_target.setObjectName("goldAccent")
+        self.lbl_target.setStyleSheet("")
+        self.lbl_target.style().unpolish(self.lbl_target)
+        self.lbl_target.style().polish(self.lbl_target)
         self.btn_capture.setEnabled(True)
         self.btn_pmkid.setEnabled(True)
         self.btn_airgeddon.setEnabled(True)
@@ -1064,9 +1065,10 @@ class WiFiArsenalTab(QWidget):
             f = result["file"]
             self.lbl_cap_file.setText(f)
             self.lbl_result.setText(f"Handshake captured → {f}")
-            self.lbl_result.setStyleSheet(
-                "color: #2EA043; font-size: 14px; font-weight: 600;"
-            )
+            self.lbl_result.setObjectName("statusOk")
+            self.lbl_result.setStyleSheet("")
+            self.lbl_result.style().unpolish(self.lbl_result)
+            self.lbl_result.style().polish(self.lbl_result)
             show_toast(self.main_window, "Handshake captured", "success")
         else:
             show_toast(self.main_window, "No handshake captured", "error")
@@ -1098,9 +1100,10 @@ class WiFiArsenalTab(QWidget):
         if count:
             self.lbl_cap_file.setText(hc_path)
             self.lbl_result.setText(f"{count} PMKID/EAPOL hash(es)")
-            self.lbl_result.setStyleSheet(
-                "color: #2EA043; font-size: 14px; font-weight: 600;"
-            )
+            self.lbl_result.setObjectName("statusOk")
+            self.lbl_result.setStyleSheet("")
+            self.lbl_result.style().unpolish(self.lbl_result)
+            self.lbl_result.style().polish(self.lbl_result)
             show_toast(self.main_window, f"PMKID: {count} hashes", "success")
         else:
             show_toast(self.main_window, "No PMKID from this AP", "error")
@@ -1150,9 +1153,10 @@ class WiFiArsenalTab(QWidget):
             return
         self.main_window._set_idle(False)
         self.lbl_result.setText("Cracking…")
-        self.lbl_result.setStyleSheet(
-            "color: #BB8009; font-size: 14px; font-weight: 600;"
-        )
+        self.lbl_result.setObjectName("statusWarn")
+        self.lbl_result.setStyleSheet("")
+        self.lbl_result.style().unpolish(self.lbl_result)
+        self.lbl_result.style().polish(self.lbl_result)
         bssid = self.selected_bssid or ""
         essid = self.selected_essid or ""
 
@@ -1178,20 +1182,26 @@ class WiFiArsenalTab(QWidget):
         self.main_window._set_idle(True)
         if isinstance(result, Exception):
             self.lbl_result.setText(f"Error: {result}")
-            self.lbl_result.setStyleSheet("color: #F85149; font-size: 14px;")
+            self.lbl_result.setObjectName("statusBad")
+            self.lbl_result.setStyleSheet("")
+            self.lbl_result.style().unpolish(self.lbl_result)
+            self.lbl_result.style().polish(self.lbl_result)
             return
         if result.get("found"):
             key = result.get("key", "?")
             self.lbl_result.setText(f"KEY FOUND:  {key}")
-            self.lbl_result.setStyleSheet(
-                "color: #0078D4; font-size: 16px; font-weight: 700;"
-                " font-family: 'JetBrains Mono', monospace;"
-            )
+            self.lbl_result.setObjectName("goldAccent")
+            self.lbl_result.setStyleSheet("font-family: 'JetBrains Mono', monospace;")
+            self.lbl_result.style().unpolish(self.lbl_result)
+            self.lbl_result.style().polish(self.lbl_result)
             show_toast(self.main_window, f"Cracked: {key}", "success")
             self.main_window._append_log(f"Key cracked: {key}", "OK")
         else:
             self.lbl_result.setText("Not in wordlist")
-            self.lbl_result.setStyleSheet("color: #F85149; font-size: 14px;")
+            self.lbl_result.setObjectName("statusBad")
+            self.lbl_result.setStyleSheet("")
+            self.lbl_result.style().unpolish(self.lbl_result)
+            self.lbl_result.style().polish(self.lbl_result)
 
     def _launch_airgeddon(self):
         self.main_window.tabs.setCurrentIndex(2)

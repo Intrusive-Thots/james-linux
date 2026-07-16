@@ -430,7 +430,7 @@ class AutoPilotWorker(QThread):
         # ────────────────────────────────────────────────────
         self.phase_signal.emit(5, "Phase 5/6: Auto-Airgeddon")
 
-        pineap = getattr(self, "pineap", None)
+        pineap = getattr(self, "pineap", None) or getattr(self.orchestrator, "pineap", None)
 
         if not self.auto_airgeddon:
             self._log("Auto-Airgeddon disabled. Skipping.")

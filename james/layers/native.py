@@ -249,9 +249,16 @@ class NativeLayer:
     ) -> CommandResult:
         stdout_lines = []
         stderr_text = ""
+
+        if isinstance(cmd, str):
+            cmd_args = shlex.split(cmd)
+        else:
+            cmd_args = cmd
+            cmd = " ".join(cmd_args)
+
         proc = subprocess.Popen(
-            cmd,
-            shell=True,
+            cmd_args,
+            shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

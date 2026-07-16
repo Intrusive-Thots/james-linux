@@ -405,12 +405,25 @@ def generate_html_report(
 def save_report(html: str, path: str | Path | None = None) -> Path:
     """Save report HTML to disk and return the path."""
     if path is None:
-        loot_dir = Path.home() / ".james" / "loot"
-        loot_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = loot_dir / f"report_{timestamp}.html"
+        try:
+            loot_dir = Path.home() / ".james" / "loot"
+            loot_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = loot_dir / f"report_{timestamp}.html"
+        except OSError:
+            # Fallback to local workspace loot directory if home is read-only
+            loot_dir = Path("./loot")
+            loot_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = loot_dir / f"report_{timestamp}.html"
     else:
         path = Path(path)
 
-    path.write_text(html, encoding="utf-8")
+    try:
+        path.write_text(html, encoding="utf-8")
+    except OSError:
+        # Final fallback to a local file
+        fallback_path = Path("james_report_fallback.html")
+        fallback_path.write_text(html, encoding="utf-8")
+        return fallback_path
     return path
