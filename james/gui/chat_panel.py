@@ -37,8 +37,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThread, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QKeyEvent
 
-from james.gui.theme import PALETTE
-
 logger = logging.getLogger(__name__)
 
 # ── Quick-action chip definitions ──────────────────────────────────────────
