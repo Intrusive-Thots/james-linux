@@ -1,6 +1,6 @@
 import sys
 import unittest
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QPushButton
 
 # Create a global application instance
 app = QApplication(sys.argv)
@@ -25,15 +25,15 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.main_window.tabs.tabToolTip(1), "Wi-Fi auditing and tools (Ctrl+2)")
         self.assertEqual(self.main_window.tabs.tabToolTip(2), "Automated routines (Ctrl+3)")
         self.assertEqual(self.main_window.tabs.tabToolTip(3), "Evil Twin pipeline (Ctrl+4)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration (Ctrl+5)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(5), "Diagnostics and dependencies (Ctrl+6)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(4), "Experimental wireless assessments (Ctrl+5)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(5), "System configuration and diagnostics (Ctrl+6)")
 
         self.assertEqual(
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
         )
         self.assertEqual(
-            self.main_window._btn_kill.toolTip(),
-            "Kill JAMES and restore networking (Ctrl+K)",
+            self.main_window._btn_power.toolTip(),
+            "Restart, stop, or reboot",
         )
 
         # To get the dynamically created buttons we need to search for them or find them by text/properties
@@ -98,14 +98,11 @@ class TestGUITooltips(unittest.TestCase):
 
     def test_troubleshoot_tab_tooltips(self):
         from james.gui.tabs.troubleshoot_tab import TroubleshootTab
-        troubleshoot_tab = next(
-            (
-                self.main_window.tabs.widget(i)
-                for i in range(self.main_window.tabs.count())
-                if isinstance(self.main_window.tabs.widget(i), TroubleshootTab)
-            ),
-            None,
-        )
+        # TroubleshootTab is now nested inside the Config tab's sub-tabs
+        troubleshoot_tab = None
+        for w in self.main_window.findChildren(TroubleshootTab):
+            troubleshoot_tab = w
+            break
         self.assertIsNotNone(troubleshoot_tab, "TroubleshootTab not found")
 
         self.assertEqual(
@@ -133,6 +130,19 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(tab.btn_scan_start.toolTip(), "Start network scan (Ctrl+S)")
         self.assertEqual(tab.btn_scan_stop.toolTip(), "Stop network scan (Ctrl+S)")
 
+    def test_lab_tab_tooltips(self):
+        from james.gui.tabs.lab_tab import LabTab
+        tab = next(
+            (
+                self.main_window.tabs.widget(i)
+                for i in range(self.main_window.tabs.count())
+                if isinstance(self.main_window.tabs.widget(i), LabTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "LabTab not found")
+        self.assertEqual(tab.btn_run_fuzz.toolTip(), "Start SAE Fuzzing on the selected interface (Ctrl+F)")
+        self.assertEqual(tab.btn_run_down.toolTip(), "Trigger Downgrade on the selected interface (Ctrl+D)")
     def test_autopilot_tab_tooltips(self):
         from james.gui.tabs.autopilot_tab import AutoPilotTab
         tab = next(
@@ -149,14 +159,10 @@ class TestGUITooltips(unittest.TestCase):
 
     def test_setup_tab_tooltips(self):
         from james.gui.tabs.setup_tab import SetupTab
-        setup_tab = next(
-            (
-                self.main_window.tabs.widget(i)
-                for i in range(self.main_window.tabs.count())
-                if isinstance(self.main_window.tabs.widget(i), SetupTab)
-            ),
-            None,
-        )
+        setup_tab = None
+        for w in self.main_window.findChildren(SetupTab):
+            setup_tab = w
+            break
         self.assertIsNotNone(setup_tab, "SetupTab not found")
 
         self.assertEqual(
@@ -171,6 +177,26 @@ class TestGUITooltips(unittest.TestCase):
             setup_tab.btn_flush_iptables.toolTip(),
             "Flush iptables (Ctrl+F)",
         )
+
+    def test_activity_tab_tooltips(self):
+
+        """Verify activity tab tooltips are present and include shortcuts."""
+        from james.gui.tabs.activity_tab import ActivitySidebar
+        sidebar = ActivitySidebar(self.main_window)
+
+        # Verify pause button tooltip
+        assert "Ctrl+P" in sidebar._btn_pause.toolTip()
+
+        # We need to find the clear and copy buttons
+        btns = sidebar.findChildren(QPushButton)
+        tooltips = [b.toolTip() for b in btns]
+
+        has_clear = any("Ctrl+L" in tt for tt in tooltips)
+        has_copy = any("Ctrl+Shift+C" in tt for tt in tooltips)
+
+        assert has_clear, "Clear button missing Ctrl+L in tooltip"
+        assert has_copy, "Copy button missing Ctrl+Shift+C in tooltip"
+
 
 if __name__ == "__main__":
     unittest.main()

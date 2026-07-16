@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { AppState } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 
 interface AgentProps {
   state: AppState;
@@ -29,10 +30,13 @@ interface ChatMessage {
 
 export function Agent({ state, connected, send, addLog, lastAgentResponse }: AgentProps) {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [autoPilotRunning, setAutoPilotRunning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useShortcutFocus("k", true);
   const lastResponseTs = useRef(0);
 
   // Auto-scroll chat
@@ -72,6 +76,8 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     }
 
     setInput("");
+    setHistory((prev) => [...prev, cmd]);
+    setHistoryIdx(-1);
     addMessage("user", cmd);
     setProcessing(true);
     send("agent_command", { command: cmd });
@@ -111,6 +117,29 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendCommand();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setInput("");
+      setHistoryIdx(-1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (history.length > 0) {
+        const nextIdx = historyIdx === -1 ? history.length - 1 : Math.max(0, historyIdx - 1);
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx]);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (history.length > 0 && historyIdx !== -1) {
+        const nextIdx = historyIdx + 1;
+        if (nextIdx >= history.length) {
+          setHistoryIdx(-1);
+          setInput("");
+        } else {
+          setHistoryIdx(nextIdx);
+          setInput(history[nextIdx]);
+        }
+      }
     }
   };
 
@@ -251,7 +280,8 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
           <div className="flex items-center gap-sm pt-md border-t border-border">
             <input
               type="text"
-              placeholder="Type a command (scan, status, loot, help)…"
+              ref={commandInputRef}
+              placeholder="Type a command (scan, status, loot, help)… (Ctrl+K)"
               className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={input}
               onChange={(e) => setInput(e.target.value)}
