@@ -37,10 +37,13 @@ export function TopNav({ state, connected, onLogsClick }: TopNavProps) {
   const secs = sessionUptime % 60;
   const uptime = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
-  let totalClients = 0;
-  for (const ap of state.aps) {
-    totalClients += ap.clients;
-  }
+  const totalClients = useMemo(() => {
+    let sum = 0;
+    for (const ap of state.aps) {
+      sum += ap.clients;
+    }
+    return sum;
+  }, [state.aps]);
 
   const modeLabels: Record<string, string> = {
     agent: "Manual Operations",

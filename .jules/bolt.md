@@ -76,3 +76,12 @@
 ## 2026-07-13 - [Use RegExp for Fast Loop String Filtering]
 **Learning:** Calling `.toLowerCase()` on frequently updating array properties inside a render cycle's `useMemo` loop (like `log.message.toLowerCase()` for 500 logs every 100ms) creates significant garbage collection and performance overhead because a new string is allocated for every item on every render tick.
 **Action:** Replace `.toLowerCase().includes()` inside high-frequency loops with a single `new RegExp(query, 'i')` instantiated outside the loop, and use `regex.test(item.property)`. This eliminates per-item string allocations and accelerates matching during rapid React state updates.
+## 2026-07-13 - LabTab Shortcuts and Tooltips
+**Learning:** When defining tab-specific keyboard shortcuts in PyQt5 (e.g., using QShortcut), explicitly set the shortcut's context to Qt.WidgetWithChildrenShortcut to prevent 'Ambiguous shortcut overload' conflicts when the same key sequence is used across multiple tabs.
+**Action:** Always set the shortcut context when adding new shortcuts to individual tabs.
+## 2026-07-14 - Memoize Array Derivations Alongside Timers
+**Learning:** When a component has a fast-updating local state (like a 1-second timer tick), any unmemoized array derivations (like summing properties over hundreds of objects) will be recalculated on every tick, causing a performance bottleneck.
+**Action:** Always wrap expensive array derivations in `useMemo` when the component also contains independent fast-updating state to prevent unnecessary re-evaluations.
+## 2026-07-15 - Consistent PyQt5 Keyboard Shortcuts
+**Learning:** When developing PyQt5 applications, ensuring consistent keyboard shortcuts and corresponding tooltips across all interactive tabs and panels improves workflow and UX. Adding QShortcut explicitly with Qt.WidgetWithChildrenShortcut context prevents global shortcut conflicts.
+**Action:** Always verify that newly added buttons in panels like ActivitySidebar have a corresponding QShortcut and tooltip indicator.

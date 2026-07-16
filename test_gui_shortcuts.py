@@ -1,3 +1,4 @@
+from PyQt5.QtCore import Qt
 import sys
 import unittest
 from PyQt5.QtWidgets import QApplication, QShortcut
@@ -255,6 +256,22 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+F shortcut not found in SetupTab"
         )
 
+    def test_lab_tab_shortcuts(self):
+        from james.gui.tabs.lab_tab import LabTab
+        tab = next(
+            (
+                self.window.tabs.widget(i)
+                for i in range(self.window.tabs.count())
+                if isinstance(self.window.tabs.widget(i), LabTab)
+            ),
+            None,
+        )
+        self.assertIsNotNone(tab, "LabTab not found")
+
+        shortcuts = tab.findChildren(QShortcut)
+        keys = [s.key().toString() for s in shortcuts]
+        self.assertIn("Ctrl+F", keys)
+        self.assertIn("Ctrl+D", keys)
     def test_chat_ctrl_enter(self):
         from james.gui.chat_panel import ChatPanel
 
@@ -316,6 +333,24 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertEqual(anim.propertyName(), b"opacity")
         self.assertEqual(anim.startValue(), 0.0)
         self.assertEqual(anim.endValue(), 1.0)
+
+
+    def test_activity_tab_shortcuts(self):
+
+        """Verify activity tab shortcuts are assigned to their context properly."""
+        from james.gui.tabs.activity_tab import ActivitySidebar
+        sidebar = ActivitySidebar(self.window)
+        shortcuts = sidebar.findChildren(QShortcut)
+        assert len(shortcuts) >= 3
+
+        shortcut_keys = [sc.key().toString() for sc in shortcuts]
+        assert "Ctrl+P" in shortcut_keys
+        assert "Ctrl+L" in shortcut_keys
+        assert "Ctrl+Shift+C" in shortcut_keys
+
+        # Check contexts
+        for sc in shortcuts:
+            assert sc.context() == Qt.WidgetWithChildrenShortcut
 
 
 if __name__ == "__main__":
