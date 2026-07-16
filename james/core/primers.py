@@ -152,6 +152,75 @@ NEVER run aggressive scans (-T5) in stealth mode.
 NEVER use default nmap timing in stealth mode."""
 
 
+CRACKING_PRIMER = """PASSWORD CRACKING PHASE INSTRUCTIONS:
+
+1. Wordlist strategy (escalating cost):
+   a. Start with JAMES-generated WiFi wordlists (~/.james/wordlists/)
+   b. Try rockyou.txt (fast, ~14M entries)
+   c. Use hashcat rules (-r best64.rule, -r d3ad0ne.rule)
+   d. Generate SSID-targeted wordlists (generate wordlists <SSID>)
+   e. Combo attacks: hashcat -a 1 (combine two wordlists)
+   f. Brute-force last resort: hashcat -a 3 ?d?d?d?d?d?d?d?d
+
+2. Engine selection:
+   - Hashcat (GPU) preferred for WPA/WPA2 (mode 22000/22001)
+   - John the Ripper for CPU-only fallback
+   - aircrack-ng for quick dictionary checks
+
+3. WPA-specific tips:
+   - Convert .cap to .hc22000 format for hashcat
+   - PMKID captures crack faster (no full handshake needed)
+   - Common WiFi passwords: 8-digit numbers, phone numbers, names+years
+
+4. Always cache cracked keys immediately to the loot store."""
+
+
+POST_EXPLOIT_PRIMER = """POST-EXPLOITATION PHASE INSTRUCTIONS:
+
+1. Credential management:
+   - All cracked keys are in the loot cache (show loot)
+   - Try cracked passwords on other discovered services (credential reuse)
+   - Check for password reuse across SSH, FTP, SMB, web logins
+
+2. Lateral movement:
+   - Use discovered credentials to access other hosts
+   - SMB enumeration for shared drives and files
+   - Check for SSH key reuse
+
+3. Persistence:
+   - Document all access gained
+   - Generate penetration test report (report command)
+   - Save all evidence for the engagement report
+
+4. Cleanup:
+   - Restore all interfaces to managed mode
+   - Stop any lingering background processes
+   - Run 'kill james' when the engagement is complete"""
+
+
+SOCIAL_ENGINEERING_PRIMER = """SOCIAL ENGINEERING / ROGUE AP INSTRUCTIONS:
+
+1. Evil Twin setup:
+   - Clone the target AP's SSID, BSSID, and channel
+   - Use a different wireless adapter than your internet connection
+   - Deauth clients from the real AP to force reconnection to yours
+
+2. Captive portal strategy:
+   - Choose portal template matching the environment (hotel, café, ISP)
+   - Capture credentials via the portal form
+   - Monitor DNS queries to understand client behavior
+
+3. KARMA attacks:
+   - Respond to ALL probe requests to attract any device
+   - Most effective in high-traffic areas
+   - Combine with captive portal for credential harvest
+
+4. Operational security:
+   - Spoof your MAC address before starting (spoof mac <iface>)
+   - Monitor for detection attempts
+   - Have an exit plan — stop pineapple to clean up instantly"""
+
+
 # ── Primer Registry ──────────────────────────────────────────────
 
 PRIMERS = {
@@ -161,7 +230,11 @@ PRIMERS = {
     "web": WEB_PRIMER,
     "exploitation": EXPLOITATION_PRIMER,
     "stealth": STEALTH_PRIMER,
+    "cracking": CRACKING_PRIMER,
+    "post-exploit": POST_EXPLOIT_PRIMER,
+    "social": SOCIAL_ENGINEERING_PRIMER,
 }
+
 
 
 def get_primer(phase: str) -> str:
