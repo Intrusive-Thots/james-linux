@@ -341,11 +341,12 @@ class Orchestrator:
         # Project wordlists
         if self.WORDLIST_DIR.exists():
             for f in sorted(self.WORDLIST_DIR.glob("*.txt")):
-                if f.stat().st_size < 2:
+                f_stat = f.stat()
+                if f_stat.st_size < 2:
                     continue  # skip empty files
 
                 try:
-                    mtime = f.stat().st_mtime
+                    mtime = f_stat.st_mtime
                 except Exception:
                     mtime = 0
                 cache_key = f"{f}_{mtime}"
@@ -354,7 +355,7 @@ class Orchestrator:
                     lines = self.__class__._wordlist_cache[cache_key]
                 else:
                     try:
-                        lines = max(1, f.stat().st_size // 10)
+                        lines = max(1, f_stat.st_size // 10)
                     except Exception:
                         lines = 0
                     self.__class__._wordlist_cache[cache_key] = lines
