@@ -172,6 +172,10 @@ class TestSEDGE(unittest.TestCase):
     def test_get_best_next_no_edges(self):
         self.assertIsNone(self.graph.get_best_next(ACTION_PASSIVE_SCAN))
 
+    def test_get_best_next_empty_graph(self):
+        empty_graph = DecisionGraph()
+        self.assertIsNone(empty_graph.get_best_next("non_existent_node"))
+
     def test_get_best_next_with_edges(self):
         # We know START has one edge
         best_edge = self.graph.get_best_next(STATE_START)
