@@ -8,8 +8,6 @@ A multi-page dialog that guides the user through:
   Page 4 — Done / launch
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from pathlib import Path
