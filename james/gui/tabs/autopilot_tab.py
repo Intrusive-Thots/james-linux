@@ -430,7 +430,7 @@ class AutoPilotWorker(QThread):
         # ────────────────────────────────────────────────────
         self.phase_signal.emit(5, "Phase 5/6: Auto-Airgeddon")
 
-        pineap = getattr(self, "pineap", None)
+        pineap = getattr(self, "pineap", None) or getattr(self.orchestrator, "pineap", None)
 
         if not self.auto_airgeddon:
             self._log("Auto-Airgeddon disabled. Skipping.")
@@ -636,7 +636,9 @@ class AutoPilotTab(QWidget):
 
 
     def _build_shortcuts(self):
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_run)
+        sc_s = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc_s.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_s.activated.connect(self._toggle_run)
 
     def _toggle_run(self):
         if self.btn_start.isEnabled():

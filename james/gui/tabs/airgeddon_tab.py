@@ -21,14 +21,11 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QComboBox,
     QPlainTextEdit,
-    QMessageBox,
-    QFrame,
-    QLineEdit,
     QShortcut,
     QApplication,
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint
-from PyQt5.QtGui import QColor, QKeySequence
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QKeySequence
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
@@ -58,8 +55,13 @@ class AirgeddonTab(QWidget):
 
 
     def _build_shortcuts(self):
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.btn_refresh.click)
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._toggle_scan)
+        sc_r = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_r.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_r.activated.connect(self.btn_refresh.click)
+
+        sc_s = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc_s.setContext(Qt.WidgetWithChildrenShortcut)
+        sc_s.activated.connect(self._toggle_scan)
 
         ap_copy = QShortcut(QKeySequence("Ctrl+C"), self.ap_table)
         ap_copy.setContext(Qt.WidgetShortcut)
@@ -97,7 +99,6 @@ class AirgeddonTab(QWidget):
         iface_layout.addWidget(QLabel("Select Interface:"))
         self.iface_combo = QComboBox()
         self.iface_combo.setMinimumWidth(200)
-        self.iface_combo.setStyleSheet("background: #2d2d3d; color: white;")
         iface_layout.addWidget(self.iface_combo)
 
         self.btn_refresh = QPushButton("↻ Refresh")
@@ -123,7 +124,7 @@ class AirgeddonTab(QWidget):
         self.btn_scan_stop.setMinimumHeight(40)
         self.btn_scan_stop.setEnabled(False)
         self.lbl_stats = QLabel("APs: 0")
-        self.lbl_stats.setStyleSheet("color: #00e676; font-weight: bold;")
+        self.lbl_stats.setObjectName("statusOk")
 
         btn_bar.addWidget(self.btn_scan_start)
         btn_bar.addWidget(self.btn_scan_stop)
@@ -314,9 +315,9 @@ class AirgeddonTab(QWidget):
         if not rows:
             return
         r = rows[0].row()
-        self.selected_essid = self.ap_table.item(r, 0).text()
-        self.selected_bssid = self.ap_table.item(r, 1).text()
-        self.selected_channel = self.ap_table.item(r, 2).text()
+        self.selected_essid = (self.ap_table.item(r, 0) or QTableWidgetItem("")).text()
+        self.selected_bssid = (self.ap_table.item(r, 1) or QTableWidgetItem("")).text()
+        self.selected_channel = (self.ap_table.item(r, 2) or QTableWidgetItem("")).text()
 
         self.lbl_target.setText(
             f"{self.selected_essid}  ·  {self.selected_bssid}  ·  ch {self.selected_channel}"

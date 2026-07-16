@@ -404,9 +404,11 @@ class WifiWordlistGenerator:
         passwords.add("9876543210")
 
         # Common phone-like patterns (8 digits)
-        for area in ["212", "310", "415", "305", "713", "202", "312", "404"]:
-            for last4 in ["0000", "1234", "5678", "1111", "9999"]:
-                passwords.add(area + "555" + last4[-1])  # Placeholder
+        passwords.update({
+            f"{area}555{last4[-1]}"
+            for area in ["212", "310", "415", "305", "713", "202", "312", "404"]
+            for last4 in ["0000", "1234", "5678", "1111", "9999"]
+        })  # Placeholder
 
         # 6. Common ISP defaults
         passwords.add("admin1234")
