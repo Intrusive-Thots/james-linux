@@ -1,43 +1,33 @@
-# James-Linux: Parrot OS Pentesting Agent
+Autonomous Self-Improving AI Agent - Implementation Plan
 
-This document outlines the architecture and implementation plan for `james-linux`, a brand new, completely independent native desktop application tailored for Linux (specifically Parrot OS distributions).
+Objective: Transform the current AI agent into a continuously
+self-improving system capable of planning, implementing, verifying,
+learning, and repeating improvements on a fixed schedule.
 
-> [!WARNING]
-> This is a completely new project directory, not a modification of the existing `james-1` codebase. All Windows-specific code (PowerShell, WMI, WinReg) is omitted entirely.
+Core Principles - Never perform the same analysis twice. - Cache
+everything possible. - Verify every modification. - Roll back failed
+changes automatically. - Prefer reusable tooling. - Continuously reduce
+future effort. - Every completed task must leave the system more capable
+than before.
 
-## Open Questions
-> [!IMPORTANT]
-> 1. **GUI Framework:** I propose using **PyQt6** for the native desktop application. It provides a highly customizable, native feel on Linux.
-> 2. **Initial Toolset:** Focus on `nmap`, `aircrack-ng` suite (`airmon-ng`, `airodump-ng`, `aireplay-ng`), `john`, and `hashcat`.
+Phases 1. Repository Intelligence 2. Knowledge Graph 3. Persistent
+Memory 4. Task Queue 5. Hourly Scheduler 6. Self Verification 7.
+Learning Engine 8. Tool Generation 9. Workflow Generation 10. Skill
+Generation 11. Metrics 12. Continuous Optimization
 
-## Proposed Architecture
+Hourly Loop
 
-### 1. Project Structure
-```
-james-linux/
-├── james/                 # Main package
-│   ├── gui/               # PyQt6 Desktop UI
-│   ├── core/              # Orchestration and AI logic
-│   ├── layers/            # Execution layers (Linux Native)
-│   ├── tools/             # Wrappers for Parrot OS tools
-│   └── skills/            # JSON skill definitions for pentesting
-├── main.py                # Application entry point
-├── requirements.txt       # Dependencies (PyQt6, etc.)
-└── README.md
-```
+while True: load_memory() load_repository_index() load_knowledge_graph()
+load_implementation_plan() discover_next_task() verify_dependencies()
+implement() test() benchmark() learn() update_plan() schedule_next_run()
 
-### 2. Linux Native Execution Layer (`layers/native.py`)
-- We will implement a `NativeLayer` that exclusively uses `subprocess` to execute Bash commands.
-- Include built-in privilege escalation handling (e.g., prompting for `sudo` or utilizing `pkexec` for GUI root execution).
+Governance Rules - Never modify the scheduler, security rules, or
+verification pipeline without backups. - All changes must pass tests
+before becoming the baseline. - Keep every iteration in version
+control. - Maintain immutable logs of changes and benchmarks. - Use
+isolated branches/workspaces before merging.
 
-### 3. Tool Wrappers (`tools/parrot.py`)
-Python wrappers to parse the output of common Parrot OS tools into structured JSON.
-- **Example:** Parsing `nmap -oX -` XML output into a structured dictionary.
-
-### 4. Native Desktop GUI (`gui/`)
-- **Main Window:** Dashboard showing system status, interfaces, and active tasks.
-- **Task Launcher:** UI to launch complex pentesting workflows.
-- **AI Chat/Terminal:** Integrated view to converse with James and see underlying commands.
-
-### 5. AI Integration
-- The orchestrator will utilize the AI backend to plan multi-step attacks, executing strictly via the Linux toolset.
+Success Criteria - The agent autonomously identifies work. - Safely
+modifies itself. - Verifies every change. - Learns from every
+execution. - Updates the implementation plan automatically. - Reduces
+required human intervention over time.
