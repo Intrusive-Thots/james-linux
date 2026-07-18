@@ -37,12 +37,14 @@ interface WorkspaceConfig {
   accentBg: string;
   accentBorder: string;
   glowColor: string;
+  shortcut?: string;
 }
 
 const WORKSPACES: WorkspaceConfig[] = [
   {
     id: "agent",
     label: "AGENT",
+    shortcut: "Alt+5",
     icon: Crosshair,
     accent: "text-accent-cyan",
     accentBg: "bg-accent-cyan/10",
@@ -61,6 +63,7 @@ const WORKSPACES: WorkspaceConfig[] = [
   {
     id: "settings",
     label: "SETTINGS",
+    shortcut: "Alt+7",
     icon: Settings,
     accent: "text-text-secondary",
     accentBg: "bg-bg-elevated",
@@ -73,14 +76,15 @@ interface SubPageConfig {
   id: SubPageId;
   label: string;
   icon: React.ElementType;
+  shortcut?: string;
 }
 
 const AGENT_SUBPAGES: SubPageConfig[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "recon", label: "Recon", icon: Radar },
-  { id: "attacks", label: "Attacks", icon: Swords },
-  { id: "handshakes", label: "Handshakes", icon: FileKey },
-  { id: "logs", label: "Logs", icon: ScrollText },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, shortcut: "Alt+1" },
+  { id: "recon", label: "Recon", icon: Radar, shortcut: "Alt+2" },
+  { id: "attacks", label: "Attacks", icon: Swords, shortcut: "Alt+3" },
+  { id: "handshakes", label: "Handshakes", icon: FileKey, shortcut: "Alt+4" },
+  { id: "logs", label: "Logs", icon: ScrollText, shortcut: "Alt+6" },
 ];
 
 const AUTO_SUBPAGES: SubPageConfig[] = [
@@ -131,7 +135,12 @@ export function WorkspaceTabs({
               style={isActive ? { boxShadow: `0 -2px 12px ${ws.glowColor}` } : undefined}
             >
               <Icon className={cn("w-4 h-4", isActive ? ws.accent : "text-text-muted")} />
-              {ws.label}
+              <div className="flex flex-col items-start leading-none">
+                <span>{ws.label}</span>
+                {ws.shortcut && !isActive && (
+                  <span className="text-[9px] text-text-muted/50 font-mono mt-0.5">{ws.shortcut}</span>
+                )}
+              </div>
               {isActive && (
                 <motion.div
                   layoutId="workspace-indicator"
@@ -162,7 +171,10 @@ export function WorkspaceTabs({
               )}
             >
               <Icon className={cn("w-3.5 h-3.5", isActive ? activeWs.accent : "")} />
-              {sp.label}
+              <span>{sp.label}</span>
+              {sp.shortcut && !isActive && (
+                <span className="ml-1 text-[9px] text-text-muted/50 font-mono">{sp.shortcut}</span>
+              )}
               {isActive && (
                 <motion.div
                   layoutId="subpage-indicator"

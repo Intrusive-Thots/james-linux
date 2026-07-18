@@ -85,3 +85,6 @@
 ## 2026-07-15 - Consistent PyQt5 Keyboard Shortcuts
 **Learning:** When developing PyQt5 applications, ensuring consistent keyboard shortcuts and corresponding tooltips across all interactive tabs and panels improves workflow and UX. Adding QShortcut explicitly with Qt.WidgetWithChildrenShortcut context prevents global shortcut conflicts.
 **Action:** Always verify that newly added buttons in panels like ActivitySidebar have a corresponding QShortcut and tooltip indicator.
+## 2026-07-18 - Discoverability of Keyboard Shortcuts
+**Learning:** Keyboard shortcuts that are hidden in event handlers without UI exposure cause friction and lack of discoverability, missing an opportunity for power-user delight.
+**Action:** Always surface global application shortcuts visually within the relevant navigation tabs or tooltips using muted styling to enhance discoverability.
