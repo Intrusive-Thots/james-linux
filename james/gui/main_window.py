@@ -118,6 +118,15 @@ class _CmdWorker(QThread):
             self.error_signal.emit(str(exc))
 
 
+class _CmdLineEdit(QLineEdit):
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.clear()
+            self.clearFocus()
+        else:
+            super().keyPressEvent(event)
+
+
 class MainWindow(QMainWindow):
     """JAMES main window — Mission Control layout."""
 
@@ -606,7 +615,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(prompt)
 
         # Command input
-        self._cmd_input = QLineEdit()
+        self._cmd_input = _CmdLineEdit()
         self._cmd_input.setPlaceholderText(
             "Type a command…  (Ctrl+K to focus)"
         )
