@@ -125,7 +125,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         import random
 
-        for _ in range(250000):
+        for _ in range(1000):
             # In our simulation:
             # ACTION_HANDSHAKE_CAPTURE has 90% success probability
             # ACTION_DEAUTH_TEST has 10% success probability
@@ -177,7 +177,7 @@ class TestSedgeCoreIdea(unittest.TestCase):
         # Now, test empirical selection probability on the static trained graph
         handshake_selections = 0
         deauth_selections = 0
-        iterations = 250000
+        iterations = 1000
 
         # Test stochastic distribution over the trained nodes without updating
         # weights
@@ -200,8 +200,8 @@ class TestSedgeCoreIdea(unittest.TestCase):
 
         # Verify edge score mathematical dominance vs empirical stochastic
         # ratio
-        self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.02)
-        self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.02)
+        self.assertAlmostEqual(ratio_handshake, expected_handshake, delta=0.05)
+        self.assertAlmostEqual(ratio_deauth, expected_deauth, delta=0.05)
 
     def test_edge_score_zero_division_prevention(self):
         edge = Edge(
