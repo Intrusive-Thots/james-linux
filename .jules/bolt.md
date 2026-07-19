@@ -88,3 +88,6 @@
 ## 2026-07-18 - Discoverability of Keyboard Shortcuts
 **Learning:** Keyboard shortcuts that are hidden in event handlers without UI exposure cause friction and lack of discoverability, missing an opportunity for power-user delight.
 **Action:** Always surface global application shortcuts visually within the relevant navigation tabs or tooltips using muted styling to enhance discoverability.
+## 2026-07-19 - Subclassing Qt widgets for event interception
+**Learning:** When needing to add specific keyboard shortcuts (like Escape to clear/unfocus) to a PyQt5 widget that also handles other keys (like Return), subclassing the widget (e.g. `QLineEdit`) and overriding `keyPressEvent` is cleaner than trying to wire external `QShortcut` objects which can conflict with the widget's internal focus and event handling.
+**Action:** Use lightweight widget subclasses when implementing component-specific interactive behaviors.

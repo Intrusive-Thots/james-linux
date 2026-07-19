@@ -352,6 +352,24 @@ class TestMainWindowShortcuts(unittest.TestCase):
         for sc in shortcuts:
             assert sc.context() == Qt.WidgetWithChildrenShortcut
 
+    def test_escape_key_clears_command_bar_input(self):
+        from james.gui.main_window import _CmdLineEdit
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QKeyEvent
+
+        line_edit = _CmdLineEdit()
+        line_edit.setText("some command")
+        line_edit.setFocus()
+        self.assertEqual(line_edit.text(), "some command")
+
+        # Synthesize escape key press
+        event = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier)
+        line_edit.keyPressEvent(event)
+
+        # Verify text is cleared and focus is lost
+        self.assertEqual(line_edit.text(), "")
+        self.assertFalse(line_edit.hasFocus())
+
 
 if __name__ == "__main__":
     unittest.main()
