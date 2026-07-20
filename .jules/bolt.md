@@ -94,3 +94,6 @@
 ## 2024-07-20 - Cache Path.stat() for reduced system calls
 **Learning:** In Python, calling `Path.stat()` multiple times to access different attributes (e.g., `st_size`, `st_mtime`) results in redundant system calls which slow down performance, especially in loops traversing many files.
 **Action:** Cache the result of `file.stat()` to a local variable rather than calling `.stat()` multiple times per file to prevent redundant system calls.
+## 2026-07-20 - Command History Integration
+**Learning:** Implementing command history navigation in PyQt widgets using `keyPressEvent` provides an immediate UX enhancement without altering underlying architecture.
+**Action:** Replicate the history pattern from `_HistoryLineEdit` into the global `_CmdLineEdit` to allow intuitive up/down arrow history recall, reducing repetitive typing friction.

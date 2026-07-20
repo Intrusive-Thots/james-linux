@@ -119,11 +119,38 @@ class _CmdWorker(QThread):
 
 
 class _CmdLineEdit(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._history = []
+        self._idx = -1
+
+    def add_history(self, text):
+        if not text:
+            return
+        if not self._history or self._history[-1] != text:
+            self._history.append(text)
+        self._idx = len(self._history)
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.clear()
             self.clearFocus()
+        elif event.key() == Qt.Key_Up:
+            if self._history:
+                self._idx = max(0, (self._idx - 1) if self._idx > 0 else len(self._history) - 1)
+                self.setText(self._history[self._idx])
+                self.setCursorPosition(len(self.text()))
+        elif event.key() == Qt.Key_Down:
+            if self._history:
+                if self._idx < len(self._history) - 1:
+                    self._idx += 1
+                    self.setText(self._history[self._idx])
+                    self.setCursorPosition(len(self.text()))
+                else:
+                    self._idx = len(self._history)
+                    self.setText("")
         else:
+            self._idx = len(self._history)
             super().keyPressEvent(event)
 
 
@@ -676,6 +703,7 @@ class MainWindow(QMainWindow):
         text = self._cmd_input.text().strip()
         if not text:
             return
+        self._cmd_input.add_history(text)
         if self._cmd_worker and self._cmd_worker.isRunning():
             show_toast(self, "Please wait — processing…", "info")
             return
