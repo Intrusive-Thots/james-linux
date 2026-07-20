@@ -99,6 +99,40 @@ class TestMainWindowShortcuts(unittest.TestCase):
         # Verify text is cleared
         self.assertEqual(line_edit.text(), "")
 
+    def test_cmd_bar_history(self):
+        from james.gui.main_window import _CmdLineEdit
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QKeyEvent
+
+        line_edit = _CmdLineEdit()
+        line_edit.show()
+
+        line_edit.add_history("cmd1")
+        line_edit.add_history("cmd2")
+
+        # Initial state: no text
+        self.assertEqual(line_edit.text(), "")
+
+        # Up arrow -> loads "cmd2"
+        event_up = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Up, Qt.NoModifier)
+        line_edit.keyPressEvent(event_up)
+        self.assertEqual(line_edit.text(), "cmd2")
+
+        # Up arrow -> loads "cmd1"
+        line_edit.keyPressEvent(event_up)
+        self.assertEqual(line_edit.text(), "cmd1")
+
+        # Down arrow -> loads "cmd2"
+        event_down = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Down, Qt.NoModifier)
+        line_edit.keyPressEvent(event_down)
+        self.assertEqual(line_edit.text(), "cmd2")
+
+        # Down arrow -> clears text
+        line_edit.keyPressEvent(event_down)
+        self.assertEqual(line_edit.text(), "")
+
+        line_edit.close()
+
     def test_history_cursor_position(self):
         from james.gui.chat_panel import _HistoryLineEdit
         from PyQt5.QtCore import Qt
