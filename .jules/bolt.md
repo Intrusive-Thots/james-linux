@@ -91,3 +91,6 @@
 ## 2026-07-19 - Subclassing Qt widgets for event interception
 **Learning:** When needing to add specific keyboard shortcuts (like Escape to clear/unfocus) to a PyQt5 widget that also handles other keys (like Return), subclassing the widget (e.g. `QLineEdit`) and overriding `keyPressEvent` is cleaner than trying to wire external `QShortcut` objects which can conflict with the widget's internal focus and event handling.
 **Action:** Use lightweight widget subclasses when implementing component-specific interactive behaviors.
+## 2024-07-20 - Cache Path.stat() for reduced system calls
+**Learning:** In Python, calling `Path.stat()` multiple times to access different attributes (e.g., `st_size`, `st_mtime`) results in redundant system calls which slow down performance, especially in loops traversing many files.
+**Action:** Cache the result of `file.stat()` to a local variable rather than calling `.stat()` multiple times per file to prevent redundant system calls.

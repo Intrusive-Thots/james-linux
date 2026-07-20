@@ -311,8 +311,9 @@ class Orchestrator:
         for path, cat, label in system_paths:
             p = Path(path)
             if p.exists():
+                p_stat = p.stat()
                 try:
-                    mtime = p.stat().st_mtime
+                    mtime = p_stat.st_mtime
                 except Exception:
                     mtime = 0
                 cache_key = f"{p}_{mtime}"
@@ -321,7 +322,7 @@ class Orchestrator:
                     lines = self.__class__._wordlist_cache[cache_key]
                 else:
                     try:
-                        lines = max(1, p.stat().st_size // 10)
+                        lines = max(1, p_stat.st_size // 10)
                     except Exception as e:
                         logger.debug("Could not estimate lines in %s: %s", path, e)
                         lines = 0
@@ -333,7 +334,7 @@ class Orchestrator:
                         "name": label,
                         "category": cat,
                         "lines": lines,
-                        "size_mb": round(p.stat().st_size / 1048576, 1),
+                        "size_mb": round(p_stat.st_size / 1048576, 1),
                     }
                 )
 
@@ -378,7 +379,7 @@ class Orchestrator:
                         "name": name,
                         "category": cat,
                         "lines": lines,
-                        "size_mb": round(f.stat().st_size / 1048576, 1),
+                        "size_mb": round(f_stat.st_size / 1048576, 1),
                     }
                 )
 
