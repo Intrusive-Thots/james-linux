@@ -612,6 +612,7 @@ class _HistoryLineEdit(QLineEdit):
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key_Escape:
             self.clear()
+            self.clearFocus()
         elif event.key() == Qt.Key_Up:
             if self._history:
                 self._idx = max(

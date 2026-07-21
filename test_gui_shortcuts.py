@@ -90,14 +90,16 @@ class TestMainWindowShortcuts(unittest.TestCase):
 
         line_edit = _HistoryLineEdit([])
         line_edit.setText("some text")
+        line_edit.setFocus()
         self.assertEqual(line_edit.text(), "some text")
 
         # Synthesize escape key press
         event = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier)
         line_edit.keyPressEvent(event)
 
-        # Verify text is cleared
+        # Verify text is cleared and focus is lost
         self.assertEqual(line_edit.text(), "")
+        self.assertFalse(line_edit.hasFocus())
 
     def test_cmd_bar_history(self):
         from james.gui.main_window import _CmdLineEdit
