@@ -97,3 +97,6 @@
 ## 2026-07-20 - Command History Integration
 **Learning:** Implementing command history navigation in PyQt widgets using `keyPressEvent` provides an immediate UX enhancement without altering underlying architecture.
 **Action:** Replicate the history pattern from `_HistoryLineEdit` into the global `_CmdLineEdit` to allow intuitive up/down arrow history recall, reducing repetitive typing friction.
+## 2024-07-21 - PyQt5 Keyboard Shortcuts Context and Focus
+**Learning:** When adding keyboard shortcuts like Escape to clear and unfocus in PyQt5, subclass the widget and override `keyPressEvent` rather than attaching external `QShortcut` objects, and ensure you call `clearFocus()` as well. For `QLineEdit`, `Escape` is generally best handled in `keyPressEvent` if overriding history navigation as well.
+**Action:** Override `keyPressEvent` on `QLineEdit` for custom input handling instead of fighting with native event routing or `QShortcut`.
