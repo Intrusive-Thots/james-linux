@@ -185,6 +185,20 @@ export default function App() {
             e.preventDefault();
             setWorkspace("settings");
             break;
+          case "Digit8":
+            e.preventDefault();
+            setWorkspace("auto");
+            break;
+          case "Digit9":
+            e.preventDefault();
+            setWorkspace("auto");
+            setPage("autopilot");
+            break;
+          case "Digit0":
+            e.preventDefault();
+            setWorkspace("auto");
+            setPage("console");
+            break;
         }
       }
     };

@@ -103,3 +103,6 @@
 ## 2024-07-22 - Python I/O Optimization
 **Learning:** Calling `Path.stat()` multiple times to access different attributes (`st_size`, `st_mtime`) on the same file results in redundant system I/O calls which slows down performance significantly.
 **Action:** Always cache the result of `file.stat()` to a local variable if you need to access multiple attributes on the same file.
+## 2024-05-14 - Keyboard Shortcuts Mapping
+**Learning:** For global keyboard shortcuts, ensure they are registered comprehensively in app-level event listeners (like in App.tsx) and updated in corresponding UI hints (like WorkspaceTabs.tsx).
+**Action:** Always check both logic (event listeners) and view representations (shortcut hints) when extending shortcut sets.
