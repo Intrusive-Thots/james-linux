@@ -100,3 +100,6 @@
 ## 2024-07-21 - PyQt5 Keyboard Shortcuts Context and Focus
 **Learning:** When adding keyboard shortcuts like Escape to clear and unfocus in PyQt5, subclass the widget and override `keyPressEvent` rather than attaching external `QShortcut` objects, and ensure you call `clearFocus()` as well. For `QLineEdit`, `Escape` is generally best handled in `keyPressEvent` if overriding history navigation as well.
 **Action:** Override `keyPressEvent` on `QLineEdit` for custom input handling instead of fighting with native event routing or `QShortcut`.
+## 2024-07-22 - Python I/O Optimization
+**Learning:** Calling `Path.stat()` multiple times to access different attributes (`st_size`, `st_mtime`) on the same file results in redundant system I/O calls which slows down performance significantly.
+**Action:** Always cache the result of `file.stat()` to a local variable if you need to access multiple attributes on the same file.

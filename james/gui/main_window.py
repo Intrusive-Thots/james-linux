@@ -1122,13 +1122,13 @@ class MainWindow(QMainWindow):
         combo = QComboBox()
         combo.setMinimumWidth(320)
         log_files = sorted(
-            log_dir.glob("*.log"),
-            key=lambda p: p.stat().st_mtime,
+            [(p, p.stat()) for p in log_dir.glob("*.log")],
+            key=lambda item: item[1].st_mtime,
             reverse=True,
         )
-        for lf in log_files:
+        for lf, lf_stat in log_files:
             combo.addItem(
-                f"{lf.name}  ({lf.stat().st_size / 1024:.0f} KB)", str(lf)
+                f"{lf.name}  ({lf_stat.st_size / 1024:.0f} KB)", str(lf)
             )
         btn_reload = QPushButton("Reload")
         btn_reload.setFixedWidth(72)
