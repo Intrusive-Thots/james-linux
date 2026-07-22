@@ -54,6 +54,7 @@ const WORKSPACES: WorkspaceConfig[] = [
   {
     id: "auto",
     label: "AUTO",
+    shortcut: "Alt+8",
     icon: Cpu,
     accent: "text-accent-purple",
     accentBg: "bg-accent-purple/10",
@@ -88,8 +89,8 @@ const AGENT_SUBPAGES: SubPageConfig[] = [
 ];
 
 const AUTO_SUBPAGES: SubPageConfig[] = [
-  { id: "autopilot", label: "Auto-Pilot", icon: Sparkles },
-  { id: "console", label: "Agent Console", icon: Terminal },
+  { id: "autopilot", label: "Auto-Pilot", icon: Sparkles, shortcut: "Alt+9" },
+  { id: "console", label: "Agent Console", icon: Terminal, shortcut: "Alt+0" },
 ];
 
 const SETTINGS_SUBPAGES: SubPageConfig[] = [
