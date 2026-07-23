@@ -106,3 +106,6 @@
 ## 2024-05-14 - Keyboard Shortcuts Mapping
 **Learning:** For global keyboard shortcuts, ensure they are registered comprehensively in app-level event listeners (like in App.tsx) and updated in corresponding UI hints (like WorkspaceTabs.tsx).
 **Action:** Always check both logic (event listeners) and view representations (shortcut hints) when extending shortcut sets.
+## 2026-07-23 - React Performance - Memoize Global State Consumers
+**Learning:** Components that receive the entire global `AppState` as a prop will re-render on every state change, even if the specific data they consume (like `logs` or `attack`) hasn't changed. In high-frequency update scenarios (like Wi-Fi scanning updating `aps` array), this causes significant unnecessary rendering.
+**Action:** Use `React.memo` with a custom comparison function for components receiving large global state objects, explicitly checking only the properties the component actually renders (e.g., `state.scanning`, `state.logs.length`).
