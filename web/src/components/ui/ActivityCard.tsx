@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Activity, Crosshair, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { AppState } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
@@ -7,7 +8,7 @@ interface ActivityCardProps {
   className?: string;
 }
 
-export function ActivityCard({ state, className }: ActivityCardProps) {
+const ActivityCardComponent = ({ state, className }: ActivityCardProps) => {
   const recentLogs = state.logs.slice(-3);
 
   // Derive agent status
@@ -115,4 +116,16 @@ export function ActivityCard({ state, className }: ActivityCardProps) {
       </div>
     </div>
   );
-}
+};
+
+export const ActivityCard = memo(ActivityCardComponent, (prev, next) => {
+  return (
+    prev.className === next.className &&
+    prev.state.scanning === next.state.scanning &&
+    prev.state.attack.stage === next.state.attack.stage &&
+    prev.state.attack.progress === next.state.attack.progress &&
+    prev.state.attack.stage_name === next.state.attack.stage_name &&
+    prev.state.logs.length === next.state.logs.length &&
+    prev.state.logs[prev.state.logs.length - 1]?.id === next.state.logs[next.state.logs.length - 1]?.id
+  );
+});
