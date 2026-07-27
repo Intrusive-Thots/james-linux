@@ -109,3 +109,6 @@
 ## 2026-07-23 - React Performance - Memoize Global State Consumers
 **Learning:** Components that receive the entire global `AppState` as a prop will re-render on every state change, even if the specific data they consume (like `logs` or `attack`) hasn't changed. In high-frequency update scenarios (like Wi-Fi scanning updating `aps` array), this causes significant unnecessary rendering.
 **Action:** Use `React.memo` with a custom comparison function for components receiving large global state objects, explicitly checking only the properties the component actually renders (e.g., `state.scanning`, `state.logs.length`).
+## 2026-07-27 - React Input Focus Management
+**Learning:** In React components, using `e.currentTarget.blur()` within keyboard event handlers is a cleaner way to manage input blur than maintaining external refs. However, the event parameter must be properly typed (e.g., `e: React.KeyboardEvent<HTMLInputElement>`) to satisfy TypeScript constraints.
+**Action:** Always prefer `currentTarget.blur()` for localized focus management in React, and ensure strict TypeScript typings are applied to the event handler.

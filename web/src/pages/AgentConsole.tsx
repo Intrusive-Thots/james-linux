@@ -79,10 +79,14 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
     setTimeout(() => setProcessing(false), 15000);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendCommand();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setInput("");
+      e.currentTarget.blur();
     }
   };
 
