@@ -112,3 +112,6 @@
 ## 2026-07-27 - React Input Focus Management
 **Learning:** In React components, using `e.currentTarget.blur()` within keyboard event handlers is a cleaner way to manage input blur than maintaining external refs. However, the event parameter must be properly typed (e.g., `e: React.KeyboardEvent<HTMLInputElement>`) to satisfy TypeScript constraints.
 **Action:** Always prefer `currentTarget.blur()` for localized focus management in React, and ensure strict TypeScript typings are applied to the event handler.
+## 2026-07-27 - Memoize Global State Layout Consumers
+**Learning:** React components like `StatusBar` and `WorkspaceTabs` that receive the entire global `AppState` or parts of it that frequently update will re-render continuously if not properly memoized with custom comparison functions. This is particularly problematic in dashboards where global state is updated every second (e.g. by a timer) or rapidly during active scans (e.g. `state.aps` array changes). Even if a component only consumes a small subset of static properties (like `scanning` or `aps.length`), passing the whole object breaks referential equality checks.
+**Action:** Always wrap static layout components receiving fast-updating global state in `React.memo` with a custom comparison function that explicitly checks only the scalar properties the component actually renders.

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import {
   Crosshair,
@@ -107,7 +108,7 @@ const SUB_NAV_MAP: Record<WorkspaceId, SubPageConfig[]> = {
   settings: SETTINGS_SUBPAGES,
 };
 
-export function WorkspaceTabs({
+export const WorkspaceTabs = memo(function WorkspaceTabs({
   currentWorkspace,
   currentSubPage,
   onWorkspaceChange,
@@ -190,4 +191,4 @@ export function WorkspaceTabs({
       </div>
     </div>
   );
-}
+});
