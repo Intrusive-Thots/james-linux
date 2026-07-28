@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Activity,
   HardDrive,
@@ -17,7 +18,7 @@ const LEVEL_COLORS: Record<LogEntry["level"], string> = {
   success: "text-success",
 };
 
-export function StatusBar({ state }: StatusBarProps) {
+const StatusBarComponent = ({ state }: StatusBarProps) => {
   const lastLog = state.logs[state.logs.length - 1];
 
   return (
@@ -65,4 +66,14 @@ export function StatusBar({ state }: StatusBarProps) {
       </div>
     </footer>
   );
-}
+};
+
+export const StatusBar = memo(StatusBarComponent, (prev, next) => {
+  const prevLastLog = prev.state.logs[prev.state.logs.length - 1];
+  const nextLastLog = next.state.logs[next.state.logs.length - 1];
+  return (
+    prev.state.scanning === next.state.scanning &&
+    prev.state.aps.length === next.state.aps.length &&
+    prevLastLog?.id === nextLastLog?.id
+  );
+});
