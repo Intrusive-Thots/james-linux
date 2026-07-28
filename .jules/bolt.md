@@ -115,3 +115,6 @@
 ## 2026-07-27 - Memoize Global State Layout Consumers
 **Learning:** React components like `StatusBar` and `WorkspaceTabs` that receive the entire global `AppState` or parts of it that frequently update will re-render continuously if not properly memoized with custom comparison functions. This is particularly problematic in dashboards where global state is updated every second (e.g. by a timer) or rapidly during active scans (e.g. `state.aps` array changes). Even if a component only consumes a small subset of static properties (like `scanning` or `aps.length`), passing the whole object breaks referential equality checks.
 **Action:** Always wrap static layout components receiving fast-updating global state in `React.memo` with a custom comparison function that explicitly checks only the scalar properties the component actually renders.
+## 2026-07-28 - Command History Integration in Agent Console
+**Learning:** Replicating the PyQt widgets command history navigation (using `ArrowUp` and `ArrowDown`) in the React `AgentConsole` provides an immediate UX enhancement without altering underlying architecture, reducing repetitive typing friction and aligning with native UI behavior.
+**Action:** Implemented the command history via state in the `AgentConsole` component and bound the functionality to the `ArrowUp` and `ArrowDown` keys in the `onKeyDown` handler.

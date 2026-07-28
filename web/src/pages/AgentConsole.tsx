@@ -28,6 +28,8 @@ interface ChatMessage {
 
 export function AgentConsole({ state: _state, connected, send, addLog, lastAgentResponse }: AgentConsoleProps) {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [processing, setProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -82,11 +84,35 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (input.trim()) {
+        setHistory((prev) => [...prev, input.trim()]);
+        setHistoryIdx(-1);
+      }
       handleSendCommand();
     } else if (e.key === "Escape") {
       e.preventDefault();
       setInput("");
+      setHistoryIdx(-1);
       e.currentTarget.blur();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (history.length > 0) {
+        const nextIdx = historyIdx === -1 ? history.length - 1 : Math.max(0, historyIdx - 1);
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx]);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (history.length > 0 && historyIdx !== -1) {
+        const nextIdx = historyIdx + 1;
+        if (nextIdx >= history.length) {
+          setHistoryIdx(-1);
+          setInput("");
+        } else {
+          setHistoryIdx(nextIdx);
+          setInput(history[nextIdx]);
+        }
+      }
     }
   };
 
