@@ -60,6 +60,14 @@ export function Recon({
   const searchInputRef = useShortcutFocus("f", true);
   const [viewMode, setViewMode] = useState<"list" | "map">("map");
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setFilter("");
+      e.currentTarget.blur();
+    }
+  };
+
   /* ── Smart Attack Advisor ──────────────────────────────────────
      Analyzes the selected AP's properties and recommends the best
      attack strategy.  This is the core beginner UX: the user never
@@ -350,6 +358,7 @@ export function Recon({
                   className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[200px] transition-colors"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
             </div>

@@ -68,6 +68,14 @@ export function Logs({ state }: LogsProps) {
   const [autoScroll, setAutoScroll] = useState(true);
   const searchInputRef = useShortcutFocus("f", true);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setFilter("");
+      e.currentTarget.blur();
+    }
+  };
+
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -187,6 +195,7 @@ export function Logs({ state }: LogsProps) {
               className="w-full h-9 pl-8 pr-md text-body bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
           {(["all", "info", "warn", "error", "success"] as const).map(
