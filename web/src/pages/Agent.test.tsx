@@ -42,8 +42,11 @@ describe('Agent component', () => {
     const input = screen.getByPlaceholderText(/Type a command/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'some command' } });
     expect(input.value).toBe('some command');
+    input.focus();
+    expect(document.activeElement).toBe(input);
 
     fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
     expect(input.value).toBe('');
+    expect(document.activeElement).not.toBe(input);
   });
 });
