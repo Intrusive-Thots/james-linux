@@ -113,7 +113,7 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
     setTimeout(() => setAutoPilotRunning(false), 300000);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendCommand();
@@ -121,6 +121,7 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
       e.preventDefault();
       setInput("");
       setHistoryIdx(-1);
+      e.currentTarget.blur();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length > 0) {
