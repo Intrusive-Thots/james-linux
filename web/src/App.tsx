@@ -155,6 +155,7 @@ export default function App() {
   // ── Global Keyboard Shortcuts ──────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
       if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
         switch (e.code) {
           case "Digit1":
