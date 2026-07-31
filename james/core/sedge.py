@@ -28,6 +28,21 @@ class Node:
     def __repr__(self) -> str:
         return f"Node(id={self.id!r}, type={self.state_type!r})"
 
+    def to_dict(self) -> Dict:
+        return {
+            "id": self.id,
+            "state_type": self.state_type,
+            "metadata": self.metadata
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'Node':
+        return cls(
+            id=data["id"],
+            state_type=data["state_type"],
+            metadata=data.get("metadata", {})
+        )
+
 
 @dataclass
 class Edge:
@@ -56,6 +71,25 @@ class Edge:
         return (
             f"Edge({self.from_node} -> {self.to_node}, "
             f"visits={self.visits}, score={self.score():.2f})"
+        )
+
+    def to_dict(self) -> Dict:
+        return {
+            "from_node": self.from_node,
+            "to_node": self.to_node,
+            "success_weight": self.success_weight,
+            "failure_weight": self.failure_weight,
+            "visits": self.visits
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'Edge':
+        return cls(
+            from_node=data["from_node"],
+            to_node=data["to_node"],
+            success_weight=data.get("success_weight", 1.0),
+            failure_weight=data.get("failure_weight", 1.0),
+            visits=data.get("visits", 0)
         )
 
 
@@ -119,6 +153,45 @@ class DecisionGraph:
         self.nodes.clear()
         self.edges.clear()
         self.edge_lookup.clear()
+
+    def to_dict(self) -> Dict:
+        return {
+            "nodes": [node.to_dict() for node in self.nodes.values()],
+            "edges": [edge.to_dict() for edge in self.get_all_edges()]
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'DecisionGraph':
+        graph = cls()
+        for node_data in data.get("nodes", []):
+            graph.add_node(Node.from_dict(node_data))
+        for edge_data in data.get("edges", []):
+            graph.add_edge(Edge.from_dict(edge_data))
+        return graph
+
+    def save(self, filepath: str) -> None:
+        import json
+        with open(filepath, "w") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    def load(self, filepath: str) -> None:
+        import json
+        import os
+        if not os.path.exists(filepath):
+            return
+        with open(filepath, "r") as f:
+            data = json.load(f)
+        self.clear()
+        for node_data in data.get("nodes", []):
+            self.add_node(Node.from_dict(node_data))
+        for edge_data in data.get("edges", []):
+            self.add_edge(Edge.from_dict(edge_data))
+
+    def export_mermaid(self) -> str:
+        lines = ["stateDiagram-v2"]
+        for edge in self.get_all_edges():
+            lines.append(f"    {edge.from_node} --> {edge.to_node}")
+        return "\n".join(lines)
 
 
 class LearningEngine:
@@ -193,6 +266,12 @@ class SelfEvolvingAgent:
     def reset(self) -> None:
         self.current_node = STATE_START
         self.current_path = [STATE_START]
+
+    def save_graph(self, filepath: str) -> None:
+        self.graph.save(filepath)
+
+    def load_graph(self, filepath: str) -> None:
+        self.graph.load(filepath)
 
 
 def build_parrot_wifi_graph() -> DecisionGraph:
