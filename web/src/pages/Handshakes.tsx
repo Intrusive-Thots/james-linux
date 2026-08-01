@@ -8,7 +8,9 @@ import {
   Clock,
   HardDrive,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
+import { Search } from "lucide-react";
+import { useShortcutFocus } from "../hooks/useShortcutFocus";
 import type { AppState } from "../hooks/useAppState";
 import { downloadFile, toCSV } from "../lib/utils";
 
@@ -28,6 +30,17 @@ const item = {
 
 export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
   const { handshakes } = state;
+  const [filter, setFilter] = useState("");
+  const searchInputRef = useShortcutFocus("f", true);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setFilter("");
+      e.currentTarget.blur();
+    }
+  };
+
   const { cracked, pending } = useMemo(() => {
     const cracked: typeof state.handshakes = [];
     const pending: typeof state.handshakes = [];
@@ -99,6 +112,18 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
               <HardDrive className="w-5 h-5 text-accent-cyan" />
               Captured Files
             </div>
+            <div className="relative">
+              <Search className="w-4 h-4 text-text-muted absolute left-[10px] top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                ref={searchInputRef}
+                placeholder="Filter by SSID, BSSID... (Ctrl+F)"
+                className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[200px] transition-colors"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
           </div>
 
           <div className="max-h-[500px] overflow-auto -mx-lg -mb-lg">
@@ -121,7 +146,12 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
                     </td>
                   </tr>
                 ) : (
-                  state.handshakes.map((hs) => (
+                  state.handshakes
+                    .filter(hs =>
+                      hs.essid.toLowerCase().includes(filter.toLowerCase()) ||
+                      hs.bssid.toLowerCase().includes(filter.toLowerCase())
+                    )
+                    .map((hs) => (
                     <tr key={hs.id}>
                       <td className="font-medium">{hs.essid}</td>
                       <td className="font-mono text-small text-text-secondary">
