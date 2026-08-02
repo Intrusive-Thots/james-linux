@@ -118,3 +118,6 @@
 ## 2026-07-28 - Command History Integration in Agent Console
 **Learning:** Replicating the PyQt widgets command history navigation (using `ArrowUp` and `ArrowDown`) in the React `AgentConsole` provides an immediate UX enhancement without altering underlying architecture, reducing repetitive typing friction and aligning with native UI behavior.
 **Action:** Implemented the command history via state in the `AgentConsole` component and bound the functionality to the `ArrowUp` and `ArrowDown` keys in the `onKeyDown` handler.
+## 2024-05-19 - [Use RegExp for Fast Loop String Filtering]
+**Learning:** Calling `.toLowerCase()` on frequently updating array properties inside a render cycle's loop (like `hs.essid.toLowerCase().includes(filter.toLowerCase())`) creates significant garbage collection and performance overhead because a new string is allocated for every item on every render tick.
+**Action:** Replace `.toLowerCase().includes()` inside loops with a single `new RegExp(query, 'i')` instantiated outside the loop (using `useMemo`), and use `regex.test(item.property)`. This eliminates per-item string allocations and accelerates matching during rapid React state updates.
