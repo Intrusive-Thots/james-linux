@@ -51,6 +51,23 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
     return { cracked, pending };
   }, [handshakes]);
 
+  const filteredHandshakes = useMemo(() => {
+    const q = filter;
+    const qRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+    const result: typeof state.handshakes = [];
+    for (const hs of handshakes) {
+      if (!qRegex) {
+        result.push(hs);
+      } else if (
+        qRegex.test(hs.essid) ||
+        qRegex.test(hs.bssid)
+      ) {
+        result.push(hs);
+      }
+    }
+    return result;
+  }, [handshakes, filter]);
+
   return (
     <motion.div
       variants={container}
@@ -146,12 +163,7 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
                     </td>
                   </tr>
                 ) : (
-                  state.handshakes
-                    .filter(hs =>
-                      hs.essid.toLowerCase().includes(filter.toLowerCase()) ||
-                      hs.bssid.toLowerCase().includes(filter.toLowerCase())
-                    )
-                    .map((hs) => (
+                  filteredHandshakes.map((hs) => (
                     <tr key={hs.id}>
                       <td className="font-medium">{hs.essid}</td>
                       <td className="font-mono text-small text-text-secondary">
