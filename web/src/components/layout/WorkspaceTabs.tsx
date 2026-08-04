@@ -22,6 +22,7 @@ import type {
   SubPageId,
 } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../ui/Tooltip";
 
 interface WorkspaceTabsProps {
   currentWorkspace: WorkspaceId;
@@ -121,73 +122,87 @@ export const WorkspaceTabs = memo(function WorkspaceTabs({
     <div className="flex-shrink-0 border-b border-border" style={{ background: "#0D1324" }}>
       {/* Primary Workspace Tabs */}
       <div className="flex items-center px-lg h-[44px] gap-[2px]">
-        {WORKSPACES.map((ws) => {
-          const isActive = currentWorkspace === ws.id;
-          const Icon = ws.icon;
-          return (
-            <button
-              key={ws.id}
-              onClick={() => onWorkspaceChange(ws.id)}
-              className={cn(
-                "relative flex items-center gap-sm px-lg py-[8px] rounded-t-[10px] text-[13px] font-bold uppercase tracking-wider transition-all duration-200",
-                isActive
-                  ? `${ws.accent} bg-bg/80 border border-b-0 ${ws.accentBorder}`
-                  : "text-text-muted hover:text-text-secondary border border-transparent hover:bg-bg-elevated/30"
-              )}
-              style={isActive ? { boxShadow: `0 -2px 12px ${ws.glowColor}` } : undefined}
-            >
-              <Icon className={cn("w-4 h-4", isActive ? ws.accent : "text-text-muted")} />
-              <div className="flex flex-col items-start leading-none">
-                <span>{ws.label}</span>
+        <TooltipProvider delayDuration={300}>
+          {WORKSPACES.map((ws) => {
+            const isActive = currentWorkspace === ws.id;
+            const Icon = ws.icon;
+            return (
+              <Tooltip key={ws.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onWorkspaceChange(ws.id)}
+                    className={cn(
+                      "relative flex items-center gap-sm px-lg py-[8px] rounded-t-[10px] text-[13px] font-bold uppercase tracking-wider transition-all duration-200",
+                      isActive
+                        ? `${ws.accent} bg-bg/80 border border-b-0 ${ws.accentBorder}`
+                        : "text-text-muted hover:text-text-secondary border border-transparent hover:bg-bg-elevated/30"
+                    )}
+                    style={isActive ? { boxShadow: `0 -2px 12px ${ws.glowColor}` } : undefined}
+                  >
+                    <Icon className={cn("w-4 h-4", isActive ? ws.accent : "text-text-muted")} />
+                    <div className="flex flex-col items-start leading-none">
+                      <span>{ws.label}</span>
+                    </div>
+                    {isActive && (
+                      <motion.div
+                        layoutId="workspace-indicator"
+                        className="absolute bottom-[-1px] left-lg right-lg h-[2px] rounded-t-full"
+                        style={{ background: ws.id === "agent" ? "#22D3EE" : ws.id === "auto" ? "#8B5CF6" : "#64748B" }}
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                  </button>
+                </TooltipTrigger>
                 {ws.shortcut && !isActive && (
-                  <span className="text-[9px] text-text-muted/50 font-mono mt-0.5">{ws.shortcut}</span>
+                  <TooltipContent side="bottom" sideOffset={8} className="bg-bg-panel border border-border text-text-primary text-[10px] font-mono px-2 py-1">
+                    {ws.shortcut}
+                  </TooltipContent>
                 )}
-              </div>
-              {isActive && (
-                <motion.div
-                  layoutId="workspace-indicator"
-                  className="absolute bottom-[-1px] left-lg right-lg h-[2px] rounded-t-full"
-                  style={{ background: ws.id === "agent" ? "#22D3EE" : ws.id === "auto" ? "#8B5CF6" : "#64748B" }}
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-              )}
-            </button>
-          );
-        })}
+              </Tooltip>
+            );
+          })}
+        </TooltipProvider>
       </div>
 
       {/* Contextual Sub-Navigation */}
       <div className="flex items-center px-lg h-[36px] gap-[4px] bg-bg/40">
-        {subPages.map((sp) => {
-          const isActive = currentSubPage === sp.id;
-          const Icon = sp.icon;
-          return (
-            <button
-              key={sp.id}
-              onClick={() => onSubPageChange(sp.id)}
-              className={cn(
-                "relative flex items-center gap-[6px] px-md py-[5px] rounded-btn text-[12px] font-semibold transition-all duration-150",
-                isActive
-                  ? `text-text-primary ${activeWs.accentBg}`
-                  : "text-text-muted hover:text-text-secondary hover:bg-bg-elevated/40"
-              )}
-            >
-              <Icon className={cn("w-3.5 h-3.5", isActive ? activeWs.accent : "")} />
-              <span>{sp.label}</span>
-              {sp.shortcut && !isActive && (
-                <span className="ml-1 text-[9px] text-text-muted/50 font-mono">{sp.shortcut}</span>
-              )}
-              {isActive && (
-                <motion.div
-                  layoutId="subpage-indicator"
-                  className="absolute bottom-0 left-2 right-2 h-[2px] rounded-t-full"
-                  style={{ background: activeWs.id === "agent" ? "#22D3EE" : activeWs.id === "auto" ? "#8B5CF6" : "#64748B" }}
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-              )}
-            </button>
-          );
-        })}
+        <TooltipProvider delayDuration={300}>
+          {subPages.map((sp) => {
+            const isActive = currentSubPage === sp.id;
+            const Icon = sp.icon;
+            return (
+              <Tooltip key={sp.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onSubPageChange(sp.id)}
+                    className={cn(
+                      "relative flex items-center gap-[6px] px-md py-[5px] rounded-btn text-[12px] font-semibold transition-all duration-150",
+                      isActive
+                        ? `text-text-primary ${activeWs.accentBg}`
+                        : "text-text-muted hover:text-text-secondary hover:bg-bg-elevated/40"
+                    )}
+                  >
+                    <Icon className={cn("w-3.5 h-3.5", isActive ? activeWs.accent : "")} />
+                    <span>{sp.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="subpage-indicator"
+                        className="absolute bottom-0 left-2 right-2 h-[2px] rounded-t-full"
+                        style={{ background: activeWs.id === "agent" ? "#22D3EE" : activeWs.id === "auto" ? "#8B5CF6" : "#64748B" }}
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {sp.shortcut && !isActive && (
+                  <TooltipContent side="bottom" sideOffset={8} className="bg-bg-panel border border-border text-text-primary text-[10px] font-mono px-2 py-1">
+                    {sp.shortcut}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            );
+          })}
+        </TooltipProvider>
       </div>
     </div>
   );

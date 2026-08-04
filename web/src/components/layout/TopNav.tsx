@@ -11,6 +11,7 @@ import {
 import { useMemo, useState, useEffect } from "react";
 import type { AppState } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../ui/Tooltip";
 
 interface TopNavProps {
   state: AppState;
@@ -182,16 +183,24 @@ export function TopNav({ state, connected, onLogsClick }: TopNavProps) {
         </div>
 
         {/* Logs button */}
-        <button
-          className="btn-ghost btn-sm relative !h-8 !px-sm"
-          onClick={onLogsClick}
-          title="View logs"
-        >
-          <ScrollText className="w-4 h-4" />
-          {errorCount > 0 && (
-            <span className="absolute -top-[2px] -right-[2px] w-[6px] h-[6px] bg-danger rounded-full" />
-          )}
-        </button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="btn-ghost btn-sm relative !h-8 !px-sm"
+                onClick={onLogsClick}
+              >
+                <ScrollText className="w-4 h-4" />
+                {errorCount > 0 && (
+                  <span className="absolute -top-[2px] -right-[2px] w-[6px] h-[6px] bg-danger rounded-full" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8} className="bg-bg-panel border-border text-text-primary text-xs flex items-center gap-2">
+              View logs <span className="text-[10px] text-text-muted font-mono">Alt+6</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Power/Activity indicator */}
         <div className="flex items-center gap-[4px] px-sm py-[4px]">
