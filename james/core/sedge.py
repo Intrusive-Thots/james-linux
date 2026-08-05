@@ -241,8 +241,8 @@ class SelfEvolvingAgent:
         self.graph = graph
         self.decision_engine = DecisionEngine(graph)
         self.learner = LearningEngine()
-        self.current_node = "START"
-        self.current_path = ["START"]
+        self.current_node = STATE_START
+        self.current_path = [STATE_START]
 
     def step(self, success_signal=None):
         next_node = self.decision_engine.decide(self.current_node)
@@ -260,8 +260,8 @@ class SelfEvolvingAgent:
         self.learner.update(self.graph, self.current_path, val)
 
         # reset episode
-        self.current_node = "START"
-        self.current_path = ["START"]
+        self.current_node = STATE_START
+        self.current_path = [STATE_START]
 
     def reset(self) -> None:
         self.current_node = STATE_START
