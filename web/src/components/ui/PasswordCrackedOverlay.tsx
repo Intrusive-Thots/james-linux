@@ -49,6 +49,16 @@ export function PasswordCrackedOverlay({
     return () => clearInterval(interval);
   }, [show, password]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && show) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [show, onClose]);
+
   const handleCopy = () => {
     if (password) {
       navigator.clipboard.writeText(password);
