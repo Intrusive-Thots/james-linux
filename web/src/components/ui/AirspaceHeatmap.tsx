@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AP } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
@@ -38,7 +38,7 @@ function getSecurityColor(privacy: string): string {
   return "#F59E0B"; // Orange for WPA2/WPA
 }
 
-export function AirspaceHeatmap({
+export const AirspaceHeatmap = memo(function AirspaceHeatmap({
   aps,
   selectedAP,
   onSelectAP,
@@ -421,4 +421,4 @@ export function AirspaceHeatmap({
       {content}
     </div>
   );
-}
+});

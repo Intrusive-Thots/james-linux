@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AP } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
@@ -35,7 +35,7 @@ function getRadialDistance(dbm: number): number {
   return 90 - norm * 75; // strongest is at 15%, weakest at 90%
 }
 
-export function RadarScanner({
+export const RadarScanner = memo(function RadarScanner({
   aps,
   selectedAP,
   onSelectAP,
@@ -275,4 +275,4 @@ export function RadarScanner({
       </div>
     </div>
   );
-}
+});

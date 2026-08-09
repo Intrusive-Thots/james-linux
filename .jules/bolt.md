@@ -121,3 +121,6 @@
 ## 2024-05-19 - [Use RegExp for Fast Loop String Filtering]
 **Learning:** Calling `.toLowerCase()` on frequently updating array properties inside a render cycle's loop (like `hs.essid.toLowerCase().includes(filter.toLowerCase())`) creates significant garbage collection and performance overhead because a new string is allocated for every item on every render tick.
 **Action:** Replace `.toLowerCase().includes()` inside loops with a single `new RegExp(query, 'i')` instantiated outside the loop (using `useMemo`), and use `regex.test(item.property)`. This eliminates per-item string allocations and accelerates matching during rapid React state updates.
+## 2026-07-28 - [Memoize Complex SVG Visualizations]
+**Learning:** In React dashboards, visually complex components that compute SVGs or animations based on array data (like Radar Scanners or Heatmaps) will re-render needlessly when global state updates (e.g. from logs or other status updates) if they are not memoized.
+**Action:** Always wrap expensive, data-driven visual components in `React.memo` to skip re-renders when their specific props (like the data array) haven't changed, preventing performance degradation during high-frequency global state updates.
