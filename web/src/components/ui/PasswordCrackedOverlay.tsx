@@ -51,6 +51,7 @@ export function PasswordCrackedOverlay({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
       if (e.key === "Escape" && show) {
         onClose();
       }
