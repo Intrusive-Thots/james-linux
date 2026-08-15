@@ -23,7 +23,7 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 
 ### P2
 - [ ] P2.1 Choose/document one primary remote web client (`web/` vs `james/web/`); align README + server.
-- [ ] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config.
+- [x] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config.
 - [ ] P2.3 Expand real `james/skills/*.json` playbooks (≥8) that call real orchestrator methods; fix README claims.
 - [ ] P2.4 Gate `auto_agent.py` behind opt-in; store graphs under `~/.james/`, not the git tree.
 
