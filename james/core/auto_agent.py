@@ -11,20 +11,28 @@ from james.core.ai_engine import GeminiEngine
 
 logger = logging.getLogger("auto_agent")
 
+# Opt-in: set JAMES_AUTO_AGENT=1 to enable the hourly self-improvement loop.
+AUTO_AGENT_ENABLED = os.environ.get("JAMES_AUTO_AGENT", "").strip() in ("1", "true", "yes")
+
 class AutonomousAgent:
     """
     Autonomous Self-Improving AI Agent.
     Implements the core hourly loop to continuously improve the system.
+
+    Data (memory, knowledge graph, benchmarks) lives under ~/.james/
+    so it never pollutes the git working tree.
     """
     def __init__(self, workspace: str = "."):
         self.workspace = Path(workspace)
-        self.memory_file = self.workspace / ".james" / "auto_agent_memory.json"
-        self.graph_file = self.workspace / ".james" / "knowledge_graph.json"
+        # Persist agent state outside the repo (P2.4)
+        self.data_dir = Path.home() / ".james" / "auto_agent"
+        self.memory_file = self.data_dir / "auto_agent_memory.json"
+        self.graph_file = self.data_dir / "knowledge_graph.json"
         self.plan_file = self.workspace / "implementation_plan.md"
         self.task_file = self.workspace / "task_list.md"
 
-        # Ensure .james dir exists
-        self.memory_file.parent.mkdir(parents=True, exist_ok=True)
+        # Ensure data dir exists
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
         self.graph = DecisionGraph()
         self.sedge_agent = SelfEvolvingAgent(self.graph)
@@ -119,7 +127,7 @@ class AutonomousAgent:
             generated_script = self._generate_code(self.current_task)
 
             if generated_script:
-                script_file = self.workspace / ".james" / "current_task.sh"
+                script_file = self.data_dir / "current_task.sh"
                 script_file.write_text(generated_script)
                 os.chmod(script_file, 0o755)
 
@@ -191,8 +199,8 @@ class AutonomousAgent:
         self.benchmark_metrics["execution_time"] = end_time - start_time
         logger.info(f"Benchmark complete: {self.benchmark_metrics}")
 
-        # Log benchmark
-        bench_log = self.workspace / ".james" / "benchmarks.log"
+        # Log benchmark under ~/.james
+        bench_log = self.data_dir / "benchmarks.log"
         with open(bench_log, "a") as f:
             f.write(f"{time.time()},{self.current_task},{self.benchmark_metrics['execution_time']}\n")
 
@@ -241,6 +249,12 @@ class AutonomousAgent:
         time.sleep(3600)
 
     def run_hourly_loop(self, max_iterations: Optional[int] = None):
+        if not AUTO_AGENT_ENABLED:
+            logger.warning(
+                "Autonomous agent is disabled. Set JAMES_AUTO_AGENT=1 to enable."
+            )
+            return
+
         iteration = 0
 
         # Ensure we are on a clean branch/state
