@@ -1,0 +1,5 @@
+# Development / test dependencies
+pytest>=7.0
+pytest-cov>=4.0
+# Keep in sync with runtime for local runs
+-r requirements.txt
