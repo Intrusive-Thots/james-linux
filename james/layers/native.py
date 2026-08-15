@@ -11,10 +11,15 @@ import shlex
 import os
 import signal
 import logging
+import time
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
+
+# Background log directory
+_BG_LOG_DIR = Path.home() / ".james" / "logs"
 
 
 @dataclass
@@ -51,6 +56,7 @@ class NativeLayer:
       - Configurable timeouts
       - Real-time streaming callback for long-running tools
       - Signal-safe process cleanup
+      - Background process logging to ~/.james/logs/bg_*.log (P3.4)
     """
 
     def __init__(self, default_timeout: int = 120):
@@ -58,6 +64,7 @@ class NativeLayer:
         self._is_root = os.geteuid() == 0
         self._sudo_pass: Optional[str] = None
         self._bg_procs: list[subprocess.Popen] = []  # process registry
+        self._bg_logs: dict[int, Path] = {}  # pid -> log path
 
         # Allow sudo password from environment (never hardcode it)
         env_pass = os.environ.get("JAMES_SUDO_PASS")
@@ -74,6 +81,12 @@ class NativeLayer:
                     else sbin_path
                 )
         os.environ["PATH"] = current_path
+
+        # Ensure log dir exists
+        try:
+            _BG_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.warning("Could not create bg log dir %s: %s", _BG_LOG_DIR, e)
 
     def set_sudo_password(self, password: str):
         """Set the sudo password for privilege escalation (stored in-memory only)."""
@@ -132,20 +145,49 @@ class NativeLayer:
         """
         Launch a long-running process (e.g. airodump-ng) without blocking.
 
-        Returns the Popen handle so the caller can read output / kill later.
+        stdout/stderr are redirected to a log file under ~/.james/logs/
+        (bg_<pid>_<timestamp>.log). Returns the Popen handle so the caller
+        can kill later via kill_background.
         """
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
         logger.info("exec (bg) → %s", cmd)
+
+        # Create log file for this background process
+        ts = int(time.time())
+        log_path = _BG_LOG_DIR / f"bg_pending_{ts}.log"
+        try:
+            log_fh = open(log_path, "w", encoding="utf-8", errors="replace")
+            log_fh.write(f"# cmd: {cmd}\n# started: {time.ctime()}\n\n")
+            log_fh.flush()
+        except OSError as e:
+            logger.warning("Could not open bg log %s: %s — falling back to DEVNULL", log_path, e)
+            log_fh = subprocess.DEVNULL
+            log_path = None
+
         proc = subprocess.Popen(
             cmd,
             shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=log_fh if log_fh is not subprocess.DEVNULL else subprocess.DEVNULL,
+            stderr=subprocess.STDOUT if log_fh is not subprocess.DEVNULL else subprocess.DEVNULL,
             cwd=cwd,
             env=merged_env,
             start_new_session=True,  # own process group for clean kill
         )
+
+        # Rename log with real pid for easy lookup
+        if log_path is not None and log_fh is not subprocess.DEVNULL:
+            real_log = _BG_LOG_DIR / f"bg_{proc.pid}_{ts}.log"
+            try:
+                log_path.rename(real_log)
+                log_path = real_log
+                self._bg_logs[proc.pid] = real_log
+            except OSError:
+                self._bg_logs[proc.pid] = log_path
+            # Keep fh open; it will be closed when process exits or on kill
+            # Store fh on the proc object for later close
+            proc._james_log_fh = log_fh  # type: ignore[attr-defined]
+
         self._bg_procs.append(proc)
         return proc
 
@@ -153,8 +195,7 @@ class NativeLayer:
         """Kill an entire process group spawned by run_background."""
         if proc.poll() is not None:
             # Already dead — just clean up registry
-            if proc in self._bg_procs:
-                self._bg_procs.remove(proc)
+            self._cleanup_bg(proc)
             return
         try:
             pgid = os.getpgid(proc.pid)
@@ -165,8 +206,19 @@ class NativeLayer:
                 os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, OSError):
             pass
+        self._cleanup_bg(proc)
+
+    def _cleanup_bg(self, proc: subprocess.Popen) -> None:
+        """Close log handle and remove from registries."""
+        fh = getattr(proc, "_james_log_fh", None)
+        if fh is not None and fh is not subprocess.DEVNULL:
+            try:
+                fh.close()
+            except Exception:
+                pass
         if proc in self._bg_procs:
             self._bg_procs.remove(proc)
+        self._bg_logs.pop(proc.pid, None)
 
     def kill_all_background(self) -> int:
         """Kill every tracked background process. Returns count killed."""
@@ -176,11 +228,43 @@ class NativeLayer:
                 self.kill_background(proc)
                 killed += 1
         self._bg_procs.clear()
+        self._bg_logs.clear()
         return killed
 
     def reap_dead(self) -> None:
         """Remove already-exited processes from the registry."""
-        self._bg_procs = [p for p in self._bg_procs if p.poll() is None]
+        still_alive = []
+        for p in self._bg_procs:
+            if p.poll() is None:
+                still_alive.append(p)
+            else:
+                self._cleanup_bg(p)
+        self._bg_procs = still_alive
+
+    def list_bg_logs(self, limit: int = 20) -> list[dict]:
+        """Return recent background log files (newest first)."""
+        if not _BG_LOG_DIR.exists():
+            return []
+        logs = sorted(
+            _BG_LOG_DIR.glob("bg_*.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )[:limit]
+        result = []
+        for p in logs:
+            try:
+                st = p.stat()
+                result.append(
+                    {
+                        "path": str(p),
+                        "size": st.st_size,
+                        "mtime": st.st_mtime,
+                        "name": p.name,
+                    }
+                )
+            except OSError:
+                continue
+        return result
 
     def check_tool(self, tool_name: str) -> bool:
         """Return True if *tool_name* is available on PATH."""
