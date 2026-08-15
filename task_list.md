@@ -28,9 +28,9 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [ ] P2.4 Gate `auto_agent.py` behind opt-in; store graphs under `~/.james/`, not the git tree.
 
 ### P3
-- [ ] P3.1 Dependencies hygiene: clean `requirements.txt`, add `requirements-dev.txt`.
-- [ ] P3.2 Add real `LICENSE` + authorized-use README section.
-- [ ] P3.3 Harden `.gitignore` (venv, node_modules, logs, rockyou symlink, caches).
+- [x] P3.1 Dependencies hygiene: clean `requirements.txt`, add `requirements-dev.txt`.
+- [x] P3.2 Add real `LICENSE` + authorized-use README section.
+- [x] P3.3 Harden `.gitignore` (venv, node_modules, logs, rockyou symlink, caches).
 - [ ] P3.4 Background process logging (ring buffer or `~/.james/logs/bg_*.log`) in `native.py`.
 - [ ] P3.5 Tool inventory honesty — align README tool counts with code.
 

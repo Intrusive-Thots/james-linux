@@ -69,7 +69,9 @@ logs/
 .james/
 *.cap
 *.pcap
+*.pcapng
 *.hccapx
+*.hc22000
 /tmp/james_*
 wordlists/wifi-mega-wpa.txt
 wordlists/rockyou*.txt
@@ -82,7 +84,9 @@ node_modules/
 web/node_modules/
 web/dist/
 web/build/
+web/.vite/
 *.local
+pnpm-debug.log*
 
 # Secrets / local config (never commit)
 *.pem
@@ -91,3 +95,4 @@ web/build/
 .env.*
 !.env.example
 config.local.*
+*.crt
