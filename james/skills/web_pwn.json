@@ -1,0 +1,44 @@
+{
+  "name": "web_pwn",
+  "category": "web",
+  "description": "WAF detect → dirbust → SQLi → SSL audit → Nikto",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "waf_detect",
+      "description": "Detect WAF on {{url}}",
+      "params": {
+        "url": "{{url}}"
+      }
+    },
+    {
+      "action": "dirbust",
+      "description": "Directory brute-force",
+      "params": {
+        "url": "{{url}}"
+      }
+    },
+    {
+      "action": "sqlmap_scan",
+      "description": "SQL injection testing",
+      "params": {
+        "url": "{{url}}"
+      }
+    },
+    {
+      "action": "ssl_scan",
+      "description": "SSL/TLS audit",
+      "params": {
+        "target": "{{url}}"
+      }
+    },
+    {
+      "action": "nikto_scan",
+      "description": "Nikto web vuln scan",
+      "params": {
+        "url": "{{url}}"
+      }
+    }
+  ]
+}
