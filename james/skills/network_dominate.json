@@ -1,0 +1,43 @@
+{
+  "name": "network_dominate",
+  "category": "network",
+  "description": "Scan → fingerprint → brute-force → vuln scan on target network",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "arp_discover",
+      "description": "ARP sweep to find live hosts",
+      "params": {}
+    },
+    {
+      "action": "quick_recon",
+      "description": "Quick nmap scan of {{target}}",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "full_scan",
+      "description": "Deep service + script scan",
+      "params": {
+        "target": "{{target}}"
+      }
+    },
+    {
+      "action": "brute_service",
+      "description": "Brute-force common services on {{target}}",
+      "params": {
+        "target": "{{target}}",
+        "proto": "ssh"
+      }
+    },
+    {
+      "action": "smb_enum",
+      "description": "SMB enumeration",
+      "params": {
+        "target": "{{target}}"
+      }
+    }
+  ]
+}

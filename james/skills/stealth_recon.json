@@ -1,0 +1,38 @@
+{
+  "name": "stealth_recon",
+  "category": "recon",
+  "description": "OSINT → DNS → WHOIS → passive scan. Ghost mode.",
+  "version": "1.0",
+  "author": "JAMES",
+  "steps": [
+    {
+      "action": "osint_harvest",
+      "description": "Harvest emails, subdomains, IPs for {{domain}}",
+      "params": {
+        "domain": "{{domain}}"
+      }
+    },
+    {
+      "action": "dns_lookup",
+      "description": "DNS record enumeration",
+      "params": {
+        "domain": "{{domain}}",
+        "record_type": "ANY"
+      }
+    },
+    {
+      "action": "whois_lookup",
+      "description": "WHOIS registration lookup",
+      "params": {
+        "domain": "{{domain}}"
+      }
+    },
+    {
+      "action": "quick_recon",
+      "description": "Passive-style quick port scan",
+      "params": {
+        "target": "{{domain}}"
+      }
+    }
+  ]
+}
