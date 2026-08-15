@@ -15,8 +15,8 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 ## Active queue (Jules — P1 → P2 → P3)
 
 ### P1
-- [ ] P1.1 Collapse duplicate SEDGE tests into one (or few) real suites; delete `test_sedge_core_idea*` thrash. See `JULES_WORK_QUEUE.md`.
-- [ ] P1.2 Freeze SEDGE scope (docs note; no new CORE IDEA feature PRs).
+- [x] P1.1 Collapse duplicate SEDGE tests into one (or few) real suites; delete `test_sedge_core_idea*` thrash. See `JULES_WORK_QUEUE.md`. (only 3 suites remain; fixed duplicate method name)
+- [x] P1.2 Freeze SEDGE scope (docs note; no new CORE IDEA feature PRs).
 - [ ] P1.3 Split `james/core/agent.py` into `james/core/agent/` package with stable public imports.
 - [ ] P1.4 Split `james/core/orchestrator.py` into `james/core/orchestrator/` package with stable public imports.
 - [ ] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports.

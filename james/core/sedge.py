@@ -1,3 +1,11 @@
+"""Self-Evolving Decision Graph Engine (SEDGE).
+
+Status: **stable / frozen**.
+Do not add new features or CORE IDEA rewrites without an explicit task in
+JULES_WORK_QUEUE.md. Existing API (Node, Edge, DecisionGraph, LearningEngine,
+DecisionEngine, SelfEvolvingAgent, build_parrot_wifi_graph) is the supported surface.
+"""
+
 from dataclasses import dataclass, field
 from typing import Dict, List
 import random
