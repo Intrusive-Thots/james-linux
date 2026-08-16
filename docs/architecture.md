@@ -56,7 +56,7 @@ graph TD
 ### 1. The Presentation Layer
 JAMES provides two presentation formats that synchronize state in real time:
 *   **Desktop App (`james/gui/`)**: A native Python application built using **PyQt5**. It provides dashboard widgets, terminal monitors, loot tables, and a real-time conversational chat client. It offloads heavy pentesting operations to thread pools using `QThread` and custom `Worker` objects (`james/gui/utils/worker.py`) to prevent GUI freezing.
-*   **Web Console / PWA Client (`james/web/`)**: An HTML/JS single-page application built for mobile responsiveness. It runs as a **Progressive Web Application (PWA)**, allowing complete remote control over the agent from a phone or web browser once installed.
+*   **Web Console / PWA Client**: Primary modern client is the React + Vite app in `web/` (TypeScript, Tailwind). Legacy lightweight SPA remains in `james/web/` (vanilla JS PWA). Both talk to the FastAPI server. Prefer `web/` for new development.
 
 ### 2. The Server & API Layer (`james/server/` & `james/api/`)
 *   **FastAPI & Uvicorn**: Hosts the backend web server on port `1337` (or `8443` with custom HTTPS setup). It uses a JWT-based login schema to secure remote connections.
