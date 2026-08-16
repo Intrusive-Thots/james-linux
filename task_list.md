@@ -37,3 +37,8 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 ## Out of scope (P0 — humans only)
 
 - [ ] P0 Automerge policy / CI test workflow / remote API-key bind requirement — **do not implement**
+
+## Post-P3 fixes (2026-08-16)
+- [x] Move remaining root test_*.py into tests/ and fix path hacks
+- [x] Restore full james/tools/parrot.py (was truncated stub)
+- [x] Restore full Agent + Orchestrator after placeholder restores
