@@ -56,7 +56,7 @@ python3 main.py --server    # Headless server mode
 python3 main.py --both      # GUI + server — for the greedy
 ```
 
-Then open `https://<your-ip>:8443` on literally any device. Done.
+Then open `http://<your-ip>:8745` (or the port in `JAMES_API_PORT`) on literally any device. Done.
 
 ---
 
@@ -108,7 +108,7 @@ Yeah, it remembers everything. **Persistent loot cache.** Your cracked keys surv
 
 1. `python3 main.py --setup` → set an API key
 2. `python3 main.py --server` → fire up the server
-3. Open `https://<parrot-ip>:8443` on your phone
+3. Open `http://<parrot-ip>:8745` on your phone (override with `JAMES_API_PORT`)
 4. Install as **PWA** (Add to Home Screen) for that *premium hacker aesthetic*
 5. Profit. Or prison. Depends on your choices.
 
@@ -122,7 +122,7 @@ Yeah, it remembers everything. **Persistent loot cache.** Your cracked keys surv
 │                                                  │
 │  ┌──────────┐    ┌───────────────────────┐       │
 │  │  PyQt5   │    │ FastAPI + WebSocket   │       │
-│  │  Desktop │───>│ Server (:8443)        │<──────┼── Phone / PC / Browser
+│  │  Desktop │───>│ Server (:8745)        │<──────┼── Phone / PC / Browser
 │  │  GUI     │    └───────────────────────┘       │
 │  └──────────┘              |                     │
 │        |                   |                     │
@@ -152,43 +152,47 @@ Yeah, it remembers everything. **Persistent loot cache.** Your cracked keys surv
 james-linux/
 ├── main.py                       # Entry point — pick your poison
 ├── requirements.txt
+├── requirements-dev.txt
 │
 ├── james/
 │   ├── core/
-│   │   ├── agent.py              # The brain. 100+ intent patterns. Scary smart.
-│   │   └── orchestrator.py       # Coordinator, loot cache, auto-wordlist, progress
+│   │   ├── agent/                # Agent package (intents, models, Agent class)
+│   │   ├── orchestrator/         # Orchestrator package
+│   │   ├── ai_engine.py
+│   │   ├── auto_agent.py
+│   │   ├── net_guard.py
+│   │   ├── primers.py
+│   │   ├── report.py
+│   │   └── sedge.py
 │   │
-│   ├── gui/
-│   │   ├── main_window.py        # PyQt5 dashboard — 6 tabs of beautiful destruction
-│   │   ├── chat_panel.py         # Chat interface with context-aware suggestion chips
-│   │   ├── setup_wizard.py       # First-run setup (so even grandma can hack)
-│   │   └── theme.py              # Dark cyber-aesthetic. Obviously.
+│   ├── gui/                      # PyQt5 desktop UI
+│   │   ├── main_window.py
+│   │   ├── chat_panel.py
+│   │   ├── setup_wizard.py
+│   │   ├── theme.py
+│   │   └── tabs/
 │   │
 │   ├── layers/
-│   │   └── native.py             # Subprocess execution — sudo, streaming, background
+│   │   └── native.py             # Subprocess execution
 │   │
 │   ├── tools/
-│   │   └── parrot.py             # 12 tool wrapper classes. Structured output. Clean.
+│   │   ├── parrot.py             # Tool wrapper classes
+│   │   └── pineap.py
 │   │
 │   ├── skills/                   # JSON workflow definitions
-│   │   ├── wifi_audit.json       #   Wi-Fi audit chain
-│   │   ├── pmkid_attack.json     #   PMKID clientless attack
-│   │   ├── wps_pixie.json        #   WPS Pixie Dust
-│   │   ├── full_recon.json       #   Full network recon
-│   │   └── ...                   #   15+ more
-│   │
-│   ├── server/
-│   │   ├── app.py                # FastAPI app factory
-│   │   ├── auth.py               # JWT + bcrypt. Not your plaintext-password ass.
-│   │   ├── routes.py             # REST API endpoints
-│   │   ├── websocket.py          # Real-time streaming
-│   │   └── tls.py                # Self-signed certs. HTTPS or GTFO.
-│   │
-│   └── web/
-│       ├── index.html            # SPA dashboard (PWA-capable)
-│       ├── style.css             # Dark theme. Hackers don't do light mode.
-│       └── app.js                # Client logic + WebSocket
+│   ├── api/
+│   │   └── server.py             # FastAPI + WebSocket server
+│   ├── remote/
+│   ├── web/                      # Legacy SPA (primary client is web/ React)
+│   └── wordlists/
+│
+├── web/                          # Primary React tactical UI (Vite)
+├── docs/
+├── tests/
+└── wordlists/
 ```
+
+Primary remote web client: `web/` (React). Legacy: `james/web/`.
 
 ---
 
@@ -201,6 +205,8 @@ james-linux/
 | `python3 main.py --both` | GUI + server — you greedy bastard |
 | `python3 main.py --setup` | First-time setup wizard |
 | `python3 main.py --install-service` | Systemd daemon. It never sleeps. |
+
+Default API port: **8745** (override with `JAMES_API_PORT`).
 
 ---
 
