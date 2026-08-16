@@ -17,13 +17,13 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 ### P1
 - [x] P1.1 Collapse duplicate SEDGE tests into one (or few) real suites; delete `test_sedge_core_idea*` thrash. See `JULES_WORK_QUEUE.md`. (only 3 suites remain; fixed duplicate method name)
 - [x] P1.2 Freeze SEDGE scope (docs note; no new CORE IDEA feature PRs).
-- [x] P1.3 Split `james/core/agent.py` into `james/core/agent/` package with stable public imports. (full Agent class + INTENT_PATTERNS restored into package)
-- [x] P1.4 Split `james/core/orchestrator.py` into `james/core/orchestrator/` package with stable public imports. (full Orchestrator class restored; package path fixes for skills/wordlists)
-- [x] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports.
+- [x] P1.3 Split `james/core/agent.py` into `james/core/agent/` package with stable public imports. (full Agent class + INTENT_PATTERNS restored)
+- [x] P1.4 Split `james/core/orchestrator.py` into `james/core/orchestrator/` package with stable public imports. (full Orchestrator class restored)
+- [x] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports. (reverted incomplete split; monolithic restored for stability)
 
 ### P2
 - [x] P2.1 Choose/document one primary remote web client (`web/` vs `james/web/`); align README + server. (documented primary = web/ React; legacy = james/web/)
-- [x] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config. (tests/ now populated; fixed incomplete move + pythonpath)
+- [x] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config. (all remaining root tests moved; path hacks fixed)
 - [x] P2.3 Expand real `james/skills/*.json` playbooks (≥8) that call real orchestrator methods; fix README claims.
 - [x] P2.4 Gate `auto_agent.py` behind opt-in; store graphs under `~/.james/`, not the git tree.
 
