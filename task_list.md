@@ -22,8 +22,8 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [ ] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports.
 
 ### P2
-- [ ] P2.1 Choose/document one primary remote web client (`web/` vs `james/web/`); align README + server.
-- [x] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config.
+- [x] P2.1 Choose/document one primary remote web client (`web/` vs `james/web/`); align README + server. (documented primary = web/ React; legacy = james/web/)
+- [x] P2.2 Move root `test_*.py` into `tests/`, scripts into `scripts/`, plans into `docs/plans/`; add pytest config. (tests/ now populated)
 - [x] P2.3 Expand real `james/skills/*.json` playbooks (≥8) that call real orchestrator methods; fix README claims.
 - [x] P2.4 Gate `auto_agent.py` behind opt-in; store graphs under `~/.james/`, not the git tree.
 
@@ -32,7 +32,7 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [x] P3.2 Add real `LICENSE` + authorized-use README section.
 - [x] P3.3 Harden `.gitignore` (venv, node_modules, logs, rockyou symlink, caches).
 - [x] P3.4 Background process logging (ring buffer or `~/.james/logs/bg_*.log`) in `native.py`.
-- [ ] P3.5 Tool inventory honesty — align README tool counts with code.
+- [x] P3.5 Tool inventory honesty — align README tool counts with code. (30+)
 
 ## Out of scope (P0 — humans only)
 
