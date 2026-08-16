@@ -174,11 +174,11 @@ def run_server():
     """Run the headless FastAPI web server."""
     try:
         import uvicorn
-        from james.server.app import create_app
+        from james.api.server import app
 
-        logger.info("Starting JAMES headless server on :1337 ...")
-        app = create_app()
-        uvicorn.run(app, host="0.0.0.0", port=1337, log_level="info")
+        port = int(os.environ.get("JAMES_API_PORT", "8745"))
+        logger.info("Starting JAMES headless server on :%s ...", port)
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
     except ImportError as e:
         logger.error(
             "Server dependencies missing (%s). Install with: pip install uvicorn fastapi",
@@ -193,7 +193,7 @@ def run_both():
 
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
-    logger.info("Background API server started on :1337")
+    logger.info("Background API server started")
     run_gui()
 
 
@@ -220,7 +220,7 @@ def _parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   python3 main.py                 # Launch GUI (default)
-  python3 main.py --server        # Headless API server on :1337
+  python3 main.py --server        # Headless API server on :8745 (or JAMES_API_PORT)
   python3 main.py --both          # GUI + background API server
   python3 main.py --setup         # First-time setup wizard
 """,
@@ -229,7 +229,7 @@ Examples:
     mode.add_argument(
         "--server",
         action="store_true",
-        help="Run headless FastAPI web server on port 1337 (no GUI)",
+        help="Run headless FastAPI web server on port 8745 (no GUI)",
     )
     mode.add_argument(
         "--headless",
