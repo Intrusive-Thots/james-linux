@@ -19,7 +19,7 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [x] P1.2 Freeze SEDGE scope (docs note; no new CORE IDEA feature PRs).
 - [x] P1.3 Split `james/core/agent.py` into `james/core/agent/` package with stable public imports. (full Agent class + INTENT_PATTERNS restored into package)
 - [x] P1.4 Split `james/core/orchestrator.py` into `james/core/orchestrator/` package with stable public imports. (full Orchestrator class restored; package path fixes for skills/wordlists)
-- [ ] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports.
+- [x] P1.5 (Optional) Modularize `james/tools/parrot.py` behind thin re-exports.
 
 ### P2
 - [x] P2.1 Choose/document one primary remote web client (`web/` vs `james/web/`); align README + server. (documented primary = web/ React; legacy = james/web/)
