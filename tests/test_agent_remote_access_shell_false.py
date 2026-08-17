@@ -1,10 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import os
-import sys
 
-# Add current directory to path
-sys.path.insert(0, os.path.abspath("."))
 
 from james.core.agent import Agent
 

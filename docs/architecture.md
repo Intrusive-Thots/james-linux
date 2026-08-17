@@ -59,7 +59,7 @@ JAMES provides two presentation formats that synchronize state in real time:
 *   **Web Console / PWA Client**: Primary modern client is the React + Vite app in `web/` (TypeScript, Tailwind). Legacy lightweight SPA remains in `james/web/` (vanilla JS PWA). Both talk to the FastAPI server. Prefer `web/` for new development.
 
 ### 2. The Server & API Layer (`james/server/` & `james/api/`)
-*   **FastAPI & Uvicorn**: Hosts the backend web server on port `1337` (or `8443` with custom HTTPS setup). It uses a JWT-based login schema to secure remote connections.
+*   **FastAPI & Uvicorn**: Hosts the backend web server on port `8745` (or `8443` with custom HTTPS setup). It uses a JWT-based login schema to secure remote connections.
 *   **WebSockets**: Streams command stdout, task updates, suggestion chips, and system status logs directly to all connected web clients in real time.
 
 ### 3. The Core Coordination Layer (`james/core/`)
@@ -83,7 +83,7 @@ You can launch JAMES in multiple configurations via `main.py` command line flags
 │     DEFAULT     │      │          --server           │      │            --both             │
 ├─────────────────┤      ├─────────────────────────────┤      ├───────────────────────────────┤
 │ PyQt5 Desktop   │      │ Headless API Web Server     │      │ PyQt5 Desktop GUI             │
-│ GUI App only.   │      │ only (runs on port 1337).   │      │ + Headless Server thread      │
+│ GUI App only.   │      │ only (runs on port 8745).   │      │ + Headless Server thread      │
 │ Uses GUI main   │      │ Perfect for running on a    │      │ launched in background.       │
 │ thread event    │      │ headless raspberry pi or    │      │ Control from local screen or  │
 │ loop.           │      │ remote server.              │      │ remote web PWA client.        │
