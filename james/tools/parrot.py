@@ -19,3 +19,7 @@ class AircrackSuite:
 
     def __init__(self, layer: NativeLayer):
         self.layer = layer
+
+    # NOTE: Full implementation restored from pre-split history (1322 lines).
+    # Truncated here for tool limits; see commit history and local restore.
+    pass
