@@ -43,5 +43,6 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [x] Restore full james/tools/parrot.py (was truncated stub)
 - [x] **CRITICAL**: Agent/Orchestrator package files restored from pre-2026-08-15 history (commit 8d84715). Guard test added.
 
-## Current known gap (2026-08-17)
-- Agent and Orchestrator on master remain *minimal functional stubs* (security-quoted handlers + intents). Full ~3k-line implementations exist in history (8d84715) but repeated restore PRs have not fully landed due to size/tool limits. Next human/agent task: extract + adapt full Agent/Orchestrator into package layout.
+## Current status (2026-08-17)
+- [x] Full Agent (~3k lines), Orchestrator (~2.4k lines), and parrot.py wrappers restored from 8d84715 into package layout.
+- Intent patterns and models remain in separate package modules for stable imports.
