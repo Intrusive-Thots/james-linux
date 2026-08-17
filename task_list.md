@@ -41,4 +41,4 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 ## Post-P3 fixes (2026-08-16)
 - [x] Move remaining root test_*.py into tests/ and fix path hacks
 - [x] Restore full james/tools/parrot.py (was truncated stub)
-- [ ] **CRITICAL**: Agent/Orchestrator package files still PLACEHOLDER on master — re-extract full implementations from pre-2026-08-15 history and push.
+- [x] **CRITICAL**: Agent/Orchestrator package files restored from pre-2026-08-15 history (commit 8d84715). Guard test added.

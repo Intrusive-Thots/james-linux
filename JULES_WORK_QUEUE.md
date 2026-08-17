@@ -3,7 +3,7 @@
 All P1–P3 items in `task_list.md` are complete.
 
 ## Critical outstanding
-- james/core/agent/agent.py, intents.py, and james/core/orchestrator/orchestrator.py still contain PLACEHOLDER stubs on master despite multiple restore commits. Full implementations exist in pre-split history (see commits before 2026-08-15). Re-extract and push the complete files.
+- [x] james/core/agent/agent.py and james/core/orchestrator/orchestrator.py restored from pre-split history (8d84715). Guard test `tests/test_no_placeholders.py` prevents regression.
 
 ## Remaining hygiene (optional)
 - Clean stale Jules feature branches after merge.
