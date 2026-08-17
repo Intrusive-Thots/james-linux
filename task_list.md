@@ -42,3 +42,4 @@ Agents (including Jules): pick the first unchecked item. Full instructions in `J
 - [x] Move remaining root test_*.py into tests/ and fix path hacks
 - [x] Restore full james/tools/parrot.py (was truncated stub)
 - [x] Restore full Agent + Orchestrator after placeholder restores
+- [x] Restore full INTENT_PATTERNS and clean temp files (clean_*.py, pr.md etc.)
