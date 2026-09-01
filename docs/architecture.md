@@ -31,7 +31,7 @@ graph TD
     H[Native Subprocess Execution Layer]:::layers
     I[Tool Wrapper Suites]:::layers
     
-    J[Parrot OS / Linux Kernel Subsystem]:::external
+    J[Kali Linux / Kernel Subsystem]:::external
     K[Wi-Fi / Ethernet Adapters]:::external
 
     %% Relations
@@ -48,6 +48,8 @@ graph TD
     H <-->|Subprocess Execution & Logs| J
     J <-->|Hardware Controls| K
 ```
+
+Primary host OS is **Kali Linux**. Parrot Security remains compatible.
 
 ---
 
@@ -70,7 +72,7 @@ JAMES provides two presentation formats that synchronize state in real time:
 
 ### 4. The Execution & Abstraction Layer (`james/layers/` & `james/tools/`)
 *   **Native Subprocess Execution Layer (`native.py`)**: Handles the raw spawning of Linux binaries. It intercepts output line-by-line, decodes stream buffers (supporting Latin-1 and UTF-8 fallbacks), runs background processes, registers PIDs for cleanup, and injects cached sudo passwords securely.
-*   **Tool Wrappers (`parrot.py` & `pineap.py`)**: Contain structured classes wrapping individual pentesting binaries (e.g. `nmap`, `aircrack-ng`, `hashcat`, `sqlmap`, `responder`). They translate Python dictionaries of parameters into standard CLI commands and parse console text outputs into machine-readable JSON.
+*   **Tool Wrappers (`parrot.py` & `pineap.py`)**: `parrot.py` is a legacy filename. Wrappers target Kali/Debian pentesting binaries (e.g. `nmap`, `aircrack-ng`, `hashcat`, `sqlmap`, `responder`). They translate Python dictionaries of parameters into standard CLI commands and parse console text outputs into machine-readable JSON.
 
 ---
 
@@ -79,15 +81,15 @@ JAMES provides two presentation formats that synchronize state in real time:
 You can launch JAMES in multiple configurations via `main.py` command line flags:
 
 ```
-┌─────────────────┐      ┌─────────────────────────────┐      ┌───────────────────────────────┐
+┌────────────────┐      ┌─────────────────────────────┐      ┌──────────────────────────────┐
 │     DEFAULT     │      │          --server           │      │            --both             │
-├─────────────────┤      ├─────────────────────────────┤      ├───────────────────────────────┤
+├─────────────────┼      ├─────────────────────────────┼      ├──────────────────────────────┼
 │ PyQt5 Desktop   │      │ Headless API Web Server     │      │ PyQt5 Desktop GUI             │
 │ GUI App only.   │      │ only (runs on port 8745).   │      │ + Headless Server thread      │
 │ Uses GUI main   │      │ Perfect for running on a    │      │ launched in background.       │
 │ thread event    │      │ headless raspberry pi or    │      │ Control from local screen or  │
 │ loop.           │      │ remote server.              │      │ remote web PWA client.        │
-└─────────────────┘      └─────────────────────────────┘      └───────────────────────────────┘
+└─────────────────┘      └─────────────────────────────┘      └──────────────────────────────┘
 ```
 
 *   `--setup`: Launches a graphical configuration wizard for configuring default wireless interfaces, database dirs, and sudo passwords.

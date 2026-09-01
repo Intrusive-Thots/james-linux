@@ -4,7 +4,7 @@
 
 **Autonomous Pentesting Agent** — Because clicking buttons is for people with free time and zero ambition.
 
-![Parrot OS](https://img.shields.io/badge/Parrot%20OS-ready-00ff88?style=for-the-badge&logo=linux&logoColor=white)
+![Kali Linux](https://img.shields.io/badge/Kali%20Linux-ready-557c94?style=for-the-badge&logo=kalilinux&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10+-00f0ff?style=for-the-badge&logo=python&logoColor=white)
 ![Tools](https://img.shields.io/badge/Tools-30%2B-ff6b35?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-FAFO-ff4757?style=for-the-badge)
@@ -15,7 +15,7 @@
 
 JAMES is an **autonomous AI pentesting agent** that wraps **30+ security tools** behind one brain, one GUI, and zero patience for manual labor. Point it at a target, whisper sweet nothings like *"wifi blitz wlan0"*, and watch it rip through PMKID captures, WPA handshakes, WPS Pixie Dust, brute-force attacks, and SQL injections like your ex going through your DMs.
 
-Built for **Parrot OS / Kali Linux**. Native **PyQt5 desktop app** + **FastAPI remote server** so you can hack from your couch, your phone, or the toilet — we don't judge.
+Built for **Kali Linux**. Parrot OS still works. Native **PyQt5 desktop app** + **FastAPI remote server** so you can hack from your couch, your phone, or the toilet — we don't judge.
 
 <br>
 
@@ -41,7 +41,7 @@ Built for **Parrot OS / Kali Linux**. Native **PyQt5 desktop app** + **FastAPI r
 git clone https://github.com/Intrusive-Thots/james-linux.git
 cd james-linux
 
-# Install deps (Parrot OS already has most of this shit)
+# Install deps (Kali already has most of this shit)
 pip install -r requirements.txt
 
 # Launch the beast
@@ -108,7 +108,7 @@ Yeah, it remembers everything. **Persistent loot cache.** Your cracked keys surv
 
 1. `python3 main.py --setup` → set an API key
 2. `python3 main.py --server` → fire up the server
-3. Open `http://<parrot-ip>:8745` on your phone (override with `JAMES_API_PORT`)
+3. Open `http://<kali-ip>:8745` on your phone (override with `JAMES_API_PORT`)
 4. Install as **PWA** (Add to Home Screen) for that *premium hacker aesthetic*
 5. Profit. Or prison. Depends on your choices.
 
@@ -118,9 +118,9 @@ Yeah, it remembers everything. **Persistent loot cache.** Your cracked keys surv
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              Parrot OS Machine                   │
+│              Kali Linux Machine                   │
 │                                                  │
-│  ┌──────────┐    ┌───────────────────────┐       │
+│  ┌──────────┐    ┌──────────────────────┐       │
 │  │  PyQt5   │    │ FastAPI + WebSocket   │       │
 │  │  Desktop │───>│ Server (:8745)        │<──────┼── Phone / PC / Browser
 │  │  GUI     │    └───────────────────────┘       │
@@ -176,7 +176,7 @@ james-linux/
 │   │   └── native.py             # Subprocess execution
 │   │
 │   ├── tools/
-│   │   ├── parrot.py             # Tool wrapper classes
+│   │   ├── parrot.py             # Tool wrappers (legacy name; Kali/Debian CLIs)
 │   │   └── pineap.py
 │   │
 │   ├── skills/                   # JSON workflow definitions
@@ -300,7 +300,7 @@ Default API port: **8745** (override with `JAMES_API_PORT`).
 
 | | Requirement | Details |
 |---|:-----------|:--------|
-| 💻 | **OS** | Parrot Security 6.x or Kali Linux |
+| 💻 | **OS** | Kali Linux (primary). Parrot Security still compatible. |
 | 🐍 | **Python** | 3.10+ |
 | 🔧 | **Tools** | nmap, aircrack-ng, hashcat, john, hydra, sqlmap, nikto, reaver, hcxdumptool, responder, ettercap... |
 | 🧠 | **Attitude** | Questionable at best |
@@ -328,11 +328,11 @@ Built with sleep deprivation, energy drinks, and an unhealthy obsession with dar
 <br>
 
 ```
-     ██╗ █████╗ ███╗   ███╗███████╗███████╗
-     ██║██╔══██╗████╗ ████║██╔════╝██╔════╝
-     ██║███████║██╔████╔██║█████╗  ███████╗
-██   ██║██╔══██║██║╚██╔╝██║██╔══╝  ╚════██║
-╚█████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║
- ╚════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝
+     ╔═  ═════ ╔═══   ═══╔══════╔═══════
+     ║║╔════╚╔═══ ══║║════║║
+     ║║║║║║║║╔════║║╔═════║║
+╔═   ║║╔════║║══╔═╝ ══║║════  ╚═════║║
+╚═════╝╚══  ══║║══ ╔═╝ ══║║╔═══════║║╔═══════║
+ ╚═════╝ ╚══  ══╝╚══     ╚═╝╚═══════╝╚═══════╝
             v0.4.0 — Autonomous AF
 ```

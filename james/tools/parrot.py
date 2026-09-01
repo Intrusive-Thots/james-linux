@@ -1,7 +1,8 @@
 """
-Parrot OS Tool Wrappers.
+Kali/Debian tool wrappers.
 
-Structured Python interfaces around common pentesting CLIs.
+Legacy module name (`parrot.py`). Structured Python interfaces around
+common pentesting CLIs on Kali Linux (Parrot still compatible).
 Each wrapper executes via NativeLayer and parses raw output into
 dictionaries suitable for the AI orchestrator or the GUI.
 """

@@ -1,4 +1,4 @@
-"""Tools package — Parrot OS CLI wrappers and helpers."""
+"""Tools package — Kali/Debian CLI wrappers and helpers."""
 
 from james.tools.parrot import (
     AircrackSuite,
