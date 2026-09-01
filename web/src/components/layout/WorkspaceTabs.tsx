@@ -16,6 +16,7 @@ import {
   Package,
   Stethoscope,
   Wrench,
+  Shield,
 } from "lucide-react";
 import type {
   WorkspaceId,
@@ -43,6 +44,16 @@ interface WorkspaceConfig {
 }
 
 const WORKSPACES: WorkspaceConfig[] = [
+  {
+    id: "phantom",
+    label: "PHANTOM",
+    shortcut: "Alt+P",
+    icon: Shield,
+    accent: "text-accent",
+    accentBg: "bg-accent/10",
+    accentBorder: "border-accent/30",
+    glowColor: "rgba(46,196,182,0.18)",
+  },
   {
     id: "agent",
     label: "AGENT",
@@ -82,6 +93,10 @@ interface SubPageConfig {
   shortcut?: string;
 }
 
+const PHANTOM_SUBPAGES: SubPageConfig[] = [
+  { id: "orchestrator", label: "Orchestrator", icon: Shield },
+];
+
 const AGENT_SUBPAGES: SubPageConfig[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, shortcut: "Alt+1" },
   { id: "recon", label: "Recon", icon: Radar, shortcut: "Alt+2" },
@@ -104,6 +119,7 @@ const SETTINGS_SUBPAGES: SubPageConfig[] = [
 ];
 
 const SUB_NAV_MAP: Record<WorkspaceId, SubPageConfig[]> = {
+  phantom: PHANTOM_SUBPAGES,
   agent: AGENT_SUBPAGES,
   auto: AUTO_SUBPAGES,
   settings: SETTINGS_SUBPAGES,
@@ -147,7 +163,7 @@ export const WorkspaceTabs = memo(function WorkspaceTabs({
                       <motion.div
                         layoutId="workspace-indicator"
                         className="absolute bottom-[-1px] left-lg right-lg h-[2px] rounded-t-full"
-                        style={{ background: ws.id === "agent" ? "#22D3EE" : ws.id === "auto" ? "#8B5CF6" : "#64748B" }}
+                        style={{ background: ws.id === "phantom" ? "#2EC4B6" : ws.id === "agent" ? "#22D3EE" : ws.id === "auto" ? "#8B5CF6" : "#64748B" }}
                         transition={{ type: "spring", stiffness: 500, damping: 35 }}
                       />
                     )}
@@ -188,7 +204,7 @@ export const WorkspaceTabs = memo(function WorkspaceTabs({
                       <motion.div
                         layoutId="subpage-indicator"
                         className="absolute bottom-0 left-2 right-2 h-[2px] rounded-t-full"
-                        style={{ background: activeWs.id === "agent" ? "#22D3EE" : activeWs.id === "auto" ? "#8B5CF6" : "#64748B" }}
+                        style={{ background: activeWs.id === "phantom" ? "#2EC4B6" : activeWs.id === "agent" ? "#22D3EE" : activeWs.id === "auto" ? "#8B5CF6" : "#64748B" }}
                         transition={{ type: "spring", stiffness: 500, damping: 35 }}
                       />
                     )}

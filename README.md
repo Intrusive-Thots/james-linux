@@ -29,6 +29,31 @@ Built for **Kali Linux**. Parrot OS still works. Native **PyQt5 desktop app** + 
 | 📡 | **Live AP Scanner** | See every network around you. Double-click to target. That easy. |
 | 🎯 | **30+ Tools** | nmap, aircrack-ng, hashcat, hydra, sqlmap, responder, ettercap, reaver... |
 | 📱 | **Remote Control** | Hack from your Android. PWA support. Install it like a real app. |
+| 🛡️ | **Phantom SOC** | Professional 802.11 workflow console: Recon → Triage → Capture → Analysis → Report. |
+
+---
+
+## 🛡️ Phantom orchestrator (`phantom-soc`)
+
+Phantom is now the **default web workspace**. It is a signed-engagement SOC console:
+
+1. **Authorize** — ECDSA P-256 Proof of Authorization / Rules of Engagement
+2. **Recon** — live JAMES radios when the API is up; otherwise the in-browser Hopper SDR lab
+3. **Triage → Capture → Analysis → Report** — one primary action per stage
+
+Agent / Auto / Settings remain under **Utilities → JAMES → Agent console** (or the PHANTOM / AGENT workspace tabs).
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+With `python3 main.py --server` on Kali, Phantom sends `scan_aps`, `capture_pmkid`, and `capture_handshake` over the existing WebSocket. Offline, the SDR lab still runs the full dictionary-verify path (including planted lab PSKs).
+
+See `docs/PHANTOM.md` for the workflow and lab notes.
+
+---
 
 ---
 
@@ -186,7 +211,8 @@ james-linux/
 │   ├── web/                      # Legacy SPA (primary client is web/ React)
 │   └── wordlists/
 │
-├── web/                          # Primary React tactical UI (Vite)
+├── web/                          # Primary React UI (Phantom SOC + tactical Agent)
+│   └── src/phantom/              # Phantom orchestrator (PoA, RF lab, workflows)
 ├── docs/
 ├── tests/
 └── wordlists/

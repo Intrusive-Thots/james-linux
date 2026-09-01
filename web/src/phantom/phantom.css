@@ -1,0 +1,125 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+.app-shell {
+  --pad: 16px;
+  --gap: 16px;
+  --row-h: 56px;
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+.app-shell[data-density="compact"] {
+  --pad: 8px;
+  --gap: 8px;
+  --row-h: 48px;
+}
+
+.app-shell[data-density="compact"] .workspace-inner {
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.app-shell[data-density="compact"] .workflow-card {
+  padding: 16px;
+}
+
+.app-shell[data-density="focus"] .workspace-inner {
+  gap: 32px;
+  padding: 32px 24px;
+  max-width: 40rem;
+}
+
+.workspace {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: auto;
+  background: #071018;
+}
+
+.workspace-inner {
+  margin-inline: auto;
+  display: flex;
+  width: 100%;
+  max-width: 42rem;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+
+.workflow-card {
+  background: #0d1824;
+  border-radius: 1.375rem;
+  padding: 24px;
+  box-shadow: 0 0 0 1px #1c3146;
+}
+
+.kicker {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b9bb0;
+}
+
+.quiet-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #8b9bb0;
+  background: transparent;
+  border: 0;
+}
+
+.quiet-link:hover {
+  color: #e8eef4;
+}
+
+.slide-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: color-mix(in oklab, #071018 72%, transparent);
+}
+
+.slide-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 21;
+  width: min(20rem, 88vw);
+  background: #0d1824;
+  box-shadow: 0 0 0 1px #1c3146;
+}
+
+.slide-panel-left {
+  left: 0;
+}
+
+.slide-panel-right {
+  right: 0;
+}
+
+.menu-surface {
+  z-index: 50;
+  min-width: 14rem;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background: #0d1824;
+  padding: 0.5rem;
+  box-shadow: 0 0 0 1px #1c3146;
+  color: #e8eef4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
