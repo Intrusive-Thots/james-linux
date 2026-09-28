@@ -4,6 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
+        canvas: "#071018",
+        panel: "#0d1824",
+        raised: "#132233",
+        fg: "#e8eef4",
+        muted: "#8b9bb0",
+        line: "#1c3146",
         bg: {
           DEFAULT: "#0B1120",
           panel: "#111827",
@@ -11,6 +17,8 @@ export default {
           surface: "#161E2E",
         },
         accent: {
+          DEFAULT: "#2EC4B6",
+          fg: "#04221E",
           cyan: "#22D3EE",
           purple: "#8B5CF6",
         },
@@ -29,10 +37,11 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        sans: ["IBM Plex Sans", "Inter", "system-ui", "sans-serif"],
+        mono: ["IBM Plex Mono", "JetBrains Mono", "Fira Code", "monospace"],
       },
       fontSize: {
+        "2xs": ["0.6875rem", { lineHeight: "1rem" }],
         h1: ["32px", { lineHeight: "40px", fontWeight: "700" }],
         h2: ["24px", { lineHeight: "32px", fontWeight: "600" }],
         h3: ["18px", { lineHeight: "28px", fontWeight: "600" }],
@@ -59,6 +68,8 @@ export default {
           "0 0 0 1px rgba(34,211,238,0.1), 0 12px 32px rgba(0,0,0,0.45)",
         glow: "0 0 20px rgba(34,211,238,0.15)",
         "glow-strong": "0 0 30px rgba(34,211,238,0.3)",
+        border: "0 0 0 1px #1c3146",
+        select: "inset 3px 0 0 0 #2EC4B6",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4,0,0.6,1) infinite",

@@ -12,6 +12,8 @@ import { AgentConsole } from "./pages/AgentConsole";
 import { SettingsPage } from "./pages/Settings";
 import { useAppState } from "./hooks/useAppState";
 import { useWebSocket, type WSMessage } from "./hooks/useWebSocket";
+import { PhantomHost } from "./phantom/PhantomHost";
+import { ingestJamesAps, ingestJamesHandshake } from "./phantom/live-ingest";
 
 const API_WS_URL = import.meta.env.VITE_API_WS_URL || "ws://localhost:8745/ws";
 
@@ -72,6 +74,7 @@ export default function App() {
             wps: ap.wps || false,
           }));
           setAPs(mapped);
+          ingestJamesAps(mapped);
           addLog(
             "success",
             `Recon complete: ${mapped.length} networks discovered.`
@@ -107,6 +110,7 @@ export default function App() {
               cracked: msg.data.cracked || false,
               key: msg.data.key,
             });
+            ingestJamesHandshake(msg.data);
           }
           break;
 
@@ -158,6 +162,10 @@ export default function App() {
       if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
       if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
         switch (e.code) {
+          case "KeyP":
+            e.preventDefault();
+            setWorkspace("phantom");
+            break;
           case "Digit1":
             e.preventDefault();
             setPage("dashboard");
@@ -238,6 +246,17 @@ export default function App() {
   }, [setWorkspace, setSubPage]);
 
   // ── Page rendering ────────────────────────────────────────
+  if (state.currentWorkspace === "phantom") {
+    return (
+      <PhantomHost
+        connected={connected}
+        send={send}
+        adapter={state.adapter}
+        onBack={() => setWorkspace("agent")}
+      />
+    );
+  }
+
   const renderPage = () => {
     const { currentWorkspace, currentSubPage } = state;
 

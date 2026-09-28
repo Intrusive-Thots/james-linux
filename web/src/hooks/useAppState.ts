@@ -39,15 +39,17 @@ export interface HandshakeFile {
 }
 
 // ── Workspace-aware routing ────────────────────────────
-export type WorkspaceId = "agent" | "auto" | "settings";
+export type WorkspaceId = "phantom" | "agent" | "auto" | "settings";
 
+export type PhantomSubPage = "orchestrator";
 export type AgentSubPage = "dashboard" | "recon" | "attacks" | "handshakes" | "logs";
 export type AutoSubPage = "autopilot" | "console";
 export type SettingsSubPage = "general" | "interfaces" | "dependencies" | "diagnostics" | "advanced";
-export type SubPageId = AgentSubPage | AutoSubPage | SettingsSubPage;
+export type SubPageId = PhantomSubPage | AgentSubPage | AutoSubPage | SettingsSubPage;
 
 /** Default sub-page for each workspace */
 export const WORKSPACE_DEFAULTS: Record<WorkspaceId, SubPageId> = {
+  phantom: "orchestrator",
   agent: "dashboard",
   auto: "autopilot",
   settings: "general",
@@ -55,6 +57,7 @@ export const WORKSPACE_DEFAULTS: Record<WorkspaceId, SubPageId> = {
 
 /** Sub-pages available per workspace */
 export const WORKSPACE_SUBPAGES: Record<WorkspaceId, SubPageId[]> = {
+  phantom: ["orchestrator"],
   agent: ["dashboard", "recon", "attacks", "handshakes", "logs"],
   auto: ["autopilot", "console"],
   settings: ["general", "interfaces", "dependencies", "diagnostics", "advanced"],
@@ -77,8 +80,8 @@ export interface AppState {
 }
 
 const INITIAL_STATE: AppState = {
-  currentWorkspace: "agent",
-  currentSubPage: "dashboard",
+  currentWorkspace: "phantom",
+  currentSubPage: "orchestrator",
   adapter: null,
   adapterMode: null,
   scanning: false,
