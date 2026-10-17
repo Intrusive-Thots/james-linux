@@ -57,6 +57,11 @@ def test_api_defaults_to_loopback_and_requires_tls_for_remote_binding():
     assert "JAMES_API_SSL_CERTFILE" in source
     assert "JAMES_API_SSL_KEYFILE" in source
     assert "not api_token or not certfile or not keyfile" in source
+    server_source = (ROOT / "james/api/server.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("JAMES_API_HOST", "127.0.0.1")' in server_source
+    assert 'host="0.0.0.0"' not in server_source
+    assert "JAMES_API_SSL_CERTFILE" in server_source
+    assert "JAMES_API_SSL_KEYFILE" in server_source
 
 
 def test_api_token_is_checked_for_rest_and_websocket():
