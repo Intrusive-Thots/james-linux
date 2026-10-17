@@ -1,7 +1,9 @@
-"""JAMES Agent package — stable public API."""
-from .models import AgentAction, AgentPlan, PlanStep, AttackPlan
-from .intents import INTENT_PATTERNS
-from .agent import Agent
+"""JAMES Agent package — stable public API.
+
+The full agent implementation is kept in agent.py to preserve the historical
+intent handlers and orchestrator integration.
+"""
+from .agent import Agent, AgentAction, AgentPlan, PlanStep, AttackPlan, INTENT_PATTERNS
 
 __all__ = [
     "Agent",
