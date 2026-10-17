@@ -265,12 +265,8 @@ class AutonomousAgent:
                     new_lines.append(line)
             self.task_file.write_text("\n".join(new_lines) + "\n")
 
-            # Commit the updated task list
-            try:
-                subprocess.run(["git", "add", str(self.task_file)], cwd=self.workspace, check=True)
-                subprocess.run(["git", "commit", "-m", f"Update task list: {self.current_task} completed"], cwd=self.workspace, check=True)
-            except Exception:
-                pass
+            # Keep task-state changes visible for review; never auto-commit.
+            logger.info("Task queue updated in working tree; human review is required before commit.")
 
     def schedule_next_run(self):
         logger.info("Scheduling next hourly loop...")
@@ -306,6 +302,17 @@ class AutonomousAgent:
             self.benchmark()
             self.learn()
             self.update_plan()
-            if max_iterations is None or iteration < max_iterations - 1:
-                self.schedule_next_run()
             iteration += 1
+
+            # One iteration per clean starting point: preserve its diff for review
+            # instead of letting another autonomous task build on unreviewed edits.
+            try:
+                if self._git_status():
+                    logger.warning("Working tree changed; pausing the loop for human review.")
+                    break
+            except RuntimeError as exc:
+                logger.error("Could not verify workspace after iteration: %s", exc)
+                break
+
+            if max_iterations is None or iteration < max_iterations:
+                self.schedule_next_run()
