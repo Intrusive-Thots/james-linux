@@ -21,11 +21,17 @@ import {
 import type { SubPageId, SettingsSubPage } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
 
+const API_HTTP_URL = import.meta.env.VITE_API_HTTP_URL || "";
+
 function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const token = sessionStorage.getItem("james_api_token");
   const headers = new Headers(init.headers);
   if (token) headers.set("X-JAMES-API-Token", token);
-  return fetch(input, { ...init, headers });
+  const target =
+    typeof input === "string" && API_HTTP_URL && input.startsWith("/")
+      ? new URL(input, API_HTTP_URL).toString()
+      : input;
+  return fetch(target, { ...init, headers });
 }
 
 interface SettingsPageProps {
