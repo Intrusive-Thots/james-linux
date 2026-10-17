@@ -49,6 +49,8 @@ def test_autonomous_agent_never_discards_or_commits_unreviewed_work():
     assert '["pip", "install"' not in source
     assert "def _assert_safe_workspace" in source
     assert "human review" in source.lower()
+    assert "self.implementation_success: bool = False" in source
+    assert "result.returncode == 0 and self.implementation_success" in source
 
 
 def test_api_defaults_to_loopback_and_requires_tls_for_remote_binding():
