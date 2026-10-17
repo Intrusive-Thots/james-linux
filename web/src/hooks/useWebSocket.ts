@@ -47,7 +47,10 @@ export function useWebSocket({
   const connect = useCallback(function connectFn() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(url);
+    const wsUrl = new URL(url);
+    const apiToken = sessionStorage.getItem("james_api_token");
+    if (apiToken) wsUrl.searchParams.set("token", apiToken);
+    const ws = new WebSocket(wsUrl.toString());
 
     ws.onopen = () => {
       console.log("[WS] Connected to JAMES API");
