@@ -32,7 +32,7 @@ export JAMES_API_SSL_KEYFILE=/path/to/private-key.pem
 python3 main.py --server
 ```
 
-Configure the web client with a secure WebSocket URL, such as `VITE_API_WS_URL=wss://your-host.example/ws`. In the web UI, open **Settings → General → Remote API authentication**, enter the same token, and choose **Save & reconnect**. The browser stores the token in session storage, not persistent local storage.
+Configure the web client with both API URLs, such as `VITE_API_HTTP_URL=https://your-host.example` and `VITE_API_WS_URL=wss://your-host.example/ws`. In the web UI, open **Settings → General → Remote API authentication**, enter the same token, and choose **Save & reconnect**. The browser stores the token in session storage, not persistent local storage.
 
 ## Reverse-proxy deployment
 
