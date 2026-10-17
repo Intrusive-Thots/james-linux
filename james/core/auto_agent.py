@@ -41,6 +41,7 @@ class AutonomousAgent:
         self.current_task: Optional[str] = None
         self.benchmark_metrics: Dict = {}
         self.test_success: bool = False
+        self.implementation_success: bool = False
 
         self.ai = GeminiEngine()
 
@@ -140,9 +141,9 @@ class AutonomousAgent:
             ["git", "branch", "--show-current"],
             capture_output=True, text=True, cwd=self.workspace, check=True,
         ).stdout.strip()
-        if branch in {"main", "master"}:
+        if not branch or branch in {"main", "master"}:
             raise RuntimeError(
-                f"Refusing autonomous edits on protected branch '{branch}'. "
+                f"Refusing autonomous edits on protected or detached branch '{branch or 'DETACHED HEAD'}'. "
                 "Use a dedicated repair/work branch or disposable Git worktree."
             )
         if self._git_status():
@@ -152,6 +153,7 @@ class AutonomousAgent:
             )
 
     def implement(self):
+        self.implementation_success = False
         if self.current_task:
             try:
                 self._assert_safe_workspace()
@@ -173,6 +175,7 @@ class AutonomousAgent:
                 result = subprocess.run([str(script_file)], capture_output=True, text=True, cwd=self.workspace)
 
                 if result.returncode == 0:
+                    self.implementation_success = True
                     logger.info("Implementation script executed successfully.")
                     self.memory["last_implementation"] = self.current_task
                 else:
@@ -201,7 +204,7 @@ class AutonomousAgent:
         env = os.environ.copy()
         env["QT_QPA_PLATFORM"] = "offscreen"
         result = subprocess.run(["python3", "-m", "pytest"], capture_output=True, text=True, cwd=self.workspace, env=env)
-        self.test_success = (result.returncode == 0)
+        self.test_success = result.returncode == 0 and self.implementation_success
 
         if self.test_success:
             logger.info(
