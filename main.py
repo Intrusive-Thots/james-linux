@@ -177,8 +177,17 @@ def run_server():
         from james.api.server import app
 
         port = int(os.environ.get("JAMES_API_PORT", "8745"))
-        logger.info("Starting JAMES headless server on :%s ...", port)
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+        host = os.environ.get("JAMES_API_HOST", "127.0.0.1").strip()
+        api_token = os.environ.get("JAMES_API_TOKEN", "").strip()
+        if host not in {"127.0.0.1", "localhost", "::1"} and not api_token:
+            logger.error(
+                "Refusing to expose the JAMES API on %s without JAMES_API_TOKEN. "
+                "Keep the API on loopback or configure a strong token and TLS/reverse proxy.",
+                host,
+            )
+            sys.exit(2)
+        logger.info("Starting JAMES API on %s:%s ...", host, port)
+        uvicorn.run(app, host=host, port=port, log_level="info")
     except ImportError as e:
         logger.error(
             "Server dependencies missing (%s). Install with: pip install uvicorn fastapi",
