@@ -15,13 +15,15 @@ import glob
 import json
 import logging
 import os
+import hmac
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -192,6 +194,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Optional shared-token authentication. Keep this API on loopback unless remote
+# access is protected by a strong token and TLS.
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    token = os.environ.get("JAMES_API_TOKEN", "").strip()
+    if token and request.url.path != "/api/health":
+        supplied = request.headers.get("x-james-api-token", "")
+        if not hmac.compare_digest(supplied, token):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Missing or invalid JAMES API token"},
+            )
+    return await call_next(request)
+
+
 # Read allowed CORS origins from environment variable, falling back to localhost for development
 allowed_origins_env = os.environ.get("JAMES_CORS_ORIGINS", "")
 if allowed_origins_env:
@@ -271,6 +288,10 @@ async def export_log():
 # ── WebSocket Handler ───────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    token = os.environ.get("JAMES_API_TOKEN", "").strip()
+    if token and not hmac.compare_digest(ws.query_params.get("token", ""), token):
+        await ws.close(code=1008, reason="Missing or invalid JAMES API token")
+        return
     await manager.connect(ws)
 
     # Send initial state
