@@ -15,10 +15,11 @@ collection, or cracking.
 
 ## Integration status
 
-The store module is intentionally separate from the existing API and radio-control
-paths. Mounting HTTP routes and connecting the dashboard to this store are follow-up
-integration work. The current HTML dashboard remains a demo and does not claim to
-show live telemetry.
+The store is mounted into the FastAPI server under `/api/wireless-soc`. The API
+provides summary, asset inventory, detection listing/review, approved-AP enrollment,
+and metadata observation ingestion. It uses the server's existing API-token middleware
+when `JAMES_API_TOKEN` is configured. The current HTML dashboard is still a demo and
+has not yet been wired to these endpoints; it does not claim to show live telemetry.
 
 ## Tests
 
