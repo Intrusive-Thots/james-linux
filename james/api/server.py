@@ -194,6 +194,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from james.api.wireless_soc_routes import router as wireless_soc_router
+
+app.include_router(wireless_soc_router)
+
+
 # Optional shared-token authentication. Keep this API on loopback unless remote
 # access is protected by a strong token and TLS.
 @app.middleware("http")
