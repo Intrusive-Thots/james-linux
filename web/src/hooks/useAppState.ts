@@ -78,7 +78,7 @@ export interface AppState {
 
 const INITIAL_STATE: AppState = {
   currentWorkspace: "agent",
-  currentSubPage: "orchestrator",
+  currentSubPage: "dashboard",
   adapter: null,
   adapterMode: null,
   scanning: false,
