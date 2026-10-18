@@ -106,6 +106,6 @@ Instead of executing a single shot command, the agent drives a stateful planning
 ```
 
 1.  **Chaining Prompting**: System instructions force the model to output a single tool call per turn during chaining.
-2.  **Observation Feedback**: The output of the executed command is fed back into the conversation history as a simulated system response.
+2.  **Observation Feedback**: The actual output returned by the executed tool is appended to the conversation history as an observation.
 3.  **Variable Accumulation**: The agent updates context keys (e.g., target interfaces, cracked WEP keys) after each tool output.
 4.  **Loop Termination**: The loop continues until the AI returns a text completion block representing the goal summary (or until it hits a hard limit of 10 steps to prevent API billing loops).
