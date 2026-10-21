@@ -1,0 +1,54 @@
+# JAMES Linux — UI Polish Backlog
+
+Owner: impeccable (James's UX/UI improver). Ongoing, multi-session work.
+All UI work lands on branch `ui-polish` only — never `master`.
+Primary UI surface = `web/` (React 19 + Tailwind + Radix + framer-motion),
+rendered dev server at `http://127.0.0.1:5173`. Secondary surfaces:
+`dashboard/wireless_soc.html` (standalone SOC) and `james/gui/` (PyQt desktop).
+
+Mode: **Operate** (an operator completes tasks). Ambition shows as precision,
+scannability, honest empty/offline states, and themed browser surfaces — not decoration.
+
+## How to pick up next session
+Take the first unchecked item below, implement on `ui-polish`, render + screenshot
+to `/workspace/jl_*.png`, keep `web` tests (`npm test`) and `pytest -q` green, commit
+with a clear message. Check the box and add a one-line note. Then push `ui-polish`.
+
+## Prioritized backlog (roughly by impact)
+
+1. [x] **Backend-offline guidance.** When the WebSocket is disconnected the app
+   only shows a tiny "OFFLINE" chip; a new operator has no idea what to do.
+   Add a calm, full-width banner that names the problem and the exact recovery
+   command (`./launch_ui.sh --api`). (done this run — see ConnectionBanner.tsx)
+2. [ ] **Dashboard empty states.** "Tactical Airspace", "Engagement HUD", and the
+   signal scope render near-blank with 0 data. Give each a purposeful empty state
+   with an icon, one line of what it will show, and the single next action
+   ("Run a scan") instead of a dead panel.
+3. [ ] **TopNav runtime chips contrast + grouping.** The adapter/AP/clients/clock
+   chips are 10–11px low-contrast mono on near-black (below 4.5:1). Lift contrast,
+   add consistent labels, and group them so status is scannable at a glance.
+4. [ ] **Recon AP table.** Tune the data table for dense scanning: tabular-nums
+   numerals, right-aligned signal/channel, a real signal-strength visual per row,
+   sortable headers, and a clear "no networks yet / start a scan" empty row.
+5. [ ] **Attacks flow states.** Audit the attack stage UI for all states
+   (idle, selecting, running, success, error) and make progress + abort obvious.
+6. [ ] **Handshakes page.** Cracked vs pending should be instantly distinguishable;
+   add copy-to-clipboard for keys/paths and an empty state.
+7. [ ] **Settings polish.** Consistent field styling, hover/focus/disabled states,
+   and clear save affordances across panels.
+8. [ ] **Keyboard shortcuts discoverability.** Alt+1..0 exist but are hidden; add a
+   shortcuts legend/overlay (e.g. `?`), and show hints in tooltips consistently.
+9. [ ] **Focus rings & browser surfaces.** Theme focus-visible rings, caret, text
+   selection, and scrollbars from the palette app-wide (partially done in index.css).
+10. [ ] **Motion discipline.** Replace the many simultaneous pulses/animations with
+    one authored entrance per view; reserve pulsing for genuinely live/active state.
+11. [ ] **AgentConsole / Logs readability.** Monospace log stream line-height,
+    level color legend, auto-scroll affordance, and a filter.
+12. [ ] **AutoPilot clarity.** Make the phase/stage machine legible with a clear
+    stepper; align with the Airgeddon auto-pilot plan in implementation_plan.
+13. [ ] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
+    app's palette/typography and give it an honest empty/disconnected state.
+14. [ ] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
+    the desktop tabs (wifi, autopilot, airgeddon, activity, setup, troubleshoot).
+15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
+    verify and fix layout down to ~1280px and narrower.

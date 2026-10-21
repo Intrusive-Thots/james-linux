@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { TopNav } from "./components/layout/TopNav";
 import { WorkspaceTabs } from "./components/layout/WorkspaceTabs";
 import { StatusBar } from "./components/layout/StatusBar";
+import { ConnectionBanner } from "./components/layout/ConnectionBanner";
 import { Dashboard } from "./pages/Dashboard";
 import { Recon } from "./pages/Recon";
 import { Attacks } from "./pages/Attacks";
@@ -351,6 +352,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-bg overflow-hidden">
       <TopNav state={state} connected={connected} onLogsClick={handleLogsClick} />
+      <ConnectionBanner connected={connected} />
       <WorkspaceTabs
         currentWorkspace={state.currentWorkspace}
         currentSubPage={state.currentSubPage}
