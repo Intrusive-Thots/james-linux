@@ -41,6 +41,7 @@ class AutonomousAgent:
         self.current_task: Optional[str] = None
         self.benchmark_metrics: Dict = {}
         self.test_success: bool = False
+        self.implementation_success: bool = False
 
         self.ai = GeminiEngine()
 
@@ -93,10 +94,14 @@ class AutonomousAgent:
             self.current_task = None
 
     def verify_dependencies(self):
+        """Report dependency metadata without mutating the user's environment."""
         req_file = self.workspace / "requirements.txt"
         if req_file.exists():
-            logger.info("Verifying dependencies...")
-            subprocess.run(["pip", "install", "-r", str(req_file)], capture_output=True)
+            logger.info(
+                "Dependency manifest found at %s. Automatic pip installation is disabled; "
+                "install dependencies explicitly in a virtual environment.",
+                req_file,
+            )
 
     def _generate_code(self, task_description: str) -> str:
         """Uses GeminiEngine to generate bash commands/python code based on the task description."""
@@ -119,8 +124,43 @@ class AutonomousAgent:
              return response.strip()
         return ""
 
+    def _git_status(self) -> str:
+        """Return porcelain status; fail closed when Git cannot inspect the workspace."""
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                capture_output=True, text=True, cwd=self.workspace, check=True,
+            )
+            return result.stdout
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(f"Cannot verify repository state: {exc}") from exc
+
+    def _assert_safe_workspace(self) -> None:
+        """Require a clean, non-protected branch before allowing AI-generated scripts."""
+        branch = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True, text=True, cwd=self.workspace, check=True,
+        ).stdout.strip()
+        if not branch or branch in {"main", "master"}:
+            raise RuntimeError(
+                f"Refusing autonomous edits on protected or detached branch '{branch or 'DETACHED HEAD'}'. "
+                "Use a dedicated repair/work branch or disposable Git worktree."
+            )
+        if self._git_status():
+            raise RuntimeError(
+                "Refusing autonomous edits because the working tree is not clean. "
+                "Preserve or commit existing work before starting the agent."
+            )
+
     def implement(self):
+        self.implementation_success = False
         if self.current_task:
+            try:
+                self._assert_safe_workspace()
+            except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+                logger.error("Autonomous implementation blocked: %s", exc)
+                self.memory["last_implementation"] = None
+                return
             logger.info(f"Implementing task: {self.current_task}")
 
             # Use AI to generate code
@@ -135,6 +175,7 @@ class AutonomousAgent:
                 result = subprocess.run([str(script_file)], capture_output=True, text=True, cwd=self.workspace)
 
                 if result.returncode == 0:
+                    self.implementation_success = True
                     logger.info("Implementation script executed successfully.")
                     self.memory["last_implementation"] = self.current_task
                 else:
@@ -163,28 +204,18 @@ class AutonomousAgent:
         env = os.environ.copy()
         env["QT_QPA_PLATFORM"] = "offscreen"
         result = subprocess.run(["python3", "-m", "pytest"], capture_output=True, text=True, cwd=self.workspace, env=env)
-        self.test_success = (result.returncode == 0)
+        self.test_success = result.returncode == 0 and self.implementation_success
 
         if self.test_success:
-            logger.info("Self verification passed.")
-
-            # Commit the successful changes
-            try:
-                subprocess.run(["git", "add", "."], cwd=self.workspace, check=True)
-                commit_msg = f"Auto-implemented: {self.current_task}" if self.current_task else "Auto-agent improvements"
-                subprocess.run(["git", "commit", "-m", commit_msg], cwd=self.workspace, check=True)
-                logger.info(f"Committed changes: {commit_msg}")
-            except Exception as e:
-                logger.warning(f"Failed to commit changes: {e}")
+            logger.info(
+                "Self verification passed. Changes remain uncommitted for human review; "
+                "the agent will not stage or commit files automatically."
+            )
         else:
-            logger.warning("Self verification failed. Rolling back changes.")
-            # Rollback to last clean state
-            try:
-                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=self.workspace, check=True)
-                subprocess.run(["git", "clean", "-fd"], cwd=self.workspace, check=True)
-                logger.info("Rolled back working directory to last commit.")
-            except Exception as e:
-                logger.error(f"Failed to rollback changes: {e}")
+            logger.error(
+                "Self verification failed. Changes have been preserved for inspection; "
+                "no destructive reset or clean was performed."
+            )
 
     def benchmark(self):
         logger.info("Running benchmarks...")
@@ -237,12 +268,8 @@ class AutonomousAgent:
                     new_lines.append(line)
             self.task_file.write_text("\n".join(new_lines) + "\n")
 
-            # Commit the updated task list
-            try:
-                subprocess.run(["git", "add", str(self.task_file)], cwd=self.workspace, check=True)
-                subprocess.run(["git", "commit", "-m", f"Update task list: {self.current_task} completed"], cwd=self.workspace, check=True)
-            except Exception:
-                pass
+            # Keep task-state changes visible for review; never auto-commit.
+            logger.info("Task queue updated in working tree; human review is required before commit.")
 
     def schedule_next_run(self):
         logger.info("Scheduling next hourly loop...")
@@ -255,13 +282,13 @@ class AutonomousAgent:
             )
             return
 
-        iteration = 0
-
-        # Ensure we are on a clean branch/state
         try:
-             subprocess.run(["git", "checkout", "-b", "auto-agent-workspace"], capture_output=True, cwd=self.workspace)
-        except Exception:
-             pass
+            self._assert_safe_workspace()
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+            logger.error("Autonomous loop blocked: %s", exc)
+            return
+
+        iteration = 0
 
         while True:
             if max_iterations is not None and iteration >= max_iterations:
@@ -278,6 +305,17 @@ class AutonomousAgent:
             self.benchmark()
             self.learn()
             self.update_plan()
-            if max_iterations is None or iteration < max_iterations - 1:
-                self.schedule_next_run()
             iteration += 1
+
+            # One iteration per clean starting point: preserve its diff for review
+            # instead of letting another autonomous task build on unreviewed edits.
+            try:
+                if self._git_status():
+                    logger.warning("Working tree changed; pausing the loop for human review.")
+                    break
+            except RuntimeError as exc:
+                logger.error("Could not verify workspace after iteration: %s", exc)
+                break
+
+            if max_iterations is None or iteration < max_iterations:
+                self.schedule_next_run()

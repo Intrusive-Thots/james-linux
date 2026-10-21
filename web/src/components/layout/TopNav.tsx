@@ -47,6 +47,7 @@ export function TopNav({ state, connected, onLogsClick }: TopNavProps) {
   }, [state.aps]);
 
   const modeLabels: Record<string, string> = {
+    phantom: "Phantom orchestrator",
     agent: "Manual Operations",
     auto: "Automation",
     settings: "Configuration",

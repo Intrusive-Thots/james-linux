@@ -15,13 +15,15 @@ import glob
 import json
 import logging
 import os
+import hmac
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -192,6 +194,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from james.api.wireless_soc_routes import router as wireless_soc_router
+
+app.include_router(wireless_soc_router)
+
+
+# Optional shared-token authentication. Keep this API on loopback unless remote
+# access is protected by a strong token and TLS.
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    token = os.environ.get("JAMES_API_TOKEN", "").strip()
+    if token and request.url.path != "/api/health":
+        supplied = request.headers.get("x-james-api-token", "")
+        if not hmac.compare_digest(supplied, token):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Missing or invalid JAMES API token"},
+            )
+    return await call_next(request)
+
+
 # Read allowed CORS origins from environment variable, falling back to localhost for development
 allowed_origins_env = os.environ.get("JAMES_CORS_ORIGINS", "")
 if allowed_origins_env:
@@ -271,6 +293,10 @@ async def export_log():
 # ── WebSocket Handler ───────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    token = os.environ.get("JAMES_API_TOKEN", "").strip()
+    if token and not hmac.compare_digest(ws.query_params.get("token", ""), token):
+        await ws.close(code=1008, reason="Missing or invalid JAMES API token")
+        return
     await manager.connect(ws)
 
     # Send initial state
@@ -1035,19 +1061,27 @@ async def _action_abort(orch):
 
 # ── Entry point ─────────────────────────────────────────────────
 def main():
-    """
-    Run the JAMES API server.
-
-    Initializes the FastAPI application via uvicorn. Resolves the port
-    from the JAMES_API_PORT environment variable (defaulting to 8745).
-    """
-    port = int(os.environ.get("JAMES_API_PORT", 8745))
+    """Run the API server with safe loopback defaults and guarded remote mode."""
+    port = int(os.environ.get("JAMES_API_PORT", "8745"))
+    host = os.environ.get("JAMES_API_HOST", "127.0.0.1").strip()
+    api_token = os.environ.get("JAMES_API_TOKEN", "").strip()
+    certfile = os.environ.get("JAMES_API_SSL_CERTFILE", "").strip()
+    keyfile = os.environ.get("JAMES_API_SSL_KEYFILE", "").strip()
+    is_loopback = host in {"127.0.0.1", "localhost", "::1"}
+    if not is_loopback and (not api_token or not certfile or not keyfile):
+        raise SystemExit(
+            "Refusing remote API binding without JAMES_API_TOKEN, "
+            "JAMES_API_SSL_CERTFILE, and JAMES_API_SSL_KEYFILE. "
+            "For reverse-proxy deployments, bind JAMES_API_HOST to 127.0.0.1."
+        )
     uvicorn.run(
         "james.api.server:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         log_level="info",
         reload=False,
+        ssl_certfile=certfile or None,
+        ssl_keyfile=keyfile or None,
     )
 
 

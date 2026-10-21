@@ -21,6 +21,19 @@ import {
 import type { SubPageId, SettingsSubPage } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
 
+const API_HTTP_URL = import.meta.env.VITE_API_HTTP_URL || "";
+
+function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const token = sessionStorage.getItem("james_api_token");
+  const headers = new Headers(init.headers);
+  if (token) headers.set("X-JAMES-API-Token", token);
+  const target =
+    typeof input === "string" && API_HTTP_URL && input.startsWith("/")
+      ? new URL(input, API_HTTP_URL).toString()
+      : input;
+  return fetch(target, { ...init, headers });
+}
+
 interface SettingsPageProps {
   activePanel?: SubPageId;
   state: any;
@@ -74,6 +87,15 @@ export function SettingsPage({
 
 /* ── Panel: General ─────────────────────────────────────── */
 function GeneralPanel() {
+  const [apiToken, setApiToken] = useState(() => sessionStorage.getItem("james_api_token") || "");
+
+  const saveApiToken = () => {
+    const token = apiToken.trim();
+    if (token) sessionStorage.setItem("james_api_token", token);
+    else sessionStorage.removeItem("james_api_token");
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-lg">
       <PanelHeader
@@ -119,6 +141,29 @@ function GeneralPanel() {
           ]}
         />
       </div>
+      <section className="rounded-lg border border-border-subtle bg-surface-secondary p-md space-y-sm">
+        <div>
+          <h3 className="text-body font-semibold text-text-primary">Remote API authentication</h3>
+          <p className="text-caption text-text-secondary">
+            Optional shared token for a remotely hosted backend. Use HTTPS/WSS or a trusted VPN.
+            The token is kept in this browser session only.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-sm">
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={apiToken}
+            onChange={(event) => setApiToken(event.target.value)}
+            placeholder="JAMES_API_TOKEN"
+            aria-label="JAMES API token"
+            className="min-w-0 flex-1 rounded-md border border-border-subtle bg-surface-primary px-sm py-xs text-body text-text-primary"
+          />
+          <button type="button" onClick={saveApiToken} className="rounded-md border border-border-subtle px-md py-xs text-body font-medium hover:bg-surface-primary">
+            Save & reconnect
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -147,7 +192,7 @@ function InterfacesPanel({ send, connected, state, setAdapter }: InterfacesPanel
 
   const fetchInterfaces = async () => {
     try {
-      const res = await fetch("/api/interfaces");
+      const res = await apiFetch("/api/interfaces");
       if (res.ok) {
         const data = await res.json();
         const normalized = data.map((iface: any) => ({
@@ -163,7 +208,7 @@ function InterfacesPanel({ send, connected, state, setAdapter }: InterfacesPanel
 
   const fetchAudit = async () => {
     try {
-      const res = await fetch("/api/interfaces/audit");
+      const res = await apiFetch("/api/interfaces/audit");
       if (res.ok) {
         const data = await res.json();
         setAuditData(data);

@@ -50,7 +50,6 @@ from james.gui.tabs.autopilot_tab import AutoPilotTab
 from james.gui.tabs.setup_tab import SetupTab
 from james.gui.tabs.troubleshoot_tab import TroubleshootTab
 from james.gui.tabs.airgeddon_tab import AirgeddonTab
-from james.gui.tabs.lab_tab import LabTab
 from james.gui.tabs.activity_tab import ActivitySidebar
 from james.gui.chat_panel import ChatPanel
 from james.gui.setup_wizard import SetupWizard
@@ -338,7 +337,6 @@ class MainWindow(QMainWindow):
         self.wifi_tab = WiFiArsenalTab(self)
         self.autopilot_tab = AutoPilotTab(self)
         self.airgeddon_tab = AirgeddonTab(self)
-        self.lab_tab = LabTab(self)
 
         # Merged Config tab (Setup + Troubleshoot)
         self.config_tab = self._build_config_tab()
@@ -355,7 +353,6 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
         self.tabs.setTabToolTip(3, "Evil Twin pipeline (Ctrl+4)")
 
-        self.tabs.addTab(self.lab_tab, "🔬 Lab")
         self.tabs.setTabToolTip(4, "Experimental wireless assessments (Ctrl+5)")
 
         self.tabs.addTab(self.config_tab, "⚙ Config")
