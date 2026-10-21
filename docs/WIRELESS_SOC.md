@@ -1,32 +1,28 @@
-# Wireless SOC telemetry store
+# Wireless SOC
 
-This component is a defensive, metadata-only foundation for the JAMES Wireless
-Security Operations dashboard. It stores observations supplied by an authorized
-sensor; it does not perform radio discovery, packet capture, injection, credential
-collection, or cracking.
+The Wireless SOC stores metadata observations received from an authorized sensor. It does not perform radio discovery, packet capture, injection, credential collection, or cracking.
 
-## Storage and behavior
+## Data and detection
 
-- SQLite database at a path chosen by the host application.
-- Explicit approved AP inventory with expected SSID and minimum security baseline.
-- Detections for unknown BSSIDs, SSID changes, security downgrades, and open/WEP networks.
+- SQLite database defaults to `~/.james/wireless_soc.sqlite3`; override with `JAMES_WIRELESS_SOC_DB`.
+- Approved access point inventory with expected SSID and minimum security baseline.
+- Detection events for unapproved BSSIDs, SSID changes, security downgrades, and open/WEP security.
 - Asset inventory, alert review state, and summary counters.
 - Input validation for BSSID, SSID byte length, security label, channel, RSSI, and sensor ID.
 
-## Integration status
+## API
 
-The store is mounted into the FastAPI server under `/api/wireless-soc`. The API
-provides summary, asset inventory, detection listing/review, approved-AP enrollment,
-and metadata observation ingestion. It uses the server's existing API-token middleware
-when `JAMES_API_TOKEN` is configured. The current HTML dashboard is still a demo and
-has not yet been wired to these endpoints; it does not claim to show live telemetry.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/wireless-soc/summary` | Live counters |
+| GET | `/api/wireless-soc/assets` | Latest observed metadata |
+| GET | `/api/wireless-soc/detections` | Detection queue |
+| POST | `/api/wireless-soc/observations` | Ingest a real sensor observation |
+| POST | `/api/wireless-soc/approved-aps` | Register an approved AP |
+| POST | `/api/wireless-soc/detections/{id}/review` | Review an alert |
+
+The API uses the existing `JAMES_API_TOKEN` middleware when configured. The dashboard requests these endpoints directly and shows an empty state or connection error when live data is unavailable. It contains no fallback inventory or generated detections.
 
 ## Tests
 
-Run from the repository root:
-
-```bash
-pytest -q tests/test_wireless_soc_store.py
-```
-
-Only feed observations from sensors and networks you are authorized to monitor.
+Run `pytest -q tests/test_wireless_soc_store.py` from the repository root.
