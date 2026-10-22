@@ -84,82 +84,98 @@ export function TopNav({ state, connected, onLogsClick }: TopNavProps) {
       </div>
 
       {/* ── Zone 2: Runtime Status ───────────────────── */}
-      <div className="flex items-center gap-lg">
-        {/* Interface */}
-        <div className="flex items-center gap-[6px]">
-          {state.adapter ? (
-            <Wifi className="w-3.5 h-3.5 text-text-muted" />
-          ) : (
-            <WifiOff className="w-3.5 h-3.5 text-danger" />
-          )}
-          <span className="text-[11px] font-mono text-text-secondary">
-            {state.adapter || "No Adapter"}
-          </span>
-          {state.adapterMode && (
+      <div className="flex items-center gap-sm">
+        {/* Grouped runtime chips — labeled, high-contrast, scannable */}
+        <div className="flex items-center gap-md rounded-tag border border-border/70 bg-white/[0.02] px-md py-[5px]">
+          {/* Interface */}
+          <div className="flex items-center gap-[7px]">
+            {state.adapter ? (
+              <Wifi className="w-3.5 h-3.5 text-text-secondary" />
+            ) : (
+              <WifiOff className="w-3.5 h-3.5 text-danger" />
+            )}
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              Iface
+            </span>
             <span
               className={cn(
-                "text-[9px] px-[5px] py-[1px] rounded font-bold uppercase tracking-wider",
-                state.adapterMode === "monitor"
-                  ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30"
-                  : "bg-bg-elevated text-text-muted border border-border"
+                "text-[11px] font-mono font-semibold tabular-nums",
+                state.adapter ? "text-text-primary" : "text-danger"
               )}
             >
-              {state.adapterMode}
+              {state.adapter || "None"}
             </span>
-          )}
-        </div>
-
-        <div className="h-4 w-px bg-border" />
-
-        {/* AP Count */}
-        <div className="flex items-center gap-[5px]">
-          <Radio className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[11px] font-mono text-text-secondary">
-            {state.aps.length} <span className="text-text-muted">APs</span>
-          </span>
-        </div>
-
-        <div className="h-4 w-px bg-border" />
-
-        {/* Clients */}
-        <div className="flex items-center gap-[5px]">
-          <Users className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[11px] font-mono text-text-secondary">
-            {totalClients} <span className="text-text-muted">Clients</span>
-          </span>
-        </div>
-
-        <div className="h-4 w-px bg-border" />
-
-        {/* Session Time */}
-        <div className="flex items-center gap-[5px]">
-          <Clock className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[11px] font-mono text-text-secondary">{uptime}</span>
-        </div>
-
-        {/* Live indicators */}
-        {state.scanning && (
-          <>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-[5px]">
-              <span className="status-dot-active" />
-              <span className="text-[10px] text-accent-cyan font-bold uppercase scanning-pulse">
-                SCANNING
+            {state.adapterMode && (
+              <span
+                className={cn(
+                  "text-[9px] px-[5px] py-[1px] rounded font-bold uppercase tracking-wider",
+                  state.adapterMode === "monitor"
+                    ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30"
+                    : "bg-bg-elevated text-text-secondary border border-border"
+                )}
+              >
+                {state.adapterMode}
               </span>
-            </div>
-          </>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-border/80" />
+
+          {/* AP Count */}
+          <div className="flex items-center gap-[7px]">
+            <Radio className="w-3.5 h-3.5 text-text-secondary" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              Networks
+            </span>
+            <span className="text-[11px] font-mono font-semibold tabular-nums text-text-primary">
+              {state.aps.length}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-border/80" />
+
+          {/* Clients */}
+          <div className="flex items-center gap-[7px]">
+            <Users className="w-3.5 h-3.5 text-text-secondary" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              Clients
+            </span>
+            <span className="text-[11px] font-mono font-semibold tabular-nums text-text-primary">
+              {totalClients}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-border/80" />
+
+          {/* Session Time */}
+          <div className="flex items-center gap-[7px]">
+            <Clock className="w-3.5 h-3.5 text-text-secondary" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              Uptime
+            </span>
+            <span className="text-[11px] font-mono font-semibold tabular-nums text-text-primary">
+              {uptime}
+            </span>
+          </div>
+        </div>
+
+        {/* Live indicators — reserved for genuinely active state */}
+        {state.scanning && (
+          <div className="flex items-center gap-[6px] rounded-tag border border-accent-cyan/30 bg-accent-cyan/10 px-sm py-[4px]">
+            <span className="status-dot-active" />
+            <span className="text-[10px] text-accent-cyan font-bold uppercase tracking-wider scanning-pulse">
+              Scanning
+            </span>
+          </div>
         )}
 
         {state.attack.stage !== "idle" && state.attack.stage !== "selecting" && (
-          <>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-[5px]">
-              <span className="status-dot-danger" />
-              <span className="text-[10px] text-danger font-bold uppercase">
-                ATTACK
-              </span>
-            </div>
-          </>
+          <div className="flex items-center gap-[6px] rounded-tag border border-danger/30 bg-danger/10 px-sm py-[4px]">
+            <span className="status-dot-danger" />
+            <span className="text-[10px] text-danger font-bold uppercase tracking-wider">
+              Attack
+            </span>
+          </div>
         )}
       </div>
 

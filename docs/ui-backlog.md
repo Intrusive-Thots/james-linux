@@ -20,13 +20,21 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    only shows a tiny "OFFLINE" chip; a new operator has no idea what to do.
    Add a calm, full-width banner that names the problem and the exact recovery
    command (`./launch_ui.sh --api`). (done this run — see ConnectionBanner.tsx)
-2. [ ] **Dashboard empty states.** "Tactical Airspace", "Engagement HUD", and the
+2. [x] **Dashboard empty states.** "Tactical Airspace", "Engagement HUD", and the
    signal scope render near-blank with 0 data. Give each a purposeful empty state
    with an icon, one line of what it will show, and the single next action
-   ("Run a scan") instead of a dead panel.
-3. [ ] **TopNav runtime chips contrast + grouping.** The adapter/AP/clients/clock
+   ("Run a scan") instead of a dead panel. (done this run — radar now shows a
+   centered icon + "No networks detected yet" + explainer + "Run a scan" button
+   (and "Sweeping the airspace…" while scanning); Engagement HUD distinguishes
+   "No targets in range yet" (with a scan button) from "No target selected"; the
+   signal scope shows an honest "Standby · activity shows during a scan" label.)
+3. [x] **TopNav runtime chips contrast + grouping.** The adapter/AP/clients/clock
    chips are 10–11px low-contrast mono on near-black (below 4.5:1). Lift contrast,
    add consistent labels, and group them so status is scannable at a glance.
+   (done this run — chips are now one bordered cluster with IFACE / NETWORKS /
+   CLIENTS / UPTIME labels; values lifted to text-primary and labels to
+   text-secondary (≥4.5:1 on #0A0E1A), tabular-nums, missing adapter shown in
+   danger red; SCANNING/ATTACK moved to their own pills reserved for live state.)
 4. [ ] **Recon AP table.** Tune the data table for dense scanning: tabular-nums
    numerals, right-aligned signal/channel, a real signal-strength visual per row,
    sortable headers, and a clear "no networks yet / start a scan" empty row.
@@ -52,3 +60,15 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     the desktop tabs (wifi, autopilot, airgeddon, activity, setup, troubleshoot).
 15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
     verify and fix layout down to ~1280px and narrower.
+
+16. [ ] **Dashboard stat cards when all-zero.** The four hero-metric cards
+    (Networks / Handshakes / Keys / Alerts) read as identical empty tiles on a
+    fresh/offline load. Differentiate the zero state or collapse into a compact
+    summary so the row carries information instead of four 0s.
+17. [ ] **Signal-scope idle treatment.** With the new standby label in place,
+    dim or flatten the idle waveform further so the label sits unobstructed and
+    the panel clearly reads "nothing happening yet".
+18. [ ] **Hardware Status vs backend-offline.** When the WebSocket is simply
+    disconnected the panel still says "No adapter detected" / OFFLINE; distinguish
+    "backend unreachable" from "adapter genuinely absent".
+

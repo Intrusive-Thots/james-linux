@@ -1,5 +1,6 @@
 import { useState, useMemo, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Radar } from "lucide-react";
 import type { AP } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
 
@@ -8,6 +9,7 @@ interface RadarScannerProps {
   selectedAP: AP | null;
   onSelectAP: (ap: AP | null) => void;
   scanning: boolean;
+  onScan?: () => void;
 }
 
 // Simple hash function to map a BSSID string to a stable angle (in radians)
@@ -40,6 +42,7 @@ export const RadarScanner = memo(function RadarScanner({
   selectedAP,
   onSelectAP,
   scanning,
+  onScan,
 }: RadarScannerProps) {
   const [hoveredAP, setHoveredAP] = useState<AP | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -209,6 +212,29 @@ export const RadarScanner = memo(function RadarScanner({
             </AnimatePresence>
           </g>
         </svg>
+
+        {/* Empty / standby state — no networks detected yet */}
+        {aps.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-md">
+            <div className="w-11 h-11 rounded-full bg-accent-cyan/5 border border-accent-cyan/20 flex items-center justify-center mb-sm">
+              <Radar className={cn("w-5 h-5 text-accent-cyan/80", scanning && "animate-pulse")} />
+            </div>
+            <p className="text-small font-semibold text-text-primary">
+              {scanning ? "Sweeping the airspace…" : "No networks detected yet"}
+            </p>
+            <p className="text-xs text-text-secondary mt-[2px] max-w-[190px] leading-snug">
+              Access points appear here as you sweep nearby Wi-Fi channels.
+            </p>
+            {!scanning && onScan && (
+              <button
+                onClick={onScan}
+                className="mt-sm btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono"
+              >
+                Run a scan
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Floating Tooltip HTML Overlay */}
         <AnimatePresence>

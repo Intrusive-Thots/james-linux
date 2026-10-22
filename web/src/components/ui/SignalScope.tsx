@@ -154,6 +154,15 @@ export function SignalScope({ active, className }: SignalScopeProps) {
         />
       </svg>
 
+      {/* Standby empty state — no live activity until a scan runs */}
+      {!active && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-text-secondary bg-black/50 px-sm py-[3px] rounded-tag border border-border/50">
+            Standby · activity shows during a scan
+          </span>
+        </div>
+      )}
+
       {/* Live HUD ticker overlay */}
       <div className="absolute bottom-1 right-2 font-mono text-[9px] text-text-muted flex gap-2 pointer-events-none select-none">
         <span>RF SCANNER</span>
