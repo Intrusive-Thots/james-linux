@@ -35,9 +35,15 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    CLIENTS / UPTIME labels; values lifted to text-primary and labels to
    text-secondary (≥4.5:1 on #0A0E1A), tabular-nums, missing adapter shown in
    danger red; SCANNING/ATTACK moved to their own pills reserved for live state.)
-4. [ ] **Recon AP table.** Tune the data table for dense scanning: tabular-nums
+4. [x] **Recon AP table.** Tune the data table for dense scanning: tabular-nums
    numerals, right-aligned signal/channel, a real signal-strength visual per row,
    sortable headers, and a clear "no networks yet / start a scan" empty row.
+   (done this run — Signal/CH/Clients right-aligned with tabular-nums; new
+   per-row SignalCell shows a proportional strength meter + high-contrast dBm
+   colored by bucket (green/cyan/amber/red); sort arrows reserve space and sit
+   on the correct side with aria-sort; empty row now has an icon + headline +
+   explainer and a "Start a scan" button, with distinct scanning and
+   no-filter-match states.)
 5. [ ] **Attacks flow states.** Audit the attack stage UI for all states
    (idle, selecting, running, success, error) and make progress + abort obvious.
 6. [ ] **Handshakes page.** Cracked vs pending should be instantly distinguishable;
@@ -61,10 +67,16 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
 15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
     verify and fix layout down to ~1280px and narrower.
 
-16. [ ] **Dashboard stat cards when all-zero.** The four hero-metric cards
+16. [x] **Dashboard stat cards when all-zero.** The four hero-metric cards
     (Networks / Handshakes / Keys / Alerts) read as identical empty tiles on a
     fresh/offline load. Differentiate the zero state or collapse into a compact
     summary so the row carries information instead of four 0s.
+    (done this run — when every metric is zero the row collapses into one
+    ZeroMetricsSummary card: phase label ("Standby — no activity yet" / IDLE, or
+    "Sweeping the airspace…" / SCANNING), a one-line explainer of what the row
+    tracks, a compact Networks/Handshakes/Keys/Alerts legend, and a single
+    "Run a scan" action. The four StatCards return as soon as any metric is
+    non-zero.)
 17. [ ] **Signal-scope idle treatment.** With the new standby label in place,
     dim or flatten the idle waveform further so the label sits unobstructed and
     the panel clearly reads "nothing happening yet".
@@ -72,3 +84,7 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     disconnected the panel still says "No adapter detected" / OFFLINE; distinguish
     "backend unreachable" from "adapter genuinely absent".
 
+19. [ ] **Recon metric cards vs new table.** The four MiniStat tiles above the
+    Recon table (Total APs / Encrypted / Open / Clients) use the same hero-tile
+    pattern just addressed on the Dashboard; give them the same zero-state
+    treatment or fold them into the table header for consistency.
