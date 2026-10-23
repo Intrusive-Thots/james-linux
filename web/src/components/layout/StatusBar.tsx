@@ -3,12 +3,14 @@ import {
   Activity,
   HardDrive,
   Clock,
+  Keyboard,
 } from "lucide-react";
 import type { LogEntry, AppState } from "../../hooks/useAppState";
 import { cn } from "../../lib/utils";
 
 interface StatusBarProps {
   state: AppState;
+  onShowShortcuts?: () => void;
 }
 
 const LEVEL_COLORS: Record<LogEntry["level"], string> = {
@@ -18,7 +20,7 @@ const LEVEL_COLORS: Record<LogEntry["level"], string> = {
   success: "text-success",
 };
 
-const StatusBarComponent = ({ state }: StatusBarProps) => {
+const StatusBarComponent = ({ state, onShowShortcuts }: StatusBarProps) => {
   const lastLog = state.logs[state.logs.length - 1];
 
   return (
@@ -64,6 +66,20 @@ const StatusBarComponent = ({ state }: StatusBarProps) => {
         <HardDrive className="w-3 h-3 text-text-muted" />
         <span className="text-text-secondary font-mono">{state.aps.length}</span>
       </div>
+
+      <div className="h-2.5 w-px bg-border" />
+
+      {/* Shortcuts help trigger */}
+      <button
+        type="button"
+        onClick={onShowShortcuts}
+        className="flex items-center gap-[4px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:text-accent-cyan"
+        aria-label="Show keyboard shortcuts"
+        title="Keyboard shortcuts (?)"
+      >
+        <Keyboard className="w-3 h-3" />
+        <span className="font-mono">?</span>
+      </button>
     </footer>
   );
 };

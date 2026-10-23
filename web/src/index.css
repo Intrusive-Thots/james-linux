@@ -120,6 +120,27 @@
     @apply h-8 px-sm text-small;
   }
 
+  /* Form fields */
+  .input {
+    @apply h-10 w-full min-w-0 rounded-btn border border-border bg-bg-surface px-sm text-body text-text-primary;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .input::placeholder {
+    @apply text-text-muted;
+  }
+  .input:hover:not(:disabled):not(:focus) {
+    @apply border-border-hover;
+  }
+  .input:focus,
+  .input:focus-visible {
+    outline: none;
+    border-color: #22d3ee;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+  }
+  .input:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
   /* Status Indicators */
   .status-dot {
     @apply w-2 h-2 rounded-full;

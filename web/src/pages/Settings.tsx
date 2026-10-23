@@ -87,11 +87,14 @@ export function SettingsPage({
 
 /* ── Panel: General ─────────────────────────────────────── */
 function GeneralPanel() {
-  const [apiToken, setApiToken] = useState(() => sessionStorage.getItem("james_api_token") || "");
+  const savedToken = sessionStorage.getItem("james_api_token") || "";
+  const [apiToken, setApiToken] = useState(savedToken);
+  const trimmed = apiToken.trim();
+  const dirty = trimmed !== savedToken;
+  const hasSavedToken = savedToken.length > 0;
 
   const saveApiToken = () => {
-    const token = apiToken.trim();
-    if (token) sessionStorage.setItem("james_api_token", token);
+    if (trimmed) sessionStorage.setItem("james_api_token", trimmed);
     else sessionStorage.removeItem("james_api_token");
     window.location.reload();
   };
@@ -149,7 +152,7 @@ function GeneralPanel() {
             The token is kept in this browser session only.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-sm">
           <input
             type="password"
             autoComplete="current-password"
@@ -157,12 +160,36 @@ function GeneralPanel() {
             onChange={(event) => setApiToken(event.target.value)}
             placeholder="JAMES_API_TOKEN"
             aria-label="JAMES API token"
-            className="min-w-0 flex-1 rounded-md border border-border-subtle bg-surface-primary px-sm py-xs text-body text-text-primary"
+            className="input flex-1"
           />
-          <button type="button" onClick={saveApiToken} className="rounded-md border border-border-subtle px-md py-xs text-body font-medium hover:bg-surface-primary">
-            Save & reconnect
-          </button>
+          <div className="flex items-center gap-sm shrink-0">
+            {hasSavedToken && (
+              <button
+                type="button"
+                onClick={() => setApiToken("")}
+                disabled={trimmed.length === 0}
+                className="btn btn-ghost"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={saveApiToken}
+              disabled={!dirty}
+              className="btn btn-primary"
+            >
+              Save & reconnect
+            </button>
+          </div>
         </div>
+        <p className="text-small text-text-muted" aria-live="polite">
+          {dirty
+            ? "Unsaved change — save to apply and reconnect."
+            : hasSavedToken
+            ? "A token is stored for this browser session."
+            : "No token stored. Leave blank when the backend runs locally."}
+        </p>
       </section>
     </div>
   );

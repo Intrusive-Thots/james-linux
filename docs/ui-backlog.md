@@ -66,10 +66,28 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    icon + "No handshakes captured yet" headline + one-line explainer that points
    to the Attacks page, and a distinct "no captures match <query>" state was
    added for an active filter with no results.)
-7. [ ] **Settings polish.** Consistent field styling, hover/focus/disabled states,
+7. [x] **Settings polish.** Consistent field styling, hover/focus/disabled states,
    and clear save affordances across panels.
-8. [ ] **Keyboard shortcuts discoverability.** Alt+1..0 exist but are hidden; add a
+   (done this run — the General panel's API-token field now uses a shared,
+   themed `.input` class (added to index.css): consistent 40px height, palette
+   border, a cyan focus-visible ring + hovered border, and a disabled style, so
+   it matches the rest of the UI instead of a borderless box. The "Save &
+   reconnect" button was a bare <button> that fell back to the browser's default
+   light chrome (the undefined `bg-surface-primary`/`surface-secondary` tokens
+   rendered nothing); it's now a real `.btn btn-primary` that is disabled until
+   the token actually changes, with a sibling "Clear" ghost button when a token
+   is stored and a live helper line ("Unsaved change…" / "A token is stored…" /
+   "No token stored…"). Save affordance and dirty/disabled state are now honest.)
+8. [x] **Keyboard shortcuts discoverability.** Alt+1..0 exist but are hidden; add a
    shortcuts legend/overlay (e.g. `?`), and show hints in tooltips consistently.
+   (done this run — new ShortcutsOverlay.tsx is a palette-themed dialog listing
+   every Alt+1..0 navigation shortcut with real <kbd> chips plus a General
+   section (? toggles the help, Esc closes). It opens by pressing `?` anywhere
+   (ignored while typing in a field), closes on Esc / backdrop / the X, and has
+   one authored entrance (fade + rise). A discoverable "⌨ ?" trigger was added
+   to the StatusBar so the shortcut is findable by mouse too. WorkspaceTabs
+   already surfaces per-item Alt+N hints in its tooltips, so those stay the
+   consistent in-context hint.)
 9. [ ] **Focus rings & browser surfaces.** Theme focus-visible rings, caret, text
    selection, and scrollbars from the palette app-wide (partially done in index.css).
 10. [ ] **Motion discipline.** Replace the many simultaneous pulses/animations with
@@ -117,3 +135,18 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     the sequence, so the numerals are redundant chrome; drop them or fold the
     ordinal into the icon badge.
 
+22. [ ] **Settings groups are read-only but look interactive.** The Appearance /
+    Notifications / Display / Session (General) and Attack Engine / Capture /
+    PMKID / Paths (Advanced) groups render value labels ("Enabled", "Dark
+    Tactical", …) that look like settings yet have no controls and change
+    nothing. Either wire real controls (toggles/selects bound to backend) or
+    relabel the blocks as a read-only "Current configuration" summary so they
+    stop implying interactivity.
+23. [ ] **App font vs config mismatch.** index.css `@import`s Inter and sets
+    `html { font-family: Inter }`, while tailwind.config declares the sans stack
+    as IBM Plex Sans. The two disagree and Inter is a flagged overused face;
+    pick one intentional typeface and align the @import, the base rule, and the
+    Tailwind token (self-host it per the craft floor rather than Google Fonts).
+24. [ ] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
+    glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
+    give the icon/label a consistent gap like the other panel headers.
