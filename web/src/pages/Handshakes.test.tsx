@@ -18,6 +18,9 @@ vi.mock('lucide-react', () => ({
   Clock: () => <div>Clock</div>,
   HardDrive: () => <div>HardDrive</div>,
   Search: () => <div>Search</div>,
+  Copy: () => <div>Copy</div>,
+  Check: () => <div>Check</div>,
+  CheckCircle2: () => <div>CheckCircle2</div>,
 }));
 
 describe('Handshakes component', () => {

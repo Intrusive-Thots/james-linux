@@ -44,10 +44,28 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    on the correct side with aria-sort; empty row now has an icon + headline +
    explainer and a "Start a scan" button, with distinct scanning and
    no-filter-match states.)
-5. [ ] **Attacks flow states.** Audit the attack stage UI for all states
+5. [x] **Attacks flow states.** Audit the attack stage UI for all states
    (idle, selecting, running, success, error) and make progress + abort obvious.
-6. [ ] **Handshakes page.** Cracked vs pending should be instantly distinguishable;
+   (done this run — during a live capture/crack the Actions panel now shows a
+   compact live status: spinner + phase label ("Capturing handshake" /
+   "Cracking password") + LIVE pill, the current sub-stage name, a large
+   tabular-nums percentage, the overall ProgressBar, and the Abort button
+   directly beneath — progress and abort now sit together in the control
+   column instead of a lone abort button and a progress bar buried at the
+   bottom of the right telemetry card. Removed the duplicate second progress
+   bar and lifted the sub-stage counter from text-muted to text-secondary for
+   contrast. Idle/selecting/success/error states audited and left intact.)
+6. [x] **Handshakes page.** Cracked vs pending should be instantly distinguishable;
    add copy-to-clipboard for keys/paths and an empty state.
+   (done this run — cracked rows now carry a subtle success tint plus a leading
+   green CheckCircle2, pending rows a leading amber Lock, so status reads at a
+   glance across the table. The recovered key is now a click-to-copy control
+   (Copy icon on hover, transient "Copied" check), and the row action that
+   copies the capture file path now uses a real Copy icon with correct labelling
+   instead of the misleading Download glyph. The empty state is a proper
+   icon + "No handshakes captured yet" headline + one-line explainer that points
+   to the Attacks page, and a distinct "no captures match <query>" state was
+   added for an active filter with no results.)
 7. [ ] **Settings polish.** Consistent field styling, hover/focus/disabled states,
    and clear save affordances across panels.
 8. [ ] **Keyboard shortcuts discoverability.** Alt+1..0 exist but are hidden; add a
@@ -88,3 +106,14 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     Recon table (Total APs / Encrypted / Open / Clients) use the same hero-tile
     pattern just addressed on the Dashboard; give them the same zero-state
     treatment or fold them into the table header for consistency.
+
+20. [ ] **Password-cracked overlay gradient wordmark.** The full-screen
+    "ACCESS GRANTED" success overlay (PasswordCrackedOverlay) renders its
+    wordmark as gradient text, which the craft floor calls out as a default to
+    avoid; emphasis should come from weight/size. Re-treat the success moment
+    without gradient-filled type.
+21. [ ] **Attacks workflow step numerals.** The idle Attack Workflow stepper
+    prefixes each step with 01/02/03/04. The icons + connector already convey
+    the sequence, so the numerals are redundant chrome; drop them or fold the
+    ordinal into the icon badge.
+
