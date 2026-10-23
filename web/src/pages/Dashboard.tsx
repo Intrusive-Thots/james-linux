@@ -64,6 +64,14 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
   const activeAttack = state.attack.stage !== "idle";
   const selectedAP = state.selectedAP;
 
+  // When nothing has happened yet, four "0" hero tiles carry no information.
+  // Collapse them into one summary row instead (see ZeroMetricsSummary).
+  const allMetricsZero =
+    state.aps.length === 0 &&
+    state.handshakes.length === 0 &&
+    crackedCount === 0 &&
+    errorCount === 0;
+
   // Handle Quick Scan Toggle from the Dashboard
   const handleScanToggle = () => {
     if (!send) return;
@@ -125,39 +133,47 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </div>
         </motion.div>
 
-        {/* Stat Cards Row */}
-        <motion.div
-          variants={item}
-          className="grid grid-cols-4 gap-md"
-        >
-          <StatCard
-            icon={Radar}
-            label="Networks Found"
-            value={String(state.aps.length)}
-            accent="cyan"
-            description="Nearby access points"
-          />
-          <StatCard
-            icon={FileKey}
-            label="Handshake Vault"
-            value={String(state.handshakes.length)}
-            accent="purple"
-            description={`${pendingCount} pending verification`}
-          />
-          <StatCard
-            icon={Key}
-            label="Keys Cracked"
-            value={String(crackedCount)}
-            accent="green"
-            description="Active decrypted networks"
-          />
-          <StatCard
-            icon={AlertTriangle}
-            label="System Alerts"
-            value={String(errorCount)}
-            accent={errorCount > 0 ? "red" : "muted"}
-            description={errorCount > 0 ? `${errorCount} active alerts` : "All systems nominal"}
-          />
+        {/* Stat Cards Row — collapses to a single compact summary when every
+            metric is zero, so a fresh/offline load carries information (what
+            this row tracks + the next action) instead of four identical 0 tiles. */}
+        <motion.div variants={item}>
+          {allMetricsZero ? (
+            <ZeroMetricsSummary
+              scanning={state.scanning}
+              onScan={handleScanToggle}
+            />
+          ) : (
+            <div className="grid grid-cols-4 gap-md">
+              <StatCard
+                icon={Radar}
+                label="Networks Found"
+                value={String(state.aps.length)}
+                accent="cyan"
+                description="Nearby access points"
+              />
+              <StatCard
+                icon={FileKey}
+                label="Handshake Vault"
+                value={String(state.handshakes.length)}
+                accent="purple"
+                description={`${pendingCount} pending verification`}
+              />
+              <StatCard
+                icon={Key}
+                label="Keys Cracked"
+                value={String(crackedCount)}
+                accent="green"
+                description="Active decrypted networks"
+              />
+              <StatCard
+                icon={AlertTriangle}
+                label="System Alerts"
+                value={String(errorCount)}
+                accent={errorCount > 0 ? "red" : "muted"}
+                description={errorCount > 0 ? `${errorCount} active alerts` : "All systems nominal"}
+              />
+            </div>
+          )}
         </motion.div>
 
         {/* Main Tactical Grid: 3 Columns */}
@@ -254,11 +270,32 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-center py-lg opacity-60">
-                    <Crosshair className="w-12 h-12 text-text-muted mb-md animate-pulse-slow" />
-                    <p className="text-body text-text-secondary max-w-[200px]">
-                      No target selected. Click an AP on the radar scan to lock coordinates.
-                    </p>
+                  <div className="flex flex-col items-center justify-center text-center py-lg">
+                    <div className="w-12 h-12 rounded-full bg-accent-purple/5 border border-accent-purple/25 flex items-center justify-center mb-sm">
+                      <Crosshair className="w-6 h-6 text-accent-purple/80" />
+                    </div>
+                    {state.aps.length === 0 ? (
+                      <>
+                        <p className="text-body font-semibold text-text-primary">No targets in range yet</p>
+                        <p className="text-small text-text-secondary mt-[2px] max-w-[210px] leading-snug">
+                          Scan the airspace, then pick an access point to lock its coordinates and arm an attack.
+                        </p>
+                        <button
+                          onClick={handleScanToggle}
+                          disabled={state.scanning}
+                          className="mt-md btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono"
+                        >
+                          {state.scanning ? "Scanning…" : "Run a scan"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-body font-semibold text-text-primary">No target selected</p>
+                        <p className="text-small text-text-secondary mt-[2px] max-w-[210px] leading-snug">
+                          Click an access point on the radar to lock its coordinates and arm an attack.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -304,6 +341,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
               selectedAP={selectedAP}
               onSelectAP={onSelectAP ? onSelectAP : () => {}}
               scanning={state.scanning}
+              onScan={handleScanToggle}
             />
           </motion.div>
 
@@ -436,6 +474,68 @@ function StatCard({
       </div>
       {/* Background visual gloss glow */}
       <div className="absolute -right-8 -bottom-8 w-24 h-24 rounded-full bg-white/[0.01] pointer-events-none group-hover:scale-150 transition-transform duration-500" />
+    </div>
+  );
+}
+
+/**
+ * Compact summary shown when every hero metric is zero (fresh or offline load).
+ * Instead of four identical "0" tiles, it names the current phase, says what
+ * the row will track, and offers the single next action.
+ */
+function ZeroMetricsSummary({
+  scanning,
+  onScan,
+}: {
+  scanning: boolean;
+  onScan: () => void;
+}) {
+  const metrics: { icon: React.ElementType; label: string }[] = [
+    { icon: Radar, label: "Networks" },
+    { icon: FileKey, label: "Handshakes" },
+    { icon: Key, label: "Keys" },
+    { icon: AlertTriangle, label: "Alerts" },
+  ];
+  return (
+    <div className="card flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center gap-md">
+        <div className="w-12 h-12 rounded-btn bg-accent-cyan/8 border border-accent-cyan/20 flex items-center justify-center flex-shrink-0">
+          <Radio className="w-6 h-6 text-accent-cyan" />
+        </div>
+        <div>
+          <div className="flex items-center gap-sm">
+            <span className="text-body font-bold text-text-primary">
+              {scanning ? "Sweeping the airspace…" : "Standby — no activity yet"}
+            </span>
+            <span className={cn("badge font-mono", scanning ? "badge-cyan scanning-pulse" : "badge-muted")}>
+              {scanning ? "SCANNING" : "IDLE"}
+            </span>
+          </div>
+          <p className="text-small text-text-secondary mt-[2px] max-w-[460px] leading-snug">
+            This row will track networks found, captured handshakes, cracked keys,
+            and system alerts as you operate. Run a scan to begin.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-lg">
+        <div className="flex items-center gap-md pr-lg border-r border-border/40">
+          {metrics.map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-xs" title={`${label}: 0`}>
+              <Icon className="w-4 h-4 text-text-muted" />
+              <span className="text-small font-mono text-text-muted">{label}</span>
+              <span className="text-body font-bold font-mono tabular-nums text-text-secondary">0</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onScan}
+          disabled={scanning}
+          className="btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono whitespace-nowrap disabled:opacity-60"
+        >
+          {scanning ? "Scanning…" : "Run a scan"}
+        </button>
+      </div>
     </div>
   );
 }

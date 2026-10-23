@@ -371,21 +371,50 @@ export function Recon({
                 <thead>
                   <tr>
                     <SortHeader label="SSID" sortKey="essid" current={sortKey} dir={sortDir} onClick={handleSort} />
-                    <th className="w-[160px]">BSSID</th>
-                    <SortHeader label="Signal" sortKey="power" current={sortKey} dir={sortDir} onClick={handleSort} />
-                    <SortHeader label="CH" sortKey="channel" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <th className="w-[150px]">BSSID</th>
+                    <SortHeader label="Signal" sortKey="power" current={sortKey} dir={sortDir} onClick={handleSort} align="right" className="w-[168px]" />
+                    <SortHeader label="CH" sortKey="channel" current={sortKey} dir={sortDir} onClick={handleSort} align="right" className="w-[64px]" />
                     <SortHeader label="Security" sortKey="privacy" current={sortKey} dir={sortDir} onClick={handleSort} />
-                    <SortHeader label="Clients" sortKey="clients" current={sortKey} dir={sortDir} onClick={handleSort} />
+                    <SortHeader label="Clients" sortKey="clients" current={sortKey} dir={sortDir} onClick={handleSort} align="right" className="w-[90px]" />
                     <th>Vendor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-xl text-text-muted">
-                        {state.scanning
-                          ? "Scanning… networks will appear here."
-                          : "No networks. Start a scan to discover APs."}
+                      <td colSpan={7} className="py-xl">
+                        <div className="flex flex-col items-center justify-center gap-sm text-center">
+                          {state.scanning ? (
+                            <>
+                              <Radar className="w-7 h-7 text-accent-cyan scanning-pulse" />
+                              <p className="text-body font-semibold text-text-primary">Sweeping the airspace…</p>
+                              <p className="text-small text-text-muted max-w-[320px]">
+                                Networks will stream in here as they are discovered.
+                              </p>
+                            </>
+                          ) : filter ? (
+                            <>
+                              <Filter className="w-7 h-7 text-text-muted" />
+                              <p className="text-body font-semibold text-text-primary">No networks match “{filter}”.</p>
+                              <button className="btn-ghost mt-xs" onClick={() => setFilter("")}>
+                                <XCircle className="w-4 h-4" />
+                                Clear filter
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <Radar className="w-7 h-7 text-text-muted" />
+                              <p className="text-body font-semibold text-text-primary">No networks yet</p>
+                              <p className="text-small text-text-muted max-w-[320px]">
+                                Start a scan to discover the access points in range.
+                              </p>
+                              <button className="btn-primary mt-xs" onClick={onStartScan}>
+                                <Play className="w-4 h-4" />
+                                Start a scan
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -592,28 +621,83 @@ function SortHeader({
   current,
   dir,
   onClick,
+  align = "left",
+  className,
 }: {
   label: string;
   sortKey: SortKey;
   current: SortKey;
   dir: SortDir;
   onClick: (key: SortKey) => void;
+  align?: "left" | "right";
+  className?: string;
 }) {
   const active = current === sortKey;
   return (
     <th
-      className="cursor-pointer select-none hover:text-text-primary transition-colors"
+      className={cn(
+        "cursor-pointer select-none hover:text-text-primary transition-colors",
+        align === "right" && "text-right",
+        className
+      )}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
       onClick={() => onClick(sortKey)}
     >
-      <span className="inline-flex items-center gap-[4px]">
-        {label}
-        {active && (
-          <span className="text-accent-cyan">
-            {dir === "asc" ? "↑" : "↓"}
-          </span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-[4px]",
+          align === "right" && "flex-row-reverse"
         )}
+      >
+        {label}
+        <span
+          className={cn(
+            "transition-colors",
+            active ? "text-accent-cyan" : "text-transparent"
+          )}
+          aria-hidden="true"
+        >
+          {active && dir === "asc" ? "↑" : "↓"}
+        </span>
       </span>
     </th>
+  );
+}
+
+/**
+ * Per-row signal-strength visual: a proportional strength meter plus the raw
+ * dBm reading, colored by bucket and right-aligned so values line up for quick
+ * scanning across many rows.
+ */
+function SignalCell({ power }: { power: number }) {
+  const normalized = Math.max(0, Math.min(100, ((power + 90) / 60) * 100));
+  const tone =
+    power >= -55
+      ? { bar: "bg-success", text: "text-success" }
+      : power >= -70
+        ? { bar: "bg-accent-cyan", text: "text-accent-cyan" }
+        : power >= -80
+          ? { bar: "bg-warning", text: "text-warning" }
+          : { bar: "bg-danger", text: "text-danger" };
+  return (
+    <div className="flex items-center justify-end gap-sm">
+      <div
+        className="h-1.5 w-16 rounded-full bg-bg-elevated overflow-hidden"
+        role="meter"
+        aria-valuenow={power}
+        aria-valuemin={-90}
+        aria-valuemax={-30}
+        aria-label={`Signal ${power} dBm`}
+      >
+        <div
+          className={cn("h-full rounded-full transition-all duration-200", tone.bar)}
+          style={{ width: `${normalized}%` }}
+        />
+      </div>
+      <span className={cn("text-small font-mono tabular-nums font-semibold whitespace-nowrap text-right", tone.text)}>
+        {power} dBm
+      </span>
+    </div>
   );
 }
 
@@ -648,26 +732,21 @@ const ApRow = memo(function ApRow({
           </span>
         )}
       </td>
-      <td className="font-mono text-small text-text-secondary">
+      <td className="font-mono text-small text-text-secondary tabular-nums">
         {ap.bssid}
       </td>
       <td>
-        <div className="flex items-center gap-sm">
-          <SignalBars power={ap.power} />
-          <span className="text-small text-text-muted font-mono">
-            {ap.power} dBm
-          </span>
-        </div>
+        <SignalCell power={ap.power} />
       </td>
-      <td className="text-center font-mono">
+      <td className="text-right font-mono tabular-nums text-text-secondary">
         {ap.channel}
       </td>
       <td>
         <SecurityBadge privacy={ap.privacy} />
       </td>
-      <td className="text-center">
+      <td className="text-right tabular-nums">
         {ap.clients > 0 ? (
-          <span className="text-accent-purple font-medium">
+          <span className="text-accent-purple font-semibold">
             {ap.clients}
           </span>
         ) : (
