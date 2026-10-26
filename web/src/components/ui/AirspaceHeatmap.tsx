@@ -196,7 +196,7 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
           <line x1="150" y1="15" x2="150" y2="285" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
 
           {/* 1. Heatmap layer: Overlapping signal coverage circles */}
-          <g className="anim-pulse-bg">
+          <g className={scanning ? "anim-pulse-bg" : undefined}>
             {apNodes.map((node) => (
               <circle
                 key={`heat-${node.id}`}
@@ -275,8 +275,8 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
                           return (
                             <g
                               key={`orbit-${node.id}-${idx}`}
-                              className="anim-orbit"
-                              style={{ animationDuration: `${orbitDuration}s` }}
+                              className={scanning ? "anim-orbit" : undefined}
+                              style={scanning ? { animationDuration: `${orbitDuration}s` } : undefined}
                             >
                               <circle
                                 cx={dist}
@@ -293,7 +293,7 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
 
                     {/* rotating Lock-On target brackets */}
                     {isSelected && (
-                      <g transform={`translate(${node.x}, ${node.y})`} className="animate-spin" style={{ animationDuration: "12s" }}>
+                      <g transform={`translate(${node.x}, ${node.y})`}>
                         <path d={`M -${node.nodeSize + 6} -${(node.nodeSize + 6) / 2} L -${node.nodeSize + 6} -${node.nodeSize + 6} L -${(node.nodeSize + 6) / 2} -${node.nodeSize + 6}`} stroke="#8B5CF6" strokeWidth="1.5" fill="none" />
                         <path d={`M ${(node.nodeSize + 6) / 2} -${node.nodeSize + 6} L ${node.nodeSize + 6} -${node.nodeSize + 6} L ${node.nodeSize + 6} -${(node.nodeSize + 6) / 2}`} stroke="#8B5CF6" strokeWidth="1.5" fill="none" />
                         <path d={`M -${node.nodeSize + 6} ${(node.nodeSize + 6) / 2} L -${node.nodeSize + 6} ${node.nodeSize + 6} L -${(node.nodeSize + 6) / 2} ${node.nodeSize + 6}`} stroke="#8B5CF6" strokeWidth="1.5" fill="none" />

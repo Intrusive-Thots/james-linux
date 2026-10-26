@@ -297,3 +297,18 @@
 .scanning-pulse {
   animation: scan-pulse 1.5s ease-in-out infinite;
 }
+
+/* ── Motion discipline ─────────────────────────── */
+/* Reserve motion for genuinely live/active state. Honor the OS
+   "reduce motion" setting by neutralizing looping animations and
+   long transitions app-wide (keeps focus/hover feedback instant). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

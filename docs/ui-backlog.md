@@ -100,10 +100,26 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    scrollbar from off-palette slate (rgba(148,163,184)) to a cyan-tinted pill
    thumb (rgba(34,211,238,.18) → .34 on hover) with Firefox scrollbar-color +
    scrollbar-width:thin for parity. All in index.css @layer base.)
-10. [ ] **Motion discipline.** Replace the many simultaneous pulses/animations with
+10. [x] **Motion discipline.** Replace the many simultaneous pulses/animations with
     one authored entrance per view; reserve pulsing for genuinely live/active state.
-11. [ ] **AgentConsole / Logs readability.** Monospace log stream line-height,
+    (done 2026-10-26 pm — added a global `prefers-reduced-motion: reduce` guard in
+    index.css that neutralizes animation + transition durations app-wide. Dashboard:
+    removed decorative `animate-pulse` from the header Radio icon, the TARGET ACQUIRED
+    badge and the StatCard red glow; the only surviving pulse is the live attack-progress
+    indicator. SignalScope now draws one static calm frame when idle (no rAF loop) and
+    only animates the waveform + scan beam while `active`. AirspaceHeatmap gates its
+    coverage pulse + orbit animation on `scanning` and makes the lock-on brackets static
+    instead of spinning. Pulsing is now reserved for genuinely live/active state.)
+11. [x] **AgentConsole / Logs readability.** Monospace log stream line-height,
     level color legend, auto-scroll affordance, and a filter.
+    (done 2026-10-26 pm — Logs: looser row line-height (py-5px + leading-relaxed),
+    timestamps lifted from text-muted to text-secondary tabular-nums, the level filter
+    row now carries solid color dots so it doubles as an info/warn/error/success legend,
+    the follow toggle became a "Following"/"Paused" button with a live green dot, and a
+    floating "Jump to latest" pill appears when follow is paused. Search input gained a
+    cyan keyboard-focus ring. AgentConsole: agent message bodies lifted from text-secondary
+    to text-primary for contrast, and the command input got the same cyan focus ring.
+    The existing level filter already satisfied the "filter" ask.)
 12. [ ] **AutoPilot clarity.** Make the phase/stage machine legible with a clear
     stepper; align with the Airgeddon auto-pilot plan in implementation_plan.
 13. [ ] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
@@ -123,9 +139,12 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     tracks, a compact Networks/Handshakes/Keys/Alerts legend, and a single
     "Run a scan" action. The four StatCards return as soon as any metric is
     non-zero.)
-17. [ ] **Signal-scope idle treatment.** With the new standby label in place,
+17. [x] **Signal-scope idle treatment.** With the new standby label in place,
     dim or flatten the idle waveform further so the label sits unobstructed and
     the panel clearly reads "nothing happening yet".
+    (done 2026-10-26 pm as part of #10 — idle SignalScope now renders a single flat,
+    low-amplitude (amp=3, noise=0) calm frame with no animation loop, so the "STANDBY —
+    activity shows during a scan" label sits unobstructed.)
 18. [ ] **Hardware Status vs backend-offline.** When the WebSocket is simply
     disconnected the panel still says "No adapter detected" / OFFLINE; distinguish
     "backend unreachable" from "adapter genuinely absent".
@@ -166,3 +185,12 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     `focus:border-border-hover` (a faint cyan 0.25 border) + `focus:outline-none`,
     so keyboard focus on them is barely visible. Promote them to the shared
     `.input` treatment (or a stronger focus ring) for consistency with Settings.
+    (partial 2026-10-26 pm — the Logs search input and AgentConsole command input
+    now get an accent-cyan border + 3px cyan focus ring; Recon, Handshakes and Agent
+    still need the same treatment.)
+
+26. [ ] **AgentConsole empty state.** With no messages the Live Session card is a
+    large blank void below the single intro bubble. Add a centered, muted
+    empty-state hint (e.g. a terminal glyph + "Send a command to begin — try scan,
+    status, loot or help") so the panel reads as ready rather than unrendered.
+    (noticed 2026-10-26 pm while verifying #11.)

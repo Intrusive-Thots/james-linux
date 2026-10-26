@@ -188,7 +188,7 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
                       "max-w-[70%] rounded-btn p-sm px-md",
                       msg.role === "user"
                         ? "bg-accent-cyan/10 border border-accent-cyan/20 text-text-primary"
-                        : "bg-bg-elevated border border-border text-text-secondary"
+                        : "bg-bg-elevated border border-border text-text-primary"
                     )}
                   >
                     <pre className="text-small whitespace-pre-wrap font-mono leading-relaxed">
@@ -224,7 +224,7 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
               type="text"
               ref={commandInputRef}
               placeholder="Type a command (scan, status, loot, help)… (Ctrl+K)"
-              className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
+              className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted hover:border-border-hover focus:border-accent-cyan focus:outline-none focus:shadow-[0_0_0_3px_rgba(34,211,238,0.18)] transition-[border-color,box-shadow] disabled:opacity-60"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

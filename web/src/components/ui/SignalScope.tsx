@@ -49,52 +49,59 @@ export function SignalScope({ active, className }: SignalScopeProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Animation Loop
+  // Animation Loop — motion is reserved for the live (scanning/attacking)
+  // state. When idle the scope renders a single calm, flat baseline frame and
+  // stops requesting frames, so nothing animates while nothing is happening.
   useEffect(() => {
     let animationId: number;
-    
-    const animate = () => {
-      const state = stateRef.current;
-      state.phase += state.speed;
 
-      // Draw Wave 1 (Primary Cyan Wave)
+    const drawFrame = (idle: boolean) => {
+      const state = stateRef.current;
+      const amp = idle ? 3 : state.amplitude;
+      const noiseScale = idle ? 0 : 1;
+
       let d1 = `M 0 ${height / 2}`;
-      // Draw Wave 2 (Secondary Purple Wave, phase-shifted)
       let d2 = `M 0 ${height / 2}`;
-      // Draw Wave 3 (Background Dim Green Wave, higher frequency)
       let d3 = `M 0 ${height / 2}`;
 
       const step = 4; // draw point every 4px
-      
+
       for (let x = 0; x <= width; x += step) {
-        // Calculate y coordinate for Wave 1
         const sin1 = Math.sin(x * state.frequency + state.phase);
-        const noise1 = (Math.random() - 0.5) * state.noise;
-        const y1 = height / 2 + sin1 * state.amplitude + noise1;
+        const noise1 = (Math.random() - 0.5) * state.noise * noiseScale;
+        const y1 = height / 2 + sin1 * amp + noise1;
         d1 += ` L ${x} ${y1}`;
 
-        // Calculate y coordinate for Wave 2
         const sin2 = Math.sin(x * (state.frequency * 0.7) - state.phase * 0.8 + Math.PI / 4);
-        const noise2 = (Math.random() - 0.5) * (state.noise * 0.7);
-        const y2 = height / 2 + sin2 * (state.amplitude * 0.8) + noise2;
+        const noise2 = (Math.random() - 0.5) * (state.noise * 0.7) * noiseScale;
+        const y2 = height / 2 + sin2 * (amp * 0.8) + noise2;
         d2 += ` L ${x} ${y2}`;
 
-        // Calculate y coordinate for Wave 3
         const sin3 = Math.sin(x * (state.frequency * 1.5) + state.phase * 1.2);
-        const y3 = height / 2 + sin3 * (state.amplitude * 0.4);
+        const y3 = height / 2 + sin3 * (amp * 0.4);
         d3 += ` L ${x} ${y3}`;
       }
 
       if (path1Ref.current) path1Ref.current.setAttribute("d", d1);
       if (path2Ref.current) path2Ref.current.setAttribute("d", d2);
       if (path3Ref.current) path3Ref.current.setAttribute("d", d3);
+    };
 
+    // Idle: one static frame, then hold — no running animation.
+    if (!active) {
+      drawFrame(true);
+      return;
+    }
+
+    const animate = () => {
+      stateRef.current.phase += stateRef.current.speed;
+      drawFrame(false);
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [width]);
+  }, [width, active]);
 
   return (
     <div
@@ -114,13 +121,10 @@ export function SignalScope({ active, className }: SignalScopeProps) {
         ))}
       </div>
 
-      {/* Floating sweep laser reflection */}
-      <div 
-        className={cn(
-          "absolute top-0 bottom-0 w-16 bg-gradient-to-r from-transparent via-accent-cyan/15 to-transparent pointer-events-none",
-          active ? "animate-[scan-line_2.5s_linear_infinite]" : "animate-[scan-line_6s_linear_infinite]"
-        )}
-      />
+      {/* Floating sweep laser reflection — only while live */}
+      {active && (
+        <div className="absolute top-0 bottom-0 w-16 bg-gradient-to-r from-transparent via-accent-cyan/15 to-transparent pointer-events-none animate-[scan-line_2.5s_linear_infinite]" />
+      )}
 
       <svg className="w-full h-full block" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         {/* Wave 3 - Green Background Wave */}
