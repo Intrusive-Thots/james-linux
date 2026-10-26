@@ -88,8 +88,18 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
    to the StatusBar so the shortcut is findable by mouse too. WorkspaceTabs
    already surfaces per-item Alt+N hints in its tooltips, so those stay the
    consistent in-context hint.)
-9. [ ] **Focus rings & browser surfaces.** Theme focus-visible rings, caret, text
+9. [x] **Focus rings & browser surfaces.** Theme focus-visible rings, caret, text
    selection, and scrollbars from the palette app-wide (partially done in index.css).
+   (done this run — app-wide keyboard focus now uses a 2px cyan (#22d3ee) ring
+   with a 2px offset, replacing the browser's default bright-white outline that
+   looked foreign on the dark tactical palette (visible before on nav tabs and
+   the StatusBar "View logs" button). The ring is keyboard-only via
+   :focus-visible (no ring on mouse click); inputs keep their own themed
+   border+glow ring so they don't double up. Added a cyan caret-color app-wide,
+   lifted the selection tint slightly (cyan 0.28 on #f0fbff), and re-themed the
+   scrollbar from off-palette slate (rgba(148,163,184)) to a cyan-tinted pill
+   thumb (rgba(34,211,238,.18) → .34 on hover) with Firefox scrollbar-color +
+   scrollbar-width:thin for parity. All in index.css @layer base.)
 10. [ ] **Motion discipline.** Replace the many simultaneous pulses/animations with
     one authored entrance per view; reserve pulsing for genuinely live/active state.
 11. [ ] **AgentConsole / Logs readability.** Monospace log stream line-height,
@@ -150,3 +160,9 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
 24. [ ] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
     glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
     give the icon/label a consistent gap like the other panel headers.
+
+25. [ ] **Filter-input focus affordance.** The search/command inputs on Recon,
+    Handshakes, Logs, AgentConsole and Agent use inline Tailwind with only
+    `focus:border-border-hover` (a faint cyan 0.25 border) + `focus:outline-none`,
+    so keyboard focus on them is barely visible. Promote them to the shared
+    `.input` treatment (or a stronger focus ring) for consistency with Settings.

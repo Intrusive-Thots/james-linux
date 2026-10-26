@@ -35,26 +35,60 @@
     overflow: hidden;
   }
 
-  /* ── Scrollbar Styling ─────────────────────── */
+  /* ── Scrollbar Styling (palette-tinted) ────── */
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34, 211, 238, 0.22) transparent;
+  }
+  /* WebKit / Chromium */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.2);
-    border-radius: 3px;
+    background: rgba(34, 211, 238, 0.18);
+    border-radius: 999px;
+    /* inset so the thumb reads as a slim pill with breathing room */
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.35);
+    background: rgba(34, 211, 238, 0.34);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
-  /* ── Selection ─────────────────────────────── */
+  /* ── Selection & caret ─────────────────────── */
   ::selection {
-    background: rgba(34, 211, 238, 0.25);
-    color: #e5e7eb;
+    background: rgba(34, 211, 238, 0.28);
+    color: #f0fbff;
+  }
+  html {
+    caret-color: #22d3ee;
+  }
+
+  /* ── Focus rings (palette, keyboard-only) ──── */
+  /* Suppress the browser's default (white) outline; opt back in for
+     keyboard focus with a cyan ring that matches the themed .input. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid #22d3ee;
+    outline-offset: 2px;
+  }
+  /* Inputs own their themed ring (border + glow) — don't double up. */
+  .input:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
   }
 }
 
