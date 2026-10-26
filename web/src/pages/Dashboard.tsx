@@ -111,7 +111,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
         <motion.div variants={item} className="flex justify-between items-end border-b border-border/30 pb-md">
           <div>
             <h2 className="text-h2 text-text-primary tracking-tight font-extrabold flex items-center gap-xs">
-              <Radio className="w-6 h-6 text-accent-cyan animate-pulse" />
+              <Radio className="w-6 h-6 text-accent-cyan" />
               Tactical Operator Dashboard
             </h2>
             <p className="text-body text-text-secondary">
@@ -189,7 +189,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                     Engagement HUD
                   </div>
                   {selectedAP && (
-                    <span className="badge-warning text-[10px] animate-pulse">
+                    <span className="badge-warning text-[10px]">
                       TARGET ACQUIRED
                     </span>
                   )}
@@ -455,7 +455,7 @@ function StatCard({
     cyan: { bg: "bg-accent-cyan/8", text: "text-accent-cyan", icon: "text-accent-cyan", border: "hover:border-accent-cyan/30 hover:shadow-[0_0_15px_rgba(34,211,238,0.12)]" },
     purple: { bg: "bg-accent-purple/8", text: "text-accent-purple", icon: "text-accent-purple", border: "hover:border-accent-purple/30 hover:shadow-[0_0_15px_rgba(139,92,246,0.12)]" },
     green: { bg: "bg-success/8", text: "text-success", icon: "text-success", border: "hover:border-success/30 hover:shadow-[0_0_15px_rgba(16,185,129,0.12)]" },
-    red: { bg: "bg-danger/8", text: "text-danger", icon: "text-danger", border: "hover:border-danger/30 hover:shadow-[0_0_15px_rgba(239,68,68,0.12)] animate-pulse" },
+    red: { bg: "bg-danger/8", text: "text-danger", icon: "text-danger", border: "hover:border-danger/30 hover:shadow-[0_0_15px_rgba(239,68,68,0.12)]" },
     muted: { bg: "bg-bg-elevated", text: "text-text-muted", icon: "text-text-muted", border: "hover:border-border" },
   };
   const c = colors[accent];

@@ -7,6 +7,9 @@ import {
   Trash2,
   Clock,
   HardDrive,
+  Copy,
+  Check,
+  CheckCircle2,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
@@ -17,6 +20,38 @@ import { downloadFile, toCSV } from "../lib/utils";
 interface HandshakesProps {
   state: AppState;
   onRemoveHandshake?: (id: string) => void;
+}
+
+type CopyButtonProps = {
+  value: string;
+  className?: string;
+  title: string;
+  label?: string;
+  children?: React.ReactNode;
+};
+
+function CopyButton({ value, className, title, label, children }: CopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className={className}
+      title={copied ? "Copied" : title}
+      aria-label={title}
+      onClick={() => {
+        navigator.clipboard?.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      }}
+    >
+      {copied ? (
+        <Check className="w-3.5 h-3.5 text-success" />
+      ) : (
+        children ?? <Copy className="w-3.5 h-3.5" />
+      )}
+      {label && <span>{copied ? "Copied" : label}</span>}
+    </button>
+  );
 }
 
 const container = {
@@ -158,14 +193,46 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
               <tbody>
                 {state.handshakes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-xl text-text-muted">
-                      No handshakes captured yet. Start an attack to collect captures.
+                    <td colSpan={6} className="py-2xl">
+                      <div className="flex flex-col items-center text-center gap-sm px-lg">
+                        <div className="w-12 h-12 rounded-full bg-bg-elevated border border-border flex items-center justify-center">
+                          <FileKey className="w-6 h-6 text-text-muted" />
+                        </div>
+                        <div className="text-body font-semibold text-text-primary">
+                          No handshakes captured yet
+                        </div>
+                        <p className="text-small text-text-secondary max-w-[360px]">
+                          Captured WPA handshakes land here. Start a capture from the{" "}
+                          <strong className="text-text-primary">Attacks</strong> page to
+                          collect your first one.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredHandshakes.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-xl text-center">
+                      <p className="text-small text-text-secondary">
+                        No captures match &ldquo;{filter}&rdquo;.
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   filteredHandshakes.map((hs) => (
-                    <tr key={hs.id}>
-                      <td className="font-medium">{hs.essid}</td>
+                    <tr
+                      key={hs.id}
+                      className={hs.cracked ? "bg-success/[0.04]" : undefined}
+                    >
+                      <td className="font-medium">
+                        <div className="flex items-center gap-sm">
+                          {hs.cracked ? (
+                            <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                          ) : (
+                            <Lock className="w-4 h-4 text-warning flex-shrink-0" />
+                          )}
+                          <span className="text-text-primary">{hs.essid}</span>
+                        </div>
+                      </td>
                       <td className="font-mono text-small text-text-secondary">
                         {hs.bssid}
                       </td>
@@ -184,22 +251,27 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
                       </td>
                       <td>
                         {hs.key ? (
-                          <span className="font-mono text-success font-bold">
-                            {hs.key}
-                          </span>
+                          <CopyButton
+                            value={hs.key}
+                            title="Copy recovered key"
+                            className="group inline-flex items-center gap-xs font-mono text-success font-bold hover:text-success/80 transition-colors"
+                          >
+                            <>
+                              <span>{hs.key}</span>
+                              <Copy className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </>
+                          </CopyButton>
                         ) : (
-                          <span className="text-text-muted">—</span>
+                          <span className="text-text-muted" aria-label="Not cracked">—</span>
                         )}
                       </td>
                       <td>
                         <div className="flex items-center gap-[4px]">
-                          <button
+                          <CopyButton
+                            value={hs.filePath}
+                            title="Copy capture file path"
                             className="btn-ghost btn-sm !h-7 !px-[6px]"
-                            title="Copy file path"
-                            onClick={() => navigator.clipboard.writeText(hs.filePath)}
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
+                          />
                           <button
                             className="btn-ghost btn-sm !h-7 !px-[6px] text-danger hover:text-danger"
                             title="Remove entry"

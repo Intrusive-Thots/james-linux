@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { TopNav } from "./components/layout/TopNav";
 import { WorkspaceTabs } from "./components/layout/WorkspaceTabs";
 import { StatusBar } from "./components/layout/StatusBar";
+import { ShortcutsOverlay } from "./components/ui/ShortcutsOverlay";
 import { ConnectionBanner } from "./components/layout/ConnectionBanner";
 import { Dashboard } from "./pages/Dashboard";
 import { Recon } from "./pages/Recon";
@@ -37,6 +38,9 @@ export default function App() {
     response: string;
     ts: number;
   } | null>(null);
+
+  // Keyboard-shortcuts help overlay
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // ── WebSocket connection to JAMES backend ───────────────────
   const handleWSMessage = useCallback(
@@ -157,6 +161,11 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setShortcutsOpen((open) => !open);
+        return;
+      }
       if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
         switch (e.code) {
           case "Digit1":
@@ -364,7 +373,9 @@ export default function App() {
         {renderPage()}
       </main>
 
-      <StatusBar state={state} />
+      <StatusBar state={state} onShowShortcuts={() => setShortcutsOpen(true)} />
+
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }

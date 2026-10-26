@@ -8,6 +8,7 @@ import {
   Info,
   AlertTriangle,
   CheckCircle2,
+  ArrowDownToLine,
 } from "lucide-react";
 import type { LogEntry, AppState } from "../hooks/useAppState";
 import { cn, downloadFile } from "../lib/utils";
@@ -31,13 +32,21 @@ const LEVEL_COLORS: Record<LogEntry["level"], string> = {
   success: "text-success",
 };
 
+// Solid dot colors so the filter row doubles as a level color legend.
+const LEVEL_DOT: Record<LogEntry["level"], string> = {
+  info: "bg-accent-cyan",
+  warn: "bg-warning",
+  error: "bg-danger",
+  success: "bg-success",
+};
+
 // ⚡ Bolt: Extract log row into a memoized component to prevent re-rendering
 // all 500 logs every time a single new log is added to the global state.
 const LogRow = React.memo(function LogRow({ log }: { log: LogEntry }) {
   const LevelIcon = LEVEL_ICONS[log.level];
   return (
-    <div className="log-entry flex items-start gap-sm py-[3px] px-sm rounded-[4px] hover:bg-bg-elevated/50 transition-colors">
-      <span className="text-text-muted font-mono flex-shrink-0 select-all">
+    <div className="log-entry flex items-start gap-sm py-[5px] px-sm rounded-[4px] leading-relaxed hover:bg-bg-elevated/50 transition-colors">
+      <span className="text-text-secondary font-mono flex-shrink-0 select-all tabular-nums">
         {log.timestamp}
       </span>
       <LevelIcon
@@ -54,7 +63,7 @@ const LogRow = React.memo(function LogRow({ log }: { log: LogEntry }) {
       >
         {log.level}
       </span>
-      <span className="text-text-primary font-mono text-small flex-1">
+      <span className="text-text-primary font-mono text-small flex-1 leading-relaxed">
         {log.message}
       </span>
     </div>
@@ -73,6 +82,13 @@ export function Logs({ state }: LogsProps) {
       e.preventDefault();
       setFilter("");
       e.currentTarget.blur();
+    }
+  };
+
+  const jumpToLatest = () => {
+    setAutoScroll(true);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   };
 
@@ -136,8 +152,18 @@ export function Logs({ state }: LogsProps) {
             </p>
           </div>
           <div className="flex items-center gap-sm">
-            <button className="btn-secondary btn-sm" onClick={() => setAutoScroll(!autoScroll)}>
-              {autoScroll ? "Pause" : "Resume"} Scroll
+            <button
+              className="btn-secondary btn-sm"
+              onClick={() => (autoScroll ? setAutoScroll(false) : jumpToLatest())}
+              title={autoScroll ? "Following new entries — click to pause" : "Click to follow new entries"}
+            >
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  autoScroll ? "bg-success scanning-pulse" : "bg-text-muted"
+                )}
+              />
+              {autoScroll ? "Following" : "Paused"}
             </button>
             <button
               className="btn-secondary btn-sm"
@@ -192,7 +218,7 @@ export function Logs({ state }: LogsProps) {
               type="text"
               ref={searchInputRef}
               placeholder="Search logs… (Ctrl+F)"
-              className="w-full h-9 pl-8 pr-md text-body bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
+              className="w-full h-9 pl-8 pr-md text-body bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted hover:border-border-hover focus:border-accent-cyan focus:outline-none focus:shadow-[0_0_0_3px_rgba(34,211,238,0.18)] transition-[border-color,box-shadow]"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -203,11 +229,14 @@ export function Logs({ state }: LogsProps) {
               <button
                 key={lvl}
                 className={cn(
-                  "btn-sm",
+                  "btn-sm capitalize",
                   levelFilter === lvl ? "btn-primary" : "btn-ghost"
                 )}
                 onClick={() => setLevelFilter(lvl)}
               >
+                {lvl !== "all" && (
+                  <span className={cn("w-2 h-2 rounded-full flex-shrink-0", LEVEL_DOT[lvl])} />
+                )}
                 {lvl === "all" ? `All (${state.logs.length})` : `${lvl} (${levelCounts[lvl]})`}
               </button>
             )
@@ -215,7 +244,7 @@ export function Logs({ state }: LogsProps) {
         </div>
 
         {/* Log Console Card */}
-        <div className="card flex-1 min-h-0 !p-0 flex flex-col">
+        <div className="card flex-1 min-h-0 !p-0 flex flex-col relative">
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-md"
@@ -238,6 +267,17 @@ export function Logs({ state }: LogsProps) {
               </div>
             )}
           </div>
+
+          {/* Jump-to-latest affordance — appears only when follow is paused */}
+          {!autoScroll && filtered.length > 0 && (
+            <button
+              onClick={jumpToLatest}
+              className="absolute bottom-3 right-4 btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+            >
+              <ArrowDownToLine className="w-3.5 h-3.5" />
+              Jump to latest
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

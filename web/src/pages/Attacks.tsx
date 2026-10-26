@@ -165,6 +165,15 @@ export function Attacks({
   const stages = getStages(state.attack, hasTarget);
   const isActive =
     state.attack.stage === "capturing" || state.attack.stage === "cracking";
+  const isCapturing = state.attack.stage === "capturing";
+  const isCracking = state.attack.stage === "cracking";
+  const attackProgress = state.attack.progress ?? 0;
+  const activeStageName =
+    state.attack.stage_name ||
+    (isCracking ? "SSID-targeted wordlist search" : "Initializing Monitor Mode");
+  const activePhaseLabel = isCracking
+    ? "Cracking password"
+    : "Capturing handshake";
 
   const handleStartCapture = () => {
     if (!state.selectedAP) return;
@@ -423,8 +432,6 @@ export function Attacks({
     }
 
     if (isActive) {
-      const isCapturing = state.attack.stage === "capturing";
-      const isCracking = state.attack.stage === "cracking";
 
       // Detect PMKID flow by checking if the current stage_name matches
       // any PMKID sub-stage. Falls back to deauth capture stages.
@@ -521,11 +528,9 @@ export function Attacks({
                 {storytellerText}
               </p>
               
-              <div className="flex justify-between items-center text-xs text-text-muted pt-xs">
-                <span>STAGE {currentSubStage} OF {stagesList.length}</span>
-                <span className="animate-pulse">{state.attack.progress}% COMPLETED</span>
+              <div className="text-xs text-text-secondary pt-xs tabular-nums">
+                Sub-stage {currentSubStage} of {stagesList.length}
               </div>
-              <ProgressBar value={state.attack.progress} animated variant={isCapturing ? "cyan" : "success"} />
             </div>
           </div>
         </div>
@@ -648,13 +653,37 @@ export function Attacks({
               </div>
               <div className="space-y-sm">
                 {isActive ? (
-                  <button
-                    className="btn-danger w-full justify-center"
-                    onClick={handleAbort}
-                  >
-                    <StopCircle className="w-4 h-4" />
-                    Abort Attack
-                  </button>
+                  <div className="space-y-md" role="status" aria-live="polite">
+                    <div className="flex items-center gap-sm">
+                      <Loader2 className="w-4 h-4 text-accent-cyan animate-spin flex-shrink-0" />
+                      <span className="text-small font-semibold text-text-primary">
+                        {activePhaseLabel}
+                      </span>
+                      <span className="badge-cyan text-xs scanning-pulse ml-auto">
+                        LIVE
+                      </span>
+                    </div>
+                    <div className="flex items-end justify-between gap-sm">
+                      <span className="text-small text-text-secondary truncate">
+                        {activeStageName}
+                      </span>
+                      <span className="text-h2 font-bold text-text-primary tabular-nums leading-none">
+                        {attackProgress}%
+                      </span>
+                    </div>
+                    <ProgressBar
+                      value={attackProgress}
+                      animated
+                      variant={isCapturing ? "cyan" : "success"}
+                    />
+                    <button
+                      className="btn-danger w-full justify-center"
+                      onClick={handleAbort}
+                    >
+                      <StopCircle className="w-4 h-4" />
+                      Abort attack
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <button
