@@ -27,6 +27,9 @@ interface DashboardProps {
   onNavigate: (page: PageId) => void;
   send?: (action: string, params?: Record<string, any>, id?: string) => void;
   onSelectAP?: (ap: AP | null) => void;
+  /** WebSocket link to the JAMES backend. When false, hardware rows must not
+   *  claim "no adapter" — the backend is unreachable, so adapter state is unknown. */
+  connected?: boolean;
 }
 
 const container = {
@@ -42,7 +45,7 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProps) {
+export function Dashboard({ state, onNavigate, send, onSelectAP, connected = true }: DashboardProps) {
   const { crackedCount, pendingCount } = useMemo(() => {
     let crackedCount = 0;
     let pendingCount = 0;
@@ -393,36 +396,51 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
                 <Wifi className="w-5 h-5 text-accent-cyan" />
                 Hardware Status
               </div>
-              <span className={cn(
-                "badge font-mono",
-                state.adapter ? "badge-success" : "badge-danger"
-              )}>
-                {state.adapter ? "ONLINE" : "OFFLINE"}
-              </span>
+              {(() => {
+                const hwOnline = connected && !!state.adapter;
+                const hwUnreachable = !connected;
+                return (
+                  <span className={cn(
+                    "badge font-mono",
+                    hwOnline ? "badge-success" : hwUnreachable ? "badge-warning" : "badge-danger"
+                  )}>
+                    {hwOnline ? "ONLINE" : hwUnreachable ? "UNREACHABLE" : "NO ADAPTER"}
+                  </span>
+                );
+              })()}
             </div>
             
             <div className="space-y-sm">
               <StatusRow
                 label="Active Wireless Adapter"
-                value={state.adapter || "No adapter detected"}
-                status={state.adapter ? "ok" : "error"}
+                value={
+                  !connected
+                    ? "Backend unreachable"
+                    : (state.adapter || "No adapter detected")
+                }
+                status={!connected ? "warn" : state.adapter ? "ok" : "error"}
               />
               <StatusRow
                 label="Adapter Mode"
-                value={state.adapterMode?.toUpperCase() || "—"}
-                status={state.adapterMode === "monitor" ? "active" : "idle"}
+                value={!connected ? "—" : (state.adapterMode?.toUpperCase() || "—")}
+                status={!connected ? "idle" : state.adapterMode === "monitor" ? "active" : "idle"}
               />
               <StatusRow
                 label="Airspace RF Scan Engine"
-                value={state.scanning ? "Sweeping Channels" : "Standby"}
-                status={state.scanning ? "active" : "idle"}
+                value={!connected ? "—" : state.scanning ? "Sweeping Channels" : "Standby"}
+                status={!connected ? "idle" : state.scanning ? "active" : "idle"}
               />
               <StatusRow
                 label="Cracking GPU Engine"
-                value={state.attack.stage === "cracking" ? "Hashcat Running" : "Standby"}
-                status={state.attack.stage === "cracking" ? "active" : "idle"}
+                value={!connected ? "—" : state.attack.stage === "cracking" ? "Hashcat Running" : "Standby"}
+                status={!connected ? "idle" : state.attack.stage === "cracking" ? "active" : "idle"}
               />
-
+              {!connected && (
+                <p className="text-small text-warning/90 pt-xs leading-snug">
+                  Start the API to report real adapter state — until then these
+                  rows stay unknown, not absent.
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -607,13 +625,14 @@ function StatusRow({
 }: {
   label: string;
   value: string;
-  status: "ok" | "active" | "idle" | "error";
+  status: "ok" | "active" | "idle" | "error" | "warn";
 }) {
   const dotClass = {
     ok: "status-dot-success",
     active: "status-dot-active",
     idle: "status-dot-idle",
     error: "status-dot-danger",
+    warn: "status-dot-warning",
   };
 
   return (

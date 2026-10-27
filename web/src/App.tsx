@@ -261,6 +261,7 @@ export default function App() {
               onNavigate={setPage}
               send={send}
               onSelectAP={selectAP}
+              connected={connected}
             />
           );
         case "recon":
@@ -296,6 +297,7 @@ export default function App() {
               onNavigate={setPage}
               send={send}
               onSelectAP={selectAP}
+              connected={connected}
             />
           );
       }
@@ -354,6 +356,7 @@ export default function App() {
         onNavigate={setPage}
         send={send}
         onSelectAP={selectAP}
+        connected={connected}
       />
     );
   };

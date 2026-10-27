@@ -191,6 +191,9 @@
   .status-dot-danger {
     @apply status-dot bg-danger animate-pulse;
   }
+  .status-dot-warning {
+    @apply status-dot bg-warning;
+  }
 
   /* Signal Strength Bars */
   .signal-bar {

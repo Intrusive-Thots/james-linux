@@ -183,14 +183,23 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     (done 2026-10-26 pm as part of #10 — idle SignalScope now renders a single flat,
     low-amplitude (amp=3, noise=0) calm frame with no animation loop, so the "STANDBY —
     activity shows during a scan" label sits unobstructed.)
-18. [ ] **Hardware Status vs backend-offline.** When the WebSocket is simply
+18. [x] **Hardware Status vs backend-offline.** When the WebSocket is simply
     disconnected the panel still says "No adapter detected" / OFFLINE; distinguish
     "backend unreachable" from "adapter genuinely absent".
+    (done 2026-10-26 ~10:17pm — Hardware Status now has three honest states:
+    connected+adapter → ONLINE; connected+no adapter → NO ADAPTER / "No adapter
+    detected"; disconnected → UNREACHABLE (warning) / "Backend unreachable" with
+    helper copy that rows stay unknown until the API is up. Engine rows show "—"
+    while unreachable so they do not pretend to be Standby.)
 
-19. [ ] **Recon metric cards vs new table.** The four MiniStat tiles above the
+19. [x] **Recon metric cards vs new table.** The four MiniStat tiles above the
     Recon table (Total APs / Encrypted / Open / Clients) use the same hero-tile
     pattern just addressed on the Dashboard; give them the same zero-state
     treatment or fold them into the table header for consistency.
+    (done 2026-10-26 ~10:17pm — empty AP list collapses the four "0" MiniStats into
+    a ZeroReconMetrics summary (phase label + IDLE/SCANNING badge + explainer +
+    compact 0 counters + "Start a scan"); with data the MiniStat grid returns,
+    now with muted zero values and tabular-nums.)
 
 20. [ ] **Password-cracked overlay gradient wordmark.** The full-screen
     "ACCESS GRANTED" success overlay (PasswordCrackedOverlay) renders its
