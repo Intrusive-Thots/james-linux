@@ -17,6 +17,7 @@ import {
   Clock,
   RefreshCw,
   Loader2,
+  Lock,
 } from "lucide-react";
 import type { SubPageId, SettingsSubPage } from "../hooks/useAppState";
 import { cn } from "../lib/utils";
@@ -104,7 +105,7 @@ function GeneralPanel() {
       <PanelHeader
         icon={Sliders}
         title="General Settings"
-        description="Application preferences and UI configuration."
+        description="Current application configuration. The groups below are read-only; edit the token field to connect a remote backend."
       />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         <SettingsGroup
@@ -433,8 +434,8 @@ function InterfacesPanel({ send, connected, state, setAdapter }: InterfacesPanel
       )}>
         <div className="flex items-start justify-between gap-md">
           <div className="space-y-xs">
-            <div className="flex items-center gap-xs">
-              <Shield className={cn("w-5 h-5", netGuardEnabled ? "text-emerald-400" : "text-amber-400")} />
+            <div className="flex items-center gap-sm">
+              <Shield className={cn("w-5 h-5 shrink-0", netGuardEnabled ? "text-emerald-400" : "text-amber-400")} />
               <h3 className="font-bold text-text-primary">
                 NetworkGuard Self-Protection: {netGuardEnabled ? "ACTIVE" : "BYPASSED"}
               </h3>
@@ -773,7 +774,7 @@ function AdvancedPanel() {
       <PanelHeader
         icon={Wrench}
         title="Advanced Settings"
-        description="Attack engine parameters and expert configuration."
+        description="Current attack-engine and path configuration (read-only)."
       />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         <SettingsGroup
@@ -853,16 +854,22 @@ function SettingsGroup({
 }) {
   return (
     <div className="bg-bg-elevated/30 border border-border-subtle rounded-btn p-md space-y-sm">
-      <div className="flex items-center gap-sm mb-sm">
-        <Icon className="w-4 h-4 text-accent-cyan" />
-        <span className="text-small font-bold text-text-primary uppercase tracking-wider">
-          {title}
+      <div className="flex items-center justify-between gap-sm mb-sm">
+        <div className="flex items-center gap-sm min-w-0">
+          <Icon className="w-4 h-4 text-accent-cyan shrink-0" />
+          <span className="text-small font-bold text-text-primary uppercase tracking-wider truncate">
+            {title}
+          </span>
+        </div>
+        <span className="flex items-center gap-[4px] text-[10px] font-semibold uppercase tracking-wider text-text-muted shrink-0">
+          <Lock className="w-3 h-3" />
+          Read-only
         </span>
       </div>
       {items.map((item) => (
         <div key={item.label} className="flex items-center justify-between py-[3px]">
           <span className="text-small text-text-secondary">{item.label}</span>
-          <span className="text-small text-text-primary font-medium">{item.value}</span>
+          <span className="text-small text-text-primary tabular-nums">{item.value}</span>
         </div>
       ))}
     </div>

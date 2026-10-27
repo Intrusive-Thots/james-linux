@@ -219,21 +219,29 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     step description no longer needs the ml-[22px] numeral offset so it aligns under
     the label.)
 
-22. [ ] **Settings groups are read-only but look interactive.** The Appearance /
+22. [x] **Settings groups are read-only but look interactive.** The Appearance /
     Notifications / Display / Session (General) and Attack Engine / Capture /
     PMKID / Paths (Advanced) groups render value labels ("Enabled", "Dark
     Tactical", …) that look like settings yet have no controls and change
     nothing. Either wire real controls (toggles/selects bound to backend) or
     relabel the blocks as a read-only "Current configuration" summary so they
     stop implying interactivity.
+    (done 2026-10-27 ~00:20 — each SettingsGroup header now carries a muted lock +
+    "Read-only" chip, the General/Advanced panel descriptions call out that the groups
+    are current configuration (read-only), and the value text dropped its bold weight so
+    the rows read as a status readout rather than selectable controls. Real controls
+    stay only where they exist, e.g. the editable Remote API token field.)
 23. [ ] **App font vs config mismatch.** index.css `@import`s Inter and sets
     `html { font-family: Inter }`, while tailwind.config declares the sans stack
     as IBM Plex Sans. The two disagree and Inter is a flagged overused face;
     pick one intentional typeface and align the @import, the base rule, and the
     Tailwind token (self-host it per the craft floor rather than Google Fonts).
-24. [ ] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
+24. [x] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
     glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
     give the icon/label a consistent gap like the other panel headers.
+    (done 2026-10-27 ~00:20 — the heading row used `gap-xs`, which is not a defined
+    spacing token so it collapsed to 0; switched to `gap-sm` (8px) to match the
+    SettingsGroup headers, and marked the Shield `shrink-0` so it never squeezes.)
 
 25. [x] **Filter-input focus affordance.** The search/command inputs on Recon,
     Handshakes, Logs, AgentConsole and Agent use inline Tailwind with only
