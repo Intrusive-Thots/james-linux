@@ -106,7 +106,7 @@ function GeneralPanel() {
         title="General Settings"
         description="Application preferences and UI configuration."
       />
-      <div className="grid grid-cols-2 gap-lg">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         <SettingsGroup
           icon={Palette}
           title="Appearance"
@@ -775,7 +775,7 @@ function AdvancedPanel() {
         title="Advanced Settings"
         description="Attack engine parameters and expert configuration."
       />
-      <div className="grid grid-cols-2 gap-lg">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         <SettingsGroup
           icon={Shield}
           title="Attack Engine"

@@ -576,8 +576,8 @@ export function Attacks({
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-12 gap-lg">
-          <motion.div variants={item} className="col-span-5 space-y-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+          <motion.div variants={item} className="col-span-1 lg:col-span-5 space-y-lg">
             <div className={cn("card", hasTarget && "border-accent-cyan/20")}>
               <div className="card-header">
                 <div className="card-title">
@@ -731,7 +731,7 @@ export function Attacks({
             </div>
           </motion.div>
 
-          <motion.div variants={item} className="col-span-7 space-y-lg">
+          <motion.div variants={item} className="col-span-1 lg:col-span-7 space-y-lg">
             {renderRightColumn()}
           </motion.div>
         </div>

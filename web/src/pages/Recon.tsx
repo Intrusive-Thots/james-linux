@@ -301,7 +301,7 @@ export function Recon({
         </motion.div>
 
         {/* Mini Stats */}
-        <motion.div variants={item} className="grid grid-cols-4 gap-md">
+        <motion.div variants={item} className="grid grid-cols-2 xl:grid-cols-4 gap-md">
           <MiniStat icon={Radio} label="Total APs" value={state.aps.length} />
           <MiniStat icon={Lock} label="Encrypted" value={encCount} color="text-warning" />
           <MiniStat icon={Unlock} label="Open" value={openCount} color="text-success" />
@@ -467,9 +467,9 @@ export function Recon({
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-lg items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
               {/* Target Data Console */}
-              <div className="col-span-5 grid grid-cols-2 gap-md border-r border-border/40 pr-lg">
+              <div className="col-span-1 lg:col-span-5 grid grid-cols-2 gap-md lg:border-r border-border/40 lg:pr-lg">
                 <div className="space-y-[4px]">
                   <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Target ESSID</span>
                   <span className="text-body font-bold text-text-primary block truncate">
@@ -518,7 +518,7 @@ export function Recon({
 
               {/* Smart Attack Advisor — the core beginner UX innovation.
                   Analyzes the AP and shows exactly what will happen + why. */}
-              <div className="col-span-7 space-y-sm">
+              <div className="col-span-1 lg:col-span-7 space-y-sm">
                 {/* Recommendation badge + explanation */}
                 <div className={cn(
                   "rounded-btn border p-md space-y-sm",

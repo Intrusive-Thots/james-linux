@@ -148,8 +148,24 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     tab. New shared `EmptyState` widget wired into Wi-Fi AP/Clients tables,
     AutoPilot Targets & Loot, and Airgeddon recon table; Activity feed placeholder
     now reads as standby with a next action. Rendered offscreen and verified.)
-15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
+15. [x] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
     verify and fix layout down to ~1280px and narrower.
+    (done 2026-10-26 21:15 — the whole app was built with fixed `grid-cols-12` /
+    `col-span-N` and `grid-cols-4`/`grid-cols-3` that never reflowed, so panels and
+    hero rows just squeezed thinner at every width. Added content-driven breakpoints:
+    the three-pane Dashboard grid is now `grid-cols-1 lg:grid-cols-2 xl:grid-cols-12`
+    (stacks <1024, 2-up 1024–1279 with the third panel full-width, full 3-col ≥1280);
+    its 7/5 lower grid and the Attacks/Recon detail two-panes are `grid-cols-1
+    lg:grid-cols-12`; AutoPilot's 8/4 split is `grid-cols-1 xl:grid-cols-12`. Hero/metric
+    rows went `grid-cols-2 xl:grid-cols-4` (Dashboard, Recon) so four tiles become 2x2
+    instead of four slivers; Handshakes/Logs stat rows `grid-cols-1 sm:grid-cols-3`;
+    AutoPilot target details `grid-cols-2 md:grid-cols-4`; Settings panels
+    `grid-cols-1 lg:grid-cols-2`. The ZeroMetricsSummary now stays stacked until `lg`
+    so its headline stops wrapping into a sliver. TopNav's runtime chip cluster
+    (IFACE/NETWORKS/CLIENTS/UPTIME) is `hidden lg:flex` so it stops clipping the
+    ONLINE/logs/activity controls below 1024 — those stats also live on the pages.
+    Verified in headless Chrome at 1440/1280/1024/768/640: ≥1280 is pixel-identical to
+    before, and everything reflows cleanly below with no overflow or clipping.)
 
 16. [x] **Dashboard stat cards when all-zero.** The four hero-metric cards
     (Networks / Handshakes / Keys / Alerts) read as identical empty tiles on a
@@ -220,3 +236,11 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     explainer, and four concrete clickable starter chips (scan / status / loot / help)
     that populate the command input and focus it. The panel now reads as ready and
     actionable instead of an empty void. Noticed 2026-10-26 pm while verifying #11.)
+
+27. [ ] **Signal/heatmap canvas min-height on stacked layouts.** With the new
+    responsive stacking, the Recon "Map View" radar and the Dashboard
+    AirspaceHeatmap/SignalScope keep a tall fixed canvas area even when the panel
+    is full-width on a short/narrow viewport, leaving a large empty disc below the
+    empty-state copy. Give these canvases a viewport-relative or capped height so
+    the empty state sits closer to the header on small screens.
+

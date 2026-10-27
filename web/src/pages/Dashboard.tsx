@@ -143,7 +143,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
               onScan={handleScanToggle}
             />
           ) : (
-            <div className="grid grid-cols-4 gap-md">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-md">
               <StatCard
                 icon={Radar}
                 label="Networks Found"
@@ -177,10 +177,10 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
         </motion.div>
 
         {/* Main Tactical Grid: 3 Columns */}
-        <div className="grid grid-cols-12 gap-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-lg">
           
           {/* Column 1 (span-4): Tactical Engagement HUD */}
-          <motion.div variants={item} className="col-span-4 flex flex-col gap-md">
+          <motion.div variants={item} className="col-span-1 xl:col-span-4 flex flex-col gap-md">
             <div className="card flex-1 flex flex-col justify-between min-h-[360px]">
               <div>
                 <div className="card-header mb-md pb-sm">
@@ -335,7 +335,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
 
           {/* Column 2 (span-4): Radar Airspace Scanner */}
-          <motion.div variants={item} className="col-span-4 flex">
+          <motion.div variants={item} className="col-span-1 xl:col-span-4 flex">
             <RadarScanner
               aps={state.aps}
               selectedAP={selectedAP}
@@ -346,7 +346,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
 
           {/* Column 3 (span-4): Quick Actions & Live Oscilloscope */}
-          <motion.div variants={item} className="col-span-4 flex flex-col gap-md">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2 xl:col-span-4 flex flex-col gap-md">
             {/* Quick Actions */}
             <div className="card flex-1 flex flex-col justify-between">
               <div>
@@ -385,9 +385,9 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
         </div>
 
         {/* System Status + Activity */}
-        <div className="grid grid-cols-12 gap-lg">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-lg">
           {/* System Status Details */}
-          <motion.div variants={item} className="col-span-7 card">
+          <motion.div variants={item} className="col-span-1 xl:col-span-7 card">
             <div className="card-header mb-md pb-xs">
               <div className="card-title">
                 <Wifi className="w-5 h-5 text-accent-cyan" />
@@ -427,7 +427,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
 
           {/* Activity Card */}
-          <motion.div variants={item} className="col-span-5">
+          <motion.div variants={item} className="col-span-1 xl:col-span-5">
             <ActivityCard state={state} />
           </motion.div>
         </div>
@@ -497,7 +497,7 @@ function ZeroMetricsSummary({
     { icon: AlertTriangle, label: "Alerts" },
   ];
   return (
-    <div className="card flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+    <div className="card flex flex-col gap-md lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-md">
         <div className="w-12 h-12 rounded-btn bg-accent-cyan/8 border border-accent-cyan/20 flex items-center justify-center flex-shrink-0">
           <Radio className="w-6 h-6 text-accent-cyan" />
