@@ -201,15 +201,23 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     compact 0 counters + "Start a scan"); with data the MiniStat grid returns,
     now with muted zero values and tabular-nums.)
 
-20. [ ] **Password-cracked overlay gradient wordmark.** The full-screen
+20. [x] **Password-cracked overlay gradient wordmark.** The full-screen
     "ACCESS GRANTED" success overlay (PasswordCrackedOverlay) renders its
     wordmark as gradient text, which the craft floor calls out as a default to
     avoid; emphasis should come from weight/size. Re-treat the success moment
     without gradient-filled type.
-21. [ ] **Attacks workflow step numerals.** The idle Attack Workflow stepper
+    (done 2026-10-26 ~11:23pm — "GRANTED" no longer uses `bg-clip-text` gradient;
+    it is a solid `text-success` word against white "ACCESS", so emphasis reads
+    from the existing font-black weight + the success-color accent, with no
+    gradient-filled type. Detector clean.)
+21. [x] **Attacks workflow step numerals.** The idle Attack Workflow stepper
     prefixes each step with 01/02/03/04. The icons + connector already convey
     the sequence, so the numerals are redundant chrome; drop them or fold the
     ordinal into the icon badge.
+    (done 2026-10-26 ~11:23pm — dropped the 01/02/03/04 `padStart` numeral span in
+    WorkflowStep; the icon badges + vertical connector carry the sequence, and the
+    step description no longer needs the ml-[22px] numeral offset so it aligns under
+    the label.)
 
 22. [ ] **Settings groups are read-only but look interactive.** The Appearance /
     Notifications / Display / Session (General) and Attack Engine / Capture /
