@@ -314,7 +314,7 @@ class MainWindow(QMainWindow):
 
         # 2. Content: Sidebar + (Tabs + Log)
         content_outer = QWidget()
-        content_outer.setStyleSheet("background: #1F1F1F;")
+        content_outer.setStyleSheet("background: #0B1120;")
         outer_layout = QHBoxLayout(content_outer)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
@@ -403,7 +403,7 @@ class MainWindow(QMainWindow):
         title = QLabel("JAMES")
         title.setObjectName("titleLabel")
         title.setStyleSheet(
-            "font-size: 22px; font-weight: 700; color: #CCCCCC;"
+            "font-size: 22px; font-weight: 700; color: #E5E7EB;"
             " letter-spacing: 0.3px;"
         )
         subtitle = QLabel("Pentesting System")
@@ -429,7 +429,7 @@ class MainWindow(QMainWindow):
         self._op_label = QLabel("")
         self._op_label.setObjectName("metaLabel")
         self._op_label.setStyleSheet(
-            "font-size: 11px; color: #3C3C3C;"
+            "font-size: 11px; color: #64748B;"
         )
 
         op_layout.addWidget(self._status_pill)
@@ -459,10 +459,10 @@ class MainWindow(QMainWindow):
         self._btn_sidebar.setFixedSize(32, 32)
         self._btn_sidebar.setToolTip("Toggle activity sidebar (Ctrl+B)")
         self._btn_sidebar.setStyleSheet(
-            "QPushButton { background: #202020; color: #4daafc;"
-            " border: 1px solid #2B2B2B; border-radius: 6px;"
+            "QPushButton { background: #161E2E; color: #22D3EE;"
+            " border: 1px solid #1c3146; border-radius: 6px;"
             " font-size: 14px; font-weight: 700; }"
-            "QPushButton:hover { background: #2B2B2B; border-color: #4daafc; }"
+            "QPushButton:hover { background: #1c3146; border-color: #22D3EE; }"
         )
         self._btn_sidebar.clicked.connect(self._toggle_sidebar)
 
@@ -479,8 +479,8 @@ class MainWindow(QMainWindow):
         power_menu = QMenu(self)
         power_menu.setStyleSheet(
             "QMenu {"
-            "  background: #181818; color: #CCCCCC;"
-            "  border: 1px solid #2B2B2B; border-radius: 6px;"
+            "  background: #111827; color: #E5E7EB;"
+            "  border: 1px solid #1c3146; border-radius: 6px;"
             "  padding: 6px 0;"
             "  font-size: 13px;"
             "}"
@@ -489,10 +489,10 @@ class MainWindow(QMainWindow):
             "  border-radius: 4px;"
             "}"
             "QMenu::item:selected {"
-            "  background: #2B2B2B;"
+            "  background: #1c3146;"
             "}"
             "QMenu::separator {"
-            "  height: 1px; background: #2B2B2B;"
+            "  height: 1px; background: #1c3146;"
             "  margin: 4px 12px;"
             "}"
         )
@@ -546,7 +546,7 @@ class MainWindow(QMainWindow):
         val = QLabel(value)
         val.setAlignment(Qt.AlignCenter)
         val.setStyleSheet(
-            "color: #CCCCCC; font-size: 15px; font-weight: 700;"
+            "color: #E5E7EB; font-size: 15px; font-weight: 700;"
             " font-family: 'JetBrains Mono', monospace;"
         )
         cap = QLabel(label)
@@ -562,7 +562,7 @@ class MainWindow(QMainWindow):
 
     def _build_log_panel(self) -> QWidget:
         panel = QWidget()
-        panel.setStyleSheet("background: #1F1F1F;")
+        panel.setStyleSheet("background: #0B1120;")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(4)
@@ -625,7 +625,7 @@ class MainWindow(QMainWindow):
         bar = QWidget()
         bar.setFixedHeight(44)
         bar.setStyleSheet(
-            "background: #181818; border-top: 1px solid #2B2B2B;"
+            "background: #111827; border-top: 1px solid #1c3146;"
         )
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(16, 4, 16, 4)
@@ -634,7 +634,7 @@ class MainWindow(QMainWindow):
         # Command prompt icon
         prompt = QLabel("⌨")
         prompt.setStyleSheet(
-            "color: #3C3C3C; font-size: 16px;"
+            "color: #64748B; font-size: 16px;"
         )
         layout.addWidget(prompt)
 
@@ -645,16 +645,16 @@ class MainWindow(QMainWindow):
         )
         self._cmd_input.setStyleSheet(
             "QLineEdit {"
-            "  background: #202020; color: #CCCCCC;"
-            "  border: 1px solid #2B2B2B; border-radius: 6px;"
+            "  background: #161E2E; color: #E5E7EB;"
+            "  border: 1px solid #1c3146; border-radius: 6px;"
             "  padding: 6px 12px; font-size: 13px;"
             "  font-family: 'JetBrains Mono', monospace;"
             "}"
             "QLineEdit:focus {"
-            "  border: 1px solid #4daafc;"
+            "  border: 1px solid #22D3EE;"
             "  background-color: #1A2333;"
             "}"
-            "QLineEdit::placeholder { color: #3C3C3C; }"
+            "QLineEdit::placeholder { color: #64748B; }"
         )
         self._cmd_input.returnPressed.connect(self._on_cmd_submit)
         layout.addWidget(self._cmd_input, stretch=1)
@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
         # Status indicators in the bar
         self._cmd_status = QLabel("")
         self._cmd_status.setStyleSheet(
-            "color: #3C3C3C; font-size: 12px;"
+            "color: #64748B; font-size: 12px;"
         )
         layout.addWidget(self._cmd_status)
 
@@ -671,14 +671,14 @@ class MainWindow(QMainWindow):
         iface_lbl.setObjectName("metaLabel")
         self._cmd_iface = QLabel("none")
         self._cmd_iface.setStyleSheet(
-            "color: #6E7681; font-size: 12px; font-weight: 600;"
+            "color: #94A3B8; font-size: 12px; font-weight: 600;"
         )
 
         mode_lbl = QLabel("MODE")
         mode_lbl.setObjectName("metaLabel")
         self._cmd_mode = QLabel("IDLE")
         self._cmd_mode.setStyleSheet(
-            "color: #6E7681; font-size: 12px; font-weight: 600;"
+            "color: #94A3B8; font-size: 12px; font-weight: 600;"
         )
 
         layout.addWidget(_sep_v())
@@ -708,7 +708,7 @@ class MainWindow(QMainWindow):
         self._cmd_input.clear()
         self._cmd_status.setText("⏳ Processing…")
         self._cmd_status.setStyleSheet(
-            "color: #BB8009; font-size: 12px;"
+            "color: #F59E0B; font-size: 12px;"
         )
         self._append_log(f"[Cmd] {text}", "INFO")
 
@@ -725,11 +725,11 @@ class MainWindow(QMainWindow):
     def _on_cmd_result(self, result: str):
         self._cmd_status.setText("✓ Done")
         self._cmd_status.setStyleSheet(
-            "color: #2EA043; font-size: 12px;"
+            "color: #10B981; font-size: 12px;"
         )
         QTimer.singleShot(3000, lambda: (
             self._cmd_status.setText(""),
-            self._cmd_status.setStyleSheet("color: #3C3C3C; font-size: 12px;"),
+            self._cmd_status.setStyleSheet("color: #64748B; font-size: 12px;"),
         ))
 
         # Show result as toast (truncated)
@@ -748,7 +748,7 @@ class MainWindow(QMainWindow):
     def _on_cmd_error(self, error: str):
         self._cmd_status.setText("✗ Error")
         self._cmd_status.setStyleSheet(
-            "color: #F85149; font-size: 12px;"
+            "color: #EF4444; font-size: 12px;"
         )
         show_toast(self, f"Command error: {error}", "error")
         self._append_log(f"[Cmd] Error: {error}", "CRIT")
@@ -858,11 +858,11 @@ class MainWindow(QMainWindow):
         self._op_label.setText(operation)
         if operation:
             self._op_label.setStyleSheet(
-                "font-size: 11px; color: #BB8009;"
+                "font-size: 11px; color: #F59E0B;"
             )
         else:
             self._op_label.setStyleSheet(
-                "font-size: 11px; color: #3C3C3C;"
+                "font-size: 11px; color: #64748B;"
             )
 
     # ── Timers ────────────────────────────────────────────────────────
@@ -887,7 +887,7 @@ class MainWindow(QMainWindow):
             self._get_hdr_val(self._hdr_keys).setText(str(n_keys))
             if n_keys != self._key_count and n_keys > 0:
                 self._get_hdr_val(self._hdr_keys).setStyleSheet(
-                    "color: #0078D4; font-size: 15px; font-weight: 700;"
+                    "color: #2EC4B6; font-size: 15px; font-weight: 700;"
                     " font-family: 'JetBrains Mono', monospace;"
                 )
             self._key_count = n_keys

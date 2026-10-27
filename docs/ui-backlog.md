@@ -130,10 +130,24 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     node ringed with the single reserved scanning-pulse, and done phases swapping to a
     CheckCircle2. Rendered as a semantic <ol>. Reads as a phase machine, not four
     disconnected cards; no redundant 01/02 numerals since icons+connectors carry order.)
-13. [ ] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
+13. [x] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
     app's palette/typography and give it an honest empty/disconnected state.
-14. [ ] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
+    (done 2026-10-26 8pm — retargeted CSS variables to the React tactical palette
+    (#0B1120 canvas, #111827 panels, #22D3EE cyan, #2EC4B6 teal, Inter + JetBrains
+    Mono); themed focus rings, caret, selection and scrollbars; added an amber
+    disconnected banner that names the recovery command (`./launch_ui.sh --api`);
+    replaced flat "No live data" rows with icon + headline + explainer empties for
+    assets and detections; muted "—" metric tiles until connected; Connect is a real
+    primary button. Verified disconnected + mock-connected at 1440 and 760.)
+14. [x] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
     the desktop tabs (wifi, autopilot, airgeddon, activity, setup, troubleshoot).
+    (done 2026-10-26 8pm — `theme.py` Design System v4 retargeted from Antigravity
+    blue (#0078D4/#4daafc/#1F1F1F) to the React tactical cyan/teal palette; primary
+    button is solid teal on dark fg (no costume gradient); bulk-swapped leftover
+    Antigravity hex literals across main_window, chat_panel, setup_wizard and every
+    tab. New shared `EmptyState` widget wired into Wi-Fi AP/Clients tables,
+    AutoPilot Targets & Loot, and Airgeddon recon table; Activity feed placeholder
+    now reads as standby with a next action. Rendered offscreen and verified.)
 15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
     verify and fix layout down to ~1280px and narrower.
 

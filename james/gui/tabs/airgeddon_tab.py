@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QGroupBox,
     QTableWidget,
+    QStackedWidget,
     QTableWidgetItem,
     QHeaderView,
     QSplitter,
@@ -28,6 +29,8 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QKeySequence
 
 from james.gui.toast import show_toast
+from james.gui.empty_state import EmptyState
+from james.gui.theme import PALETTE
 from james.gui.utils.worker import WorkerThread
 
 
@@ -142,7 +145,14 @@ class AirgeddonTab(QWidget):
         self.ap_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.ap_table.setSelectionMode(QTableWidget.SingleSelection)
         self.ap_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        recon_layout.addWidget(self.ap_table)
+        self._ap_empty = EmptyState(
+            "No access points yet",
+            "Start a recon scan to list nearby networks for Evil Twin / capture.",
+        )
+        self._ap_stack = QStackedWidget()
+        self._ap_stack.addWidget(self._ap_empty)
+        self._ap_stack.addWidget(self.ap_table)
+        recon_layout.addWidget(self._ap_stack)
         splitter.addWidget(recon_group)
 
         # Attack Area
@@ -297,6 +307,7 @@ class AirgeddonTab(QWidget):
         self.lbl_stats.setText(f"APs: {len(aps)}")
 
         self.ap_table.setRowCount(len(aps))
+        self._ap_stack.setCurrentIndex(1 if aps else 0)
         for i, ap in enumerate(aps):
             self.ap_table.setItem(i, 0, QTableWidgetItem(ap.get("essid", "")))
             self.ap_table.setItem(i, 1, QTableWidgetItem(ap.get("bssid", "")))

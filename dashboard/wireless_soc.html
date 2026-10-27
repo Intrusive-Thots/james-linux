@@ -5,36 +5,191 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JAMES · Wireless SOC</title>
 <style>
-:root{color-scheme:dark;--bg:#0a0f17;--panel:#111a27;--line:#27364a;--text:#e8eef7;--muted:#96a6ba;--cyan:#65dce8;--green:#63d6a2;--amber:#f2c16d;--red:#ff7e8c}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:1440px;margin:auto;padding:28px 22px 48px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}h1{font-size:28px;margin:4px 0}.eyebrow{color:var(--cyan);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}.muted{color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:16px}.connect{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,.7fr) auto;gap:10px;align-items:end}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.field input{width:100%;background:#0a111b;border:1px solid var(--line);border-radius:7px;padding:10px;color:var(--text)}button{background:#142538;border:1px solid #36516b;color:var(--text);padding:10px 14px;border-radius:7px;cursor:pointer;font-weight:650}button:hover{border-color:var(--cyan)}button:disabled{opacity:.5;cursor:not-allowed}.status{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;color:var(--muted)}.status.ok{color:var(--green);border-color:#2b5a4b}.status.err{color:var(--red);border-color:#693744}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat{background:#0d1520;border:1px solid var(--line);border-radius:9px;padding:14px}.stat span{display:block;color:var(--muted);font-size:12px}.stat strong{display:block;font-size:26px;margin-top:7px}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.sectionhead h2{font-size:16px;margin:0}.tablewrap{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;border-bottom:1px solid var(--line);padding:11px 10px;font-size:12px}th{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:10px}tbody tr:last-child td{border-bottom:0}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:10px}.high{color:var(--red);border-color:#693744}.medium{color:var(--amber);border-color:#6a512b}.low{color:var(--green);border-color:#2b5a4b}.empty{padding:28px;text-align:center;color:var(--muted)}.alert{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.alert:last-child{border-bottom:0}.small{font-size:11px;color:var(--muted)}.footer{margin-top:24px;color:var(--muted);font-size:11px}@media(max-width:760px){main{padding:18px 12px}.connect{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.alert{grid-template-columns:80px minmax(0,1fr)}.alert button{grid-column:2;justify-self:start}}
+/* Palette + type aligned with the React app (web/tailwind.config.js, web/src/index.css):
+   Inter face, #0B1120 canvas, #111827 panels, #1c3146 lines, #22D3EE accent cyan,
+   #10B981 success, #F59E0B warning, #EF4444 danger, text #E5E7EB/#94A3B8/#64748B. */
+:root{
+  color-scheme:dark;
+  --bg:#0B1120;--panel:#111827;--raised:#161E2E;--inset:#0d1522;
+  --line:#1c3146;--text:#E5E7EB;--secondary:#94A3B8;--muted:#7B8BA0;
+  --cyan:#22D3EE;--teal:#2EC4B6;--green:#10B981;--amber:#F59E0B;--red:#EF4444;
+}
+*{box-sizing:border-box}
+*,*::before,*::after{margin:0;padding:0}
+html{font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;caret-color:var(--cyan)}
+body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+.mono{font-family:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+main{max-width:1600px;margin:auto;padding:28px 24px 48px}
+
+/* Selection, caret & scrollbars — match the app */
+::selection{background:rgba(34,211,238,.28);color:#f0fbff}
+*{scrollbar-width:thin;scrollbar-color:rgba(34,211,238,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(34,211,238,.18);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(34,211,238,.34);background-clip:padding-box}
+
+/* Keyboard-only cyan focus ring (matches app). Inputs own their themed ring. */
+:focus:not(:focus-visible){outline:none}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px}
+input:focus-visible,button:focus-visible{outline:none}
+
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:4px}
+h1{font-size:32px;line-height:40px;font-weight:700;margin:6px 0 2px;letter-spacing:-.01em}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;color:var(--cyan);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+.eyebrow svg{width:13px;height:13px}
+.subtitle{color:var(--secondary);font-size:13px}
+.muted{color:var(--muted)}.secondary{color:var(--secondary)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:16px;box-shadow:0 0 0 1px rgba(255,255,255,.02),0 8px 24px rgba(0,0,0,.35)}
+
+/* Buttons — themed to match app .btn / .btn-primary */
+button{font-family:inherit;background:var(--raised);border:1px solid var(--line);color:var(--text);padding:0 16px;height:40px;border-radius:12px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
+button:hover{border-color:var(--cyan)}
+button:focus-visible{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.35)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button svg{width:15px;height:15px}
+button.primary{background:var(--teal);border-color:var(--teal);color:#04221E}
+button.primary:hover{filter:brightness(1.06)}
+button.ghost{background:transparent;border-color:var(--line);color:var(--secondary);height:34px;padding:0 12px;font-size:12px}
+button.ghost:hover{color:var(--text);border-color:var(--cyan)}
+
+.connect{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,.7fr) auto;gap:12px;align-items:end;margin-top:16px}
+.field label{display:block;color:var(--secondary);font-size:12px;margin-bottom:6px;font-weight:500}
+.field input{width:100%;background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:0 12px;height:40px;color:var(--text);font-size:14px;font-family:inherit;transition:border-color .18s ease,box-shadow .18s ease}
+.field input::placeholder{color:var(--muted)}
+.field input:hover{border-color:rgba(34,211,238,.25)}
+.field input:focus-visible{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.25);outline:none}
+
+/* Honest connection state */
+.connbanner{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:14px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.07);margin-bottom:4px}
+.connbanner svg{width:22px;height:22px;color:var(--amber);flex:none;margin-top:1px}
+.connbanner h3{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.connbanner p{font-size:13px;color:var(--secondary);max-width:68ch}
+.connbanner code{font-family:"JetBrains Mono","IBM Plex Mono",monospace;background:var(--inset);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:12px;color:var(--cyan)}
+body[data-connected="true"] .connbanner{display:none}
+
+.status{margin-top:14px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;color:var(--secondary);font-size:13px;display:flex;align-items:center;gap:9px}
+.status::before{content:"";width:8px;height:8px;border-radius:999px;background:var(--muted);flex:none}
+.status.ok{color:var(--green);border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.06)}
+.status.ok::before{background:var(--green);box-shadow:0 0 8px rgba(16,185,129,.7)}
+.status.err{color:var(--red);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)}
+.status.err::before{background:var(--red)}
+
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--secondary)}
+.pill::before{content:"";width:7px;height:7px;border-radius:999px;background:var(--muted)}
+.pill.connected{color:var(--green);border-color:rgba(16,185,129,.4)}
+.pill.connected::before{background:var(--green);box-shadow:0 0 8px rgba(16,185,129,.7)}
+.pill.disconnected{color:var(--secondary)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stat{background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px;transition:border-color .18s ease}
+.stat .label{display:flex;align-items:center;gap:7px;color:var(--secondary);font-size:12px;font-weight:500}
+.stat .label svg{width:14px;height:14px;color:var(--muted)}
+.stat strong{font-size:28px;font-weight:700;line-height:1.1}
+/* Awaiting-connection treatment: dashes read as "no data yet", not a value */
+body:not([data-connected="true"]) .stat strong{color:var(--muted);font-weight:500}
+.stat.alertstat strong{color:var(--amber)}
+body:not([data-connected="true"]) .stat.alertstat strong{color:var(--muted)}
+
+.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sectionhead h2{font-size:18px;line-height:28px;font-weight:600;margin:0;display:flex;align-items:center;gap:9px}
+.sectionhead h2 svg{width:17px;height:17px;color:var(--cyan)}
+.sectionhead .small{font-size:12px;color:var(--secondary)}
+
+.tablewrap{overflow:auto;margin-top:14px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{text-align:left;border-bottom:1px solid var(--line);padding:11px 10px;font-size:13px}
+th{color:var(--secondary);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:rgba(34,211,238,.03)}
+
+.sigpill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:10px;font-weight:600}
+.high{color:var(--red);border-color:rgba(239,68,68,.4)}
+.medium{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.low{color:var(--green);border-color:rgba(16,185,129,.4)}
+
+/* Honest empty states */
+.empty{padding:40px 24px;text-align:center;color:var(--secondary)}
+td .empty{padding:40px 24px}
+.empty .glyph{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:var(--inset);border:1px solid var(--line);margin-bottom:12px}
+.empty .glyph svg{width:20px;height:20px;color:var(--muted)}
+.empty h4{font-size:14px;font-weight:600;color:var(--text);margin-bottom:5px}
+.empty p{font-size:13px;color:var(--secondary);max-width:46ch;margin:0 auto}
+
+.alert{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.alert:last-child{border-bottom:0}
+.alert strong{font-size:13px;font-weight:600}
+.small{font-size:11px;color:var(--secondary)}
+
+.footer{margin-top:24px;color:var(--muted);font-size:11px;line-height:1.6}
+
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){
+  main{padding:20px 14px}
+  h1{font-size:26px;line-height:32px}
+  .connect{grid-template-columns:1fr}
+  .connect button{width:100%;justify-content:center}
+  .alert{grid-template-columns:80px minmax(0,1fr)}
+  .alert button{grid-column:2;justify-self:start}
+}
 </style>
 </head>
-<body><main>
-<header class="top"><div><div class="eyebrow">JAMES / Security Operations</div><h1>Wireless Security</h1><div class="muted">Live telemetry only · no synthetic assets or generated detections</div></div><button id="refresh" disabled>Refresh data</button></header>
-<section class="panel"><div class="sectionhead"><h2>Backend connection</h2><span id="connectionLabel" class="pill">Not connected</span></div>
-<div class="connect" style="margin-top:14px"><div class="field"><label for="apiBase">API base URL</label><input id="apiBase" value="http://127.0.0.1:8745" autocomplete="url"></div><div class="field"><label for="apiToken">API token (if configured)</label><input id="apiToken" type="password" autocomplete="off" placeholder="Not stored"></div><button id="connect">Connect</button></div>
-<div id="status" class="status" role="status" aria-live="polite">No live data loaded. Connect to a running JAMES API.</div></section>
+<body data-connected="false"><main>
+<header class="top">
+  <div>
+    <div class="eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>JAMES / Security Operations</div>
+    <h1>Wireless Security</h1>
+    <div class="subtitle">Live telemetry only · no synthetic assets or generated detections</div>
+  </div>
+  <button id="refresh" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh data</button>
+</header>
+
+<section class="panel">
+  <div class="sectionhead"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16.1a6 6 0 0 1 7 0M2 8.82a15 15 0 0 1 20 0"/><line x1="12" y1="20" x2="12" y2="20"/></svg>Backend connection</h2><span id="connectionLabel" class="pill disconnected">Not connected</span></div>
+  <div id="offlineBanner" class="connbanner" style="margin-top:14px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+    <div>
+      <h3>Not connected to a JAMES backend</h3>
+      <p>No live telemetry is loaded yet. Confirm the API base URL below, add a token if your backend requires one, then press <strong>Connect</strong>. If nothing is running, start the API with <code>./launch_ui.sh --api</code> and reconnect.</p>
+    </div>
+  </div>
+  <div class="connect">
+    <div class="field"><label for="apiBase">API base URL</label><input id="apiBase" value="http://127.0.0.1:8745" autocomplete="url"></div>
+    <div class="field"><label for="apiToken">API token (if configured)</label><input id="apiToken" type="password" autocomplete="off" placeholder="Not stored"></div>
+    <button id="connect" class="primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>Connect</button>
+  </div>
+  <div id="status" class="status" role="status" aria-live="polite">No live data loaded. Connect to a running JAMES API.</div>
+</section>
+
 <section class="panel"><div class="stats">
-<div class="stat"><span>Unique BSSIDs observed</span><strong id="assetCount">—</strong></div>
-<div class="stat"><span>Approved access points</span><strong id="approvedCount">—</strong></div>
-<div class="stat"><span>Unreviewed detections</span><strong id="alertCount">—</strong></div>
-<div class="stat"><span>Observations stored</span><strong id="observationCount">—</strong></div>
+  <div class="stat"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16.1a6 6 0 0 1 7 0M12 20h.01"/></svg>Unique BSSIDs observed</div><strong id="assetCount" class="mono">—</strong></div>
+  <div class="stat"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Approved access points</div><strong id="approvedCount" class="mono">—</strong></div>
+  <div class="stat alertstat"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>Unreviewed detections</div><strong id="alertCount" class="mono">—</strong></div>
+  <div class="stat"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></svg>Observations stored</div><strong id="observationCount" class="mono">—</strong></div>
 </div></section>
-<section class="panel"><div class="sectionhead"><h2>Observed wireless assets</h2><span id="assetMeta" class="small">Awaiting live telemetry</span></div><div class="tablewrap"><table><thead><tr><th>SSID / BSSID</th><th>Site</th><th>Security</th><th>Channel</th><th>Signal</th><th>Sensor</th><th>Last observed</th></tr></thead><tbody id="assets"><tr><td colspan="7" class="empty">No live asset data loaded.</td></tr></tbody></table></div></section>
-<section class="panel"><div class="sectionhead"><h2>Detection queue</h2><label class="small"><input id="unreviewedOnly" type="checkbox" checked> Unreviewed only</label></div><div id="detections"><div class="empty">No live detections loaded.</div></div></section>
+
+<section class="panel"><div class="sectionhead"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Observed wireless assets</h2><span id="assetMeta" class="small">Awaiting live telemetry</span></div>
+<div class="tablewrap"><table><thead><tr><th>SSID / BSSID</th><th>Site</th><th>Security</th><th class="num">Channel</th><th class="num">Signal</th><th>Sensor</th><th>Last observed</th></tr></thead><tbody id="assets"><tr><td colspan="7"><div class="empty"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16.1a6 6 0 0 1 7 0M2 8.82a15 15 0 0 1 20 0M12 20h.01"/></svg></div><h3>No wireless assets yet</h3><p>Connect to a JAMES backend to load the access points its sensors have observed.</p></div></td></tr></tbody></table></div></section>
+
+<section class="panel"><div class="sectionhead"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>Detection queue</h2><label class="small" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input id="unreviewedOnly" type="checkbox" checked> Unreviewed only</label></div>
+<div id="detections"><div class="empty"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>No detections to review</h3><p>Connect to a backend to pull its detection queue. Reviewed and pending items will appear here.</p></div></div></section>
+
 <div class="footer">Only observations returned by the configured JAMES API are displayed. This dashboard does not scan radio channels or fabricate events. Sensor ingestion and approved inventory configuration are managed by the backend.</div>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 let connected=false;
+function setConnected(v){connected=v;document.body.dataset.connected=v?"true":"false";$("refresh").disabled=!v;const l=$("connectionLabel");l.textContent=v?"Connected":"Disconnected";l.className="pill "+(v?"connected":"disconnected")}
 function base(){return $("apiBase").value.trim().replace(/\/+$/,"")}
 function headers(){const token=$("apiToken").value.trim();return token?{"X-JAMES-API-Token":token}:{}}
 async function request(path,options={}){const response=await fetch(base()+path,{...options,headers:{...headers(),...(options.headers||{})}});if(!response.ok)throw new Error(path+" returned HTTP "+response.status);return response.json()}
 function status(message,kind=""){const el=$("status");el.textContent=message;el.className="status "+kind}
-function renderAssets(rows){$("assetMeta").textContent=rows.length+" live record(s)";$("assets").innerHTML=rows.length?rows.map(a=>"<tr><td><strong>"+esc(a.ssid||"(hidden SSID)")+"</strong><div class='small'>"+esc(a.bssid)+"</div></td><td>"+esc(a.site||"—")+"</td><td>"+esc(a.security||"unknown")+"</td><td>"+esc(a.channel??"—")+"</td><td>"+esc(a.rssi==null?"—":a.rssi+" dBm")+"</td><td>"+esc(a.sensor_id||"—")+"</td><td>"+esc(a.observed_at||"—")+"</td></tr>").join(""):"<tr><td colspan='7' class='empty'>The API returned no observed access points.</td></tr>"}
-function renderDetections(rows){$("detections").innerHTML=rows.length?rows.map(d=>"<div class='alert'><span class='pill "+(d.severity==="high"||d.severity==="critical"?"high":d.severity==="medium"?"medium":"low")+"'>"+esc(d.severity)+"</span><div><strong>"+esc(d.summary)+"</strong><div class='small'>"+esc(d.kind)+" · "+esc(d.bssid)+" · "+esc(d.observed_at)+"</div></div>"+(d.reviewed?"<span class='small'>Reviewed</span>":"<button data-review='"+Number(d.id)+"'>Mark reviewed</button>")+"</div>").join(""):"<div class='empty'>The API returned no detections for this filter.</div>";document.querySelectorAll("[data-review]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await request("/api/wireless-soc/detections/"+b.dataset.review+"/review",{method:"POST"});await loadData()}catch(e){status("Could not review detection: "+e.message,"err");b.disabled=false}}))}
+function renderAssets(rows){$("assetMeta").textContent=rows.length+" live record(s)";$("assets").innerHTML=rows.length?rows.map(a=>"<tr><td><strong>"+esc(a.ssid||"(hidden SSID)")+"</strong><div class='small'>"+esc(a.bssid)+"</div></td><td>"+esc(a.site||"—")+"</td><td>"+esc(a.security||"unknown")+"</td><td class='num'>"+esc(a.channel??"—")+"</td><td class='num'>"+esc(a.rssi==null?"—":a.rssi+" dBm")+"</td><td>"+esc(a.sensor_id||"—")+"</td><td>"+esc(a.observed_at||"—")+"</td></tr>").join(""):"<tr><td colspan='7'><div class='empty'><div class='glyph'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.55a11 11 0 0 1 14 0M8.5 16.1a6 6 0 0 1 7 0M12 20h.01'/></svg></div><h3>No access points observed</h3><p>The backend is connected but has returned no observed access points yet.</p></div></td></tr>"}
+function renderDetections(rows){$("detections").innerHTML=rows.length?rows.map(d=>"<div class='alert'><span class='sigpill "+(d.severity==="high"||d.severity==="critical"?"high":d.severity==="medium"?"medium":"low")+"'>"+esc(d.severity)+"</span><div><strong>"+esc(d.summary)+"</strong><div class='small'>"+esc(d.kind)+" · "+esc(d.bssid)+" · "+esc(d.observed_at)+"</div></div>"+(d.reviewed?"<span class='small'>Reviewed</span>":"<button data-review='"+Number(d.id)+"'>Mark reviewed</button>")+"</div>").join(""):"<div class='empty'><div class='glyph'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 12l2 2 4-4M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg></div><h3>Queue clear</h3><p>The backend returned no detections for this filter.</p></div>";document.querySelectorAll("[data-review]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await request("/api/wireless-soc/detections/"+b.dataset.review+"/review",{method:"POST"});await loadData()}catch(e){status("Could not review detection: "+e.message,"err");b.disabled=false}}))}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-async function loadData(){if(!connected)return;try{const [summary,assets,detections]=await Promise.all([request("/api/wireless-soc/summary"),request("/api/wireless-soc/assets"),request("/api/wireless-soc/detections?limit=200&unreviewed_only="+$("unreviewedOnly").checked)]);$("assetCount").textContent=summary.assets_seen;$("approvedCount").textContent=summary.approved_aps;$("alertCount").textContent=summary.unreviewed_detections;$("observationCount").textContent=summary.observations;renderAssets(assets);renderDetections(detections);status("Connected. Data refreshed at "+new Date().toLocaleTimeString(),"ok")}catch(e){connected=false;$("refresh").disabled=true;$("connectionLabel").textContent="Disconnected";status("Live data unavailable: "+e.message,"err")}}
-$("connect").addEventListener("click",async()=>{try{await request("/api/health");connected=true;$("refresh").disabled=false;$("connectionLabel").textContent="Connected";await loadData()}catch(e){connected=false;$("refresh").disabled=true;$("connectionLabel").textContent="Disconnected";status("Connection failed: "+e.message,"err")}});
+async function loadData(){if(!connected)return;try{const [summary,assets,detections]=await Promise.all([request("/api/wireless-soc/summary"),request("/api/wireless-soc/assets"),request("/api/wireless-soc/detections?limit=200&unreviewed_only="+$("unreviewedOnly").checked)]);$("assetCount").textContent=summary.assets_seen;$("approvedCount").textContent=summary.approved_aps;$("alertCount").textContent=summary.unreviewed_detections;$("observationCount").textContent=summary.observations;renderAssets(assets);renderDetections(detections);status("Connected. Data refreshed at "+new Date().toLocaleTimeString(),"ok")}catch(e){setConnected(false);status("Live data unavailable: "+e.message,"err")}}
+$("connect").addEventListener("click",async()=>{try{await request("/api/health");setConnected(true);await loadData()}catch(e){setConnected(false);status("Connection failed: "+e.message,"err")}});
 $("refresh").addEventListener("click",loadData);$("unreviewedOnly").addEventListener("change",loadData);
 </script></body></html>

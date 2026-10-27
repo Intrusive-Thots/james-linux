@@ -170,7 +170,7 @@ class _WelcomePage(_PageBase):
             text_v.setSpacing(1)
             t_lbl = QLabel(title)
             t_lbl.setStyleSheet(
-                "color: #CCCCCC; font-size: 14px; font-weight: 700;"
+                "color: #E5E7EB; font-size: 14px; font-weight: 700;"
             )
             d_lbl = QLabel(desc)
             d_lbl.setObjectName("dimLabel")
@@ -187,8 +187,8 @@ class _WelcomePage(_PageBase):
         )
         warn.setWordWrap(True)
         warn.setStyleSheet(
-            "background: #1A0A00; color: #BB8009; font-size: 13px;"
-            " border: 1px solid #BB800930; border-left: 3px solid #BB8009;"
+            "background: #1a1408; color: #F59E0B; font-size: 13px;"
+            " border: 1px solid #F59E0B30; border-left: 3px solid #F59E0B;"
             " border-radius: 6px; padding: 8px 12px;"
         )
         self._body.addWidget(warn)
@@ -210,7 +210,7 @@ class _SudoPage(_PageBase):
             "Enter sudo password (leave blank to be prompted each time)"
         )
         self._pwd_edit.setStyleSheet(
-            "background: #181818; color: #CCCCCC; border: 1px solid #2B2B2B;"
+            "background: #111827; color: #E5E7EB; border: 1px solid #1c3146;"
             " border-radius: 6px; padding: 8px 12px; font-size: 14px;"
             " font-family: 'JetBrains Mono', monospace;"
         )
@@ -218,7 +218,7 @@ class _SudoPage(_PageBase):
         self._body.addWidget(self._pwd_edit)
 
         self._show_pwd = QCheckBox("Show password")
-        self._show_pwd.setStyleSheet("color: #6E7681; font-size: 13px;")
+        self._show_pwd.setStyleSheet("color: #94A3B8; font-size: 13px;")
         self._show_pwd.toggled.connect(self._toggle_echo)
         self._body.addWidget(self._show_pwd)
 
@@ -265,8 +265,8 @@ class _ToolCheckPage(_PageBase):
         self._progress.setTextVisible(False)
         self._progress.setFixedHeight(4)
         self._progress.setStyleSheet(
-            "QProgressBar { background: #181818; border: none; border-radius: 2px; }"
-            "QProgressBar::chunk { background: #0078D4; border-radius: 2px; }"
+            "QProgressBar { background: #111827; border: none; border-radius: 2px; }"
+            "QProgressBar::chunk { background: #2EC4B6; border-radius: 2px; }"
         )
 
         self._status_lbl = QLabel("Click 'Check Tools' to begin.")
@@ -286,14 +286,14 @@ class _ToolCheckPage(_PageBase):
         self._table.insertRow(row)
 
         name_item = QTableWidgetItem(tool)
-        name_item.setForeground(QColor("#CCCCCC"))
+        name_item.setForeground(QColor("#E5E7EB"))
 
         if found:
             status_item = QTableWidgetItem("✅  installed")
-            status_item.setForeground(QColor("#2EA043"))
+            status_item.setForeground(QColor("#10B981"))
         else:
             status_item = QTableWidgetItem("❌  missing")
-            status_item.setForeground(QColor("#F85149"))
+            status_item.setForeground(QColor("#EF4444"))
 
         self._table.setItem(row, 0, name_item)
         self._table.setItem(row, 1, status_item)
@@ -304,13 +304,13 @@ class _ToolCheckPage(_PageBase):
     def set_done(self, n_found: int, n_total: int):
         if n_found == n_total:
             self._status_lbl.setText(f"✅  All {n_total} tools found.")
-            self._status_lbl.setStyleSheet("color: #2EA043; font-size: 14px;")
+            self._status_lbl.setStyleSheet("color: #10B981; font-size: 14px;")
         else:
             missing = n_total - n_found
             self._status_lbl.setText(
                 f"⚠  {missing} tool(s) missing — install them via the Troubleshoot tab."
             )
-            self._status_lbl.setStyleSheet("color: #BB8009; font-size: 14px;")
+            self._status_lbl.setStyleSheet("color: #F59E0B; font-size: 14px;")
 
 
 # ── Page 4 — Done ─────────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ class _DonePage(_PageBase):
         )
         tips_lbl = QLabel("Quick-start tips:")
         tips_lbl.setStyleSheet(
-            "color: #CCCCCC; font-size: 14px; font-weight: 700;"
+            "color: #E5E7EB; font-size: 14px; font-weight: 700;"
         )
         self._body.addWidget(tips_lbl)
 
@@ -379,14 +379,14 @@ class SetupWizard(QDialog):
         hdr = QWidget()
         hdr.setFixedHeight(56)
         hdr.setStyleSheet(
-            "background: #181818; border-bottom: 1px solid #2B2B2B;"
+            "background: #111827; border-bottom: 1px solid #1c3146;"
         )
         hdr_l = QHBoxLayout(hdr)
         hdr_l.setContentsMargins(24, 0, 24, 0)
         title = QLabel("JAMES  Setup Wizard")
         title.setObjectName("titleLabel")
         title.setStyleSheet(
-            "font-size: 19px; font-weight: 700; color: #CCCCCC;"
+            "font-size: 19px; font-weight: 700; color: #E5E7EB;"
         )
         self._step_lbl = QLabel("Step 1 / 4")
         self._step_lbl.setObjectName("metaLabel")
@@ -402,14 +402,14 @@ class SetupWizard(QDialog):
         self._page_bar.setTextVisible(False)
         self._page_bar.setFixedHeight(3)
         self._page_bar.setStyleSheet(
-            "QProgressBar { background: #181818; border: none; }"
-            "QProgressBar::chunk { background: #0078D4; }"
+            "QProgressBar { background: #111827; border: none; }"
+            "QProgressBar::chunk { background: #2EC4B6; }"
         )
         root.addWidget(self._page_bar)
 
         # Pages
         self._stack = QStackedWidget()
-        self._stack.setStyleSheet("background: #1F1F1F;")
+        self._stack.setStyleSheet("background: #0B1120;")
 
         self._p_welcome = _WelcomePage()
         self._p_sudo = _SudoPage()
@@ -425,7 +425,7 @@ class SetupWizard(QDialog):
         nav = QWidget()
         nav.setFixedHeight(52)
         nav.setStyleSheet(
-            "background: #181818; border-top: 1px solid #2B2B2B;"
+            "background: #111827; border-top: 1px solid #1c3146;"
         )
         nav_l = QHBoxLayout(nav)
         nav_l.setContentsMargins(24, 0, 24, 0)
@@ -443,7 +443,7 @@ class SetupWizard(QDialog):
         self._btn_skip = QPushButton("Skip")
         self._btn_skip.setFixedHeight(36)
         self._btn_skip.setStyleSheet(
-            "color: #6E7681; border: none; background: transparent;"
+            "color: #94A3B8; border: none; background: transparent;"
         )
 
         nav_l.addWidget(self._btn_skip)
