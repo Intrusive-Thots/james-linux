@@ -64,6 +64,18 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
     }
   }, [lastAgentResponse, addMessage]);
 
+  const STARTERS: { cmd: string; hint: string }[] = [
+    { cmd: "scan", hint: "sweep for networks" },
+    { cmd: "status", hint: "current pipeline state" },
+    { cmd: "loot", hint: "captured handshakes & keys" },
+    { cmd: "help", hint: "list every command" },
+  ];
+
+  const useStarter = (cmd: string) => {
+    setInput(cmd);
+    commandInputRef.current?.focus();
+  };
+
   const handleSendCommand = () => {
     const cmd = input.trim();
     if (!cmd || processing) return;
@@ -157,16 +169,31 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
           >
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center h-full">
-                <div className="text-center">
-                  <Bot className="w-16 h-16 text-text-muted mx-auto mb-lg opacity-20" />
-                  <h3 className="text-h3 text-text-secondary mb-sm">
-                    Agent Ready
+                <div className="text-center max-w-[460px]">
+                  <div className="w-14 h-14 rounded-btn bg-accent-purple/10 border border-accent-purple/20 flex items-center justify-center mx-auto mb-md">
+                    <Terminal className="w-7 h-7 text-accent-purple" />
+                  </div>
+                  <h3 className="text-h3 text-text-primary mb-[2px]">
+                    Send a command to begin
                   </h3>
-                  <p className="text-body text-text-muted max-w-[400px]">
-                    Send natural language commands to control JAMES.
-                    The agent will interpret your intent and execute the
-                    appropriate operations.
+                  <p className="text-small text-text-secondary mb-lg">
+                    The JAMES agent reads natural language. Start with one of
+                    these, or type your own below.
                   </p>
+                  <div className="flex flex-wrap items-center justify-center gap-sm">
+                    {STARTERS.map((s) => (
+                      <button
+                        key={s.cmd}
+                        type="button"
+                        onClick={() => useStarter(s.cmd)}
+                        title={s.hint}
+                        className="group flex items-center gap-[6px] h-8 px-md rounded-tag bg-bg-elevated border border-border text-small font-mono text-text-secondary hover:text-text-primary hover:border-accent-cyan/40 focus-visible:border-accent-cyan transition-colors"
+                      >
+                        <span className="text-accent-cyan">›</span>
+                        {s.cmd}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

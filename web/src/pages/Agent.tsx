@@ -283,7 +283,7 @@ export function Agent({ state, connected, send, addLog, lastAgentResponse }: Age
               type="text"
               ref={commandInputRef}
               placeholder="Type a command (scan, status, loot, help)… (Ctrl+K)"
-              className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none transition-colors"
+              className="flex-1 h-10 px-md text-body bg-bg-elevated border border-border rounded-btn text-text-primary placeholder:text-text-muted hover:border-border-hover focus:border-accent-cyan focus:outline-none focus:shadow-[0_0_0_3px_rgba(34,211,238,0.18)] transition-[border-color,box-shadow]"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

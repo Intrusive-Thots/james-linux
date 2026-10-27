@@ -182,64 +182,134 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
                 </span>
               </div>
 
-              {/* Pipeline Stages */}
-              <div className="grid grid-cols-4 gap-sm mt-md">
-                {[
-                  { label: "Scan", icon: Crosshair, active: running && state.scanning },
-                  { label: "Target", icon: Target, active: running && !!state.selectedAP },
+              {/* Pipeline Stepper */}
+              {(() => {
+                const stages = [
+                  {
+                    label: "Scan",
+                    desc: "Sweep the airspace",
+                    icon: Crosshair,
+                    active: running && state.scanning,
+                    done:
+                      isComplete ||
+                      (running && !state.scanning && state.aps.length > 0),
+                  },
+                  {
+                    label: "Target",
+                    desc: "Lock the best AP",
+                    icon: Target,
+                    active: running && !!state.selectedAP && state.attack.stage === "selecting",
+                    done:
+                      isComplete ||
+                      (running && !!state.selectedAP && state.attack.stage !== "selecting"),
+                  },
                   {
                     label: "Capture",
+                    desc: "Grab the handshake",
                     icon: Zap,
                     active: running && state.attack.stage === "capturing",
+                    done: isComplete || (running && state.attack.stage === "cracking"),
                   },
                   {
                     label: "Crack",
+                    desc: "Recover the key",
                     icon: CheckCircle2,
                     active: running && state.attack.stage === "cracking",
+                    done: isComplete,
                   },
-                ].map((stage, idx) => {
-                  const done =
-                    isComplete ||
-                    (running &&
-                      ((idx === 0 && !state.scanning && state.aps.length > 0) ||
-                        (idx === 1 && !!state.selectedAP && state.attack.stage !== "selecting") ||
-                        (idx === 2 && (state.attack.stage === "cracking" || isComplete)) ||
-                        (idx === 3 && isComplete)));
-                  const Icon = stage.icon;
-                  return (
-                    <div
-                      key={stage.label}
-                      className={cn(
-                        "flex flex-col items-center gap-[6px] p-md rounded-btn border transition-all",
-                        stage.active
-                          ? "bg-accent-cyan/8 border-accent-cyan/30"
-                          : done
-                            ? "bg-success/5 border-success/20"
-                            : "bg-bg-panel/40 border-border-subtle"
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "w-5 h-5",
-                          stage.active
-                            ? "text-accent-cyan animate-pulse"
-                            : done
-                              ? "text-success"
-                              : "text-text-muted"
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold uppercase tracking-wider",
-                          stage.active ? "text-accent-cyan" : done ? "text-success" : "text-text-muted"
-                        )}
-                      >
-                        {stage.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                ];
+                return (
+                  <ol className="flex items-start mt-md" aria-label="Auto-Pilot pipeline">
+                    {stages.map((stage, idx) => {
+                      const Icon = stage.done ? CheckCircle2 : stage.icon;
+                      const state_ = stage.done
+                        ? "done"
+                        : stage.active
+                          ? "active"
+                          : "pending";
+                      // connector to the LEFT of this node reflects the prior node's completion
+                      const connectorLit = idx > 0 && stages[idx - 1].done;
+                      return (
+                        <li
+                          key={stage.label}
+                          className="flex-1 flex flex-col items-center text-center min-w-0"
+                          aria-current={stage.active ? "step" : undefined}
+                        >
+                          {/* node row: left connector · badge · right connector */}
+                          <div className="flex items-center w-full">
+                            <span
+                              className={cn(
+                                "h-[2px] flex-1 rounded-full transition-colors",
+                                idx === 0
+                                  ? "opacity-0"
+                                  : connectorLit
+                                    ? "bg-success/50"
+                                    : "bg-border-subtle"
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "relative flex items-center justify-center w-10 h-10 rounded-full border-2 shrink-0 transition-colors",
+                                state_ === "active"
+                                  ? "border-accent-cyan bg-accent-cyan/10"
+                                  : state_ === "done"
+                                    ? "border-success/60 bg-success/10"
+                                    : "border-border-subtle bg-bg-panel/60"
+                              )}
+                            >
+                              <Icon
+                                className={cn(
+                                  "w-[18px] h-[18px]",
+                                  state_ === "active"
+                                    ? "text-accent-cyan"
+                                    : state_ === "done"
+                                      ? "text-success"
+                                      : "text-text-muted"
+                                )}
+                              />
+                              {state_ === "active" && (
+                                <span className="absolute inset-0 rounded-full border-2 border-accent-cyan/60 scanning-pulse" />
+                              )}
+                            </span>
+                            <span
+                              className={cn(
+                                "h-[2px] flex-1 rounded-full transition-colors",
+                                idx === stages.length - 1
+                                  ? "opacity-0"
+                                  : stage.done
+                                    ? "bg-success/50"
+                                    : "bg-border-subtle"
+                              )}
+                            />
+                          </div>
+                          <div className="mt-sm px-[2px]">
+                            <div
+                              className={cn(
+                                "text-small font-bold leading-tight",
+                                state_ === "active"
+                                  ? "text-accent-cyan"
+                                  : state_ === "done"
+                                    ? "text-success"
+                                    : "text-text-secondary"
+                              )}
+                            >
+                              {stage.label}
+                            </div>
+                            <div
+                              className={cn(
+                                "text-xs leading-tight mt-[1px]",
+                                state_ === "pending" ? "text-text-muted" : "text-text-secondary"
+                              )}
+                            >
+                              {stage.active ? "In progress…" : stage.done ? "Done" : stage.desc}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                );
+              })()}
 
               {/* Progress */}
               {running && (isAttacking || state.scanning) && (

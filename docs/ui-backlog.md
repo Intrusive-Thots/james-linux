@@ -120,8 +120,16 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     cyan keyboard-focus ring. AgentConsole: agent message bodies lifted from text-secondary
     to text-primary for contrast, and the command input got the same cyan focus ring.
     The existing level filter already satisfied the "filter" ask.)
-12. [ ] **AutoPilot clarity.** Make the phase/stage machine legible with a clear
+12. [x] **AutoPilot clarity.** Make the phase/stage machine legible with a clear
     stepper; align with the Airgeddon auto-pilot plan in implementation_plan.
+    (done 2026-10-26 eve — the four same-size Scan/Target/Capture/Crack tiles are now a
+    real connected stepper: circular node badges joined by progress connectors that light
+    success-green as each prior phase completes, per-phase sub-labels ("Sweep the airspace",
+    "Lock the best AP", "Grab the handshake", "Recover the key") that switch to
+    "In progress…" / "Done" by state, an aria-current="step" on the live node, the active
+    node ringed with the single reserved scanning-pulse, and done phases swapping to a
+    CheckCircle2. Rendered as a semantic <ol>. Reads as a phase machine, not four
+    disconnected cards; no redundant 01/02 numerals since icons+connectors carry order.)
 13. [ ] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
     app's palette/typography and give it an honest empty/disconnected state.
 14. [ ] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
@@ -180,17 +188,21 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
     give the icon/label a consistent gap like the other panel headers.
 
-25. [ ] **Filter-input focus affordance.** The search/command inputs on Recon,
+25. [x] **Filter-input focus affordance.** The search/command inputs on Recon,
     Handshakes, Logs, AgentConsole and Agent use inline Tailwind with only
     `focus:border-border-hover` (a faint cyan 0.25 border) + `focus:outline-none`,
     so keyboard focus on them is barely visible. Promote them to the shared
     `.input` treatment (or a stronger focus ring) for consistency with Settings.
-    (partial 2026-10-26 pm — the Logs search input and AgentConsole command input
-    now get an accent-cyan border + 3px cyan focus ring; Recon, Handshakes and Agent
-    still need the same treatment.)
+    (done 2026-10-26 eve — the remaining Recon, Handshakes and Agent inputs now get the
+    same accent-cyan focus border + 3px cyan focus ring and hover-border affordance as
+    Logs/AgentConsole, so keyboard focus is clearly visible and consistent app-wide.)
 
-26. [ ] **AgentConsole empty state.** With no messages the Live Session card is a
+26. [x] **AgentConsole empty state.** With no messages the Live Session card is a
     large blank void below the single intro bubble. Add a centered, muted
     empty-state hint (e.g. a terminal glyph + "Send a command to begin — try scan,
     status, loot or help") so the panel reads as ready rather than unrendered.
-    (noticed 2026-10-26 pm while verifying #11.)
+    (done 2026-10-26 eve — the generic "Agent Ready" placeholder is replaced with a
+    terminal glyph in a purple badge, a "Send a command to begin" headline, a one-line
+    explainer, and four concrete clickable starter chips (scan / status / loot / help)
+    that populate the command input and focus it. The panel now reads as ready and
+    actionable instead of an empty void. Noticed 2026-10-26 pm while verifying #11.)

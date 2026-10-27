@@ -355,7 +355,7 @@ export function Recon({
                   type="text"
                   ref={searchInputRef}
                   placeholder="Filter by SSID, BSSID… (Ctrl+F)"
-                  className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted focus:border-border-hover focus:outline-none w-[200px] transition-colors"
+                  className="h-8 pl-8 pr-md text-small bg-bg-elevated border border-border rounded-tag text-text-primary placeholder:text-text-muted hover:border-border-hover focus:border-accent-cyan focus:outline-none focus:shadow-[0_0_0_3px_rgba(34,211,238,0.18)] w-[200px] transition-[border-color,box-shadow]"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   onKeyDown={handleKeyDown}
