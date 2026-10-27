@@ -151,9 +151,9 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-12 gap-lg">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-lg">
           {/* Main Status Panel */}
-          <motion.div variants={item} className="col-span-8 space-y-lg">
+          <motion.div variants={item} className="col-span-1 xl:col-span-8 space-y-lg">
             {/* Pipeline Status Card */}
             <div
               className={cn(
@@ -369,7 +369,7 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
                   </div>
                   <span className="badge-warning text-[10px]">ACQUIRED</span>
                 </div>
-                <div className="grid grid-cols-4 gap-md mt-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-md mt-sm">
                   <div>
                     <span className="text-[10px] text-text-muted font-mono block">ESSID</span>
                     <span className="text-body font-bold text-text-primary">
@@ -409,7 +409,7 @@ export function AutoPilot({ state, connected, send, addLog }: AutoPilotProps) {
           </motion.div>
 
           {/* Right Sidebar */}
-          <motion.div variants={item} className="col-span-4 space-y-lg">
+          <motion.div variants={item} className="col-span-1 xl:col-span-4 space-y-lg">
             {/* Metrics */}
             <div className="card">
               <div className="card-header">

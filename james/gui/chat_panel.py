@@ -140,7 +140,7 @@ class _Bubble(QFrame):
         sender = "You" if self._is_user else "JAMES"
         sender_lbl = QLabel(f"{sender}  ·  {ts}")
         sender_lbl.setStyleSheet(
-            f"color: {'#0078D4' if self._is_user else '#6E7681'};"
+            f"color: {'#2EC4B6' if self._is_user else '#94A3B8'};"
             f" font-size: 12px; font-weight: 700; letter-spacing: 0.5px;"
         )
         header_layout.addWidget(sender_lbl)
@@ -152,12 +152,12 @@ class _Bubble(QFrame):
         copy_btn.setToolTip("Copy message text to clipboard")
         copy_btn.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #6E7681;"
+            "  background: transparent; color: #94A3B8;"
             "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
             "  min-height: 0px;"
             "}"
             "QPushButton:hover {"
-            "  color: #4daafc;"
+            "  color: #22D3EE;"
             "}"
         )
         copy_btn.clicked.connect(lambda: self._copy_to_clipboard(text, copy_btn))
@@ -174,7 +174,7 @@ class _Bubble(QFrame):
         if self._is_user:
             # User bubble - deep navy/slate blue tint
             inner.setStyleSheet(
-                "background: #16233b; border: 1px solid #0078D4;"
+                "background: #16233b; border: 1px solid #2EC4B6;"
                 " border-radius: 10px 10px 2px 10px;"
             )
             body.setStyleSheet(
@@ -184,11 +184,11 @@ class _Bubble(QFrame):
         else:
             # JAMES bubble - deep dark forest green tint
             inner.setStyleSheet(
-                "background: #17261d; border: 1px solid #2EA043;"
+                "background: #17261d; border: 1px solid #10B981;"
                 " border-radius: 10px 10px 10px 2px;"
             )
             body.setStyleSheet(
-                "color: #CCCCCC; font-size: 14px; line-height: 1.4;"
+                "color: #E5E7EB; font-size: 14px; line-height: 1.4;"
                 " font-family: 'JetBrains Mono', monospace;"
             )
 
@@ -209,7 +209,7 @@ class _Bubble(QFrame):
         button.setText("Copied!")
         button.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #2EA043;"
+            "  background: transparent; color: #10B981;"
             "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
             "  min-height: 0px;"
             "}"
@@ -221,12 +221,12 @@ class _Bubble(QFrame):
             button.setText("Copy")
             button.setStyleSheet(
                 "QPushButton {"
-                "  background: transparent; color: #6E7681;"
+                "  background: transparent; color: #94A3B8;"
                 "  border: none; font-size: 11px; font-weight: 600; padding: 2px 6px;"
                 "  min-height: 0px;"
                 "}"
                 "QPushButton:hover {"
-                "  color: #4daafc;"
+                "  color: #22D3EE;"
                 "}"
             )
         except Exception:
@@ -242,8 +242,8 @@ class _LootBanner(QFrame):
     def __init__(self, loot_entries: list[dict], parent=None):
         super().__init__(parent)
         self.setStyleSheet(
-            "background: #0A1800; border: 1px solid #2EA04340;"
-            " border-left: 3px solid #2EA043; border-radius: 8px;"
+            "background: #0A1800; border: 1px solid #10B98140;"
+            " border-left: 3px solid #10B981; border-radius: 8px;"
         )
         v = QVBoxLayout(self)
         v.setContentsMargins(12, 10, 12, 10)
@@ -251,7 +251,7 @@ class _LootBanner(QFrame):
 
         header = QLabel("🔑  LOOT — Cracked Keys")
         header.setStyleSheet(
-            "color: #2EA043; font-size: 13px; font-weight: 700; letter-spacing: 0.8px;"
+            "color: #10B981; font-size: 13px; font-weight: 700; letter-spacing: 0.8px;"
         )
         v.addWidget(header)
 
@@ -261,7 +261,7 @@ class _LootBanner(QFrame):
             when = entry.get("when", "")[:10]
             row = QLabel(f"  {essid}  →  {key}  [{when}]")
             row.setStyleSheet(
-                "color: #CCCCCC; font-size: 14px;"
+                "color: #E5E7EB; font-size: 14px;"
                 " font-family: 'JetBrains Mono', monospace;"
             )
             row.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -276,7 +276,7 @@ class _TypingIndicator(QLabel):
         super().__init__(parent)
         self._frame = 0
         self.setStyleSheet(
-            "color: #6E7681; font-size: 14px; padding: 4px 8px;"
+            "color: #94A3B8; font-size: 14px; padding: 4px 8px;"
         )
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -338,10 +338,10 @@ class ChatPanel(QWidget):
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.NoFrame)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._scroll.setStyleSheet("background: #1F1F1F;")
+        self._scroll.setStyleSheet("background: #0B1120;")
 
         self._bubble_container = QWidget()
-        self._bubble_container.setStyleSheet("background: #1F1F1F;")
+        self._bubble_container.setStyleSheet("background: #0B1120;")
         self._bubble_layout = QVBoxLayout(self._bubble_container)
         self._bubble_layout.setContentsMargins(16, 16, 16, 8)
         self._bubble_layout.setSpacing(8)
@@ -358,7 +358,7 @@ class ChatPanel(QWidget):
         chips_bar = QWidget()
         chips_bar.setFixedHeight(40)
         chips_bar.setStyleSheet(
-            "background: #181818; border-top: 1px solid #2B2B2B;"
+            "background: #111827; border-top: 1px solid #1c3146;"
         )
         chips_layout = QHBoxLayout(chips_bar)
         chips_layout.setContentsMargins(16, 4, 16, 4)
@@ -375,12 +375,12 @@ class ChatPanel(QWidget):
             btn.setStyleSheet(
                 "QPushButton {"
                 "  background: #1e1e1e; color: #94A3B8;"
-                "  border: 1px solid #2B2B2B; border-radius: 13px;"
+                "  border: 1px solid #1c3146; border-radius: 13px;"
                 "  padding: 0 12px; font-size: 12px; font-weight: 600;"
                 "}"
                 "QPushButton:hover {"
-                "  background: #2B2B2B; color: #4daafc;"
-                "  border-color: #4daafc33;"
+                "  background: #1c3146; color: #22D3EE;"
+                "  border-color: #22D3EE33;"
                 "}"
             )
             btn.clicked.connect(lambda checked, c=cmd: self._send(c))
@@ -393,11 +393,11 @@ class ChatPanel(QWidget):
         self._loot_chip.setObjectName("successBtn")
         self._loot_chip.setStyleSheet(
             "QPushButton {"
-            "  background: #001A08; color: #2EA043;"
-            "  border: 1px solid #2EA04340; border-radius: 12px;"
+            "  background: #001A08; color: #10B981;"
+            "  border: 1px solid #10B98140; border-radius: 12px;"
             "  padding: 0 10px; font-size: 13px; font-weight: 700;"
             "}"
-            "QPushButton:hover { background: #002010; border-color: #2EA04380; }"
+            "QPushButton:hover { background: #002010; border-color: #10B98180; }"
         )
         self._loot_chip.clicked.connect(lambda: self._send("show loot"))
         chips_layout.addWidget(self._loot_chip)
@@ -407,7 +407,7 @@ class ChatPanel(QWidget):
         input_bar = QWidget()
         input_bar.setFixedHeight(52)
         input_bar.setStyleSheet(
-            "background: #181818; border-top: 1px solid #2B2B2B;"
+            "background: #111827; border-top: 1px solid #1c3146;"
         )
         input_layout = QHBoxLayout(input_bar)
         input_layout.setContentsMargins(16, 8, 16, 8)
@@ -419,13 +419,13 @@ class ChatPanel(QWidget):
         )
         self._input.setStyleSheet(
             "QLineEdit {"
-            "  background: #202020; color: #CCCCCC;"
-            "  border: 1px solid #2B2B2B; border-radius: 6px;"
+            "  background: #161E2E; color: #E5E7EB;"
+            "  border: 1px solid #1c3146; border-radius: 6px;"
             "  padding: 8px 12px; font-size: 14px;"
             "  font-family: 'JetBrains Mono', monospace;"
             "}"
             "QLineEdit:focus {"
-            "  border: 1px solid #4daafc;"
+            "  border: 1px solid #22D3EE;"
             "  background-color: #1A2333;"
             "}"
         )

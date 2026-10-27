@@ -86,7 +86,7 @@ export function TopNav({ state, connected, onLogsClick }: TopNavProps) {
       {/* ── Zone 2: Runtime Status ───────────────────── */}
       <div className="flex items-center gap-sm">
         {/* Grouped runtime chips — labeled, high-contrast, scannable */}
-        <div className="flex items-center gap-md rounded-tag border border-border/70 bg-white/[0.02] px-md py-[5px]">
+        <div className="hidden lg:flex items-center gap-md rounded-tag border border-border/70 bg-white/[0.02] px-md py-[5px]">
           {/* Interface */}
           <div className="flex items-center gap-[7px]">
             {state.adapter ? (

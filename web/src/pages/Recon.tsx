@@ -300,12 +300,20 @@ export function Recon({
           </div>
         </motion.div>
 
-        {/* Mini Stats */}
-        <motion.div variants={item} className="grid grid-cols-4 gap-md">
-          <MiniStat icon={Radio} label="Total APs" value={state.aps.length} />
-          <MiniStat icon={Lock} label="Encrypted" value={encCount} color="text-warning" />
-          <MiniStat icon={Unlock} label="Open" value={openCount} color="text-success" />
-          <MiniStat icon={Users} label="Clients" value={totalClients} color="text-accent-purple" />
+        {/* Mini Stats — collapse to a single zero-state summary when empty
+            (same treatment as Dashboard hero metrics) so four "0" tiles do not
+            dominate the page before a scan has run. */}
+        <motion.div variants={item}>
+          {state.aps.length === 0 ? (
+            <ZeroReconMetrics scanning={state.scanning} onScan={onStartScan} />
+          ) : (
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-md">
+              <MiniStat icon={Radio} label="Total APs" value={state.aps.length} />
+              <MiniStat icon={Lock} label="Encrypted" value={encCount} color="text-warning" />
+              <MiniStat icon={Unlock} label="Open" value={openCount} color="text-success" />
+              <MiniStat icon={Users} label="Clients" value={totalClients} color="text-accent-purple" />
+            </div>
+          )}
         </motion.div>
 
         {/* Main AP Table Card */}
@@ -467,9 +475,9 @@ export function Recon({
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-lg items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
               {/* Target Data Console */}
-              <div className="col-span-5 grid grid-cols-2 gap-md border-r border-border/40 pr-lg">
+              <div className="col-span-1 lg:col-span-5 grid grid-cols-2 gap-md lg:border-r border-border/40 lg:pr-lg">
                 <div className="space-y-[4px]">
                   <span className="text-[10px] text-text-muted font-bold font-mono block uppercase">Target ESSID</span>
                   <span className="text-body font-bold text-text-primary block truncate">
@@ -518,7 +526,7 @@ export function Recon({
 
               {/* Smart Attack Advisor — the core beginner UX innovation.
                   Analyzes the AP and shows exactly what will happen + why. */}
-              <div className="col-span-7 space-y-sm">
+              <div className="col-span-1 lg:col-span-7 space-y-sm">
                 {/* Recommendation badge + explanation */}
                 <div className={cn(
                   "rounded-btn border p-md space-y-sm",
@@ -585,6 +593,68 @@ export function Recon({
 
 /* ── Sub-components ──────────────────────────── */
 
+/**
+ * Compact summary shown when the Recon table has no APs yet.
+ * Replaces four identical "0" MiniStat tiles with a single row that names the
+ * phase, lists what the metrics will track, and offers the next action.
+ */
+function ZeroReconMetrics({
+  scanning,
+  onScan,
+}: {
+  scanning: boolean;
+  onScan: () => void;
+}) {
+  const metrics: { icon: React.ElementType; label: string }[] = [
+    { icon: Radio, label: "APs" },
+    { icon: Lock, label: "Encrypted" },
+    { icon: Unlock, label: "Open" },
+    { icon: Users, label: "Clients" },
+  ];
+  return (
+    <div className="card flex flex-col gap-md lg:flex-row lg:items-center lg:justify-between !p-md">
+      <div className="flex items-center gap-md min-w-0">
+        <div className="w-10 h-10 rounded-btn bg-accent-cyan/8 border border-accent-cyan/20 flex items-center justify-center flex-shrink-0">
+          <Radar className="w-5 h-5 text-accent-cyan" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-sm flex-wrap">
+            <span className="text-body font-bold text-text-primary">
+              {scanning ? "Sweeping for networks…" : "No networks discovered yet"}
+            </span>
+            <span className={cn("badge font-mono", scanning ? "badge-cyan scanning-pulse" : "badge-muted")}>
+              {scanning ? "SCANNING" : "IDLE"}
+            </span>
+          </div>
+          <p className="text-small text-text-secondary mt-[2px] leading-snug">
+            Totals for APs, encryption mix, and clients appear here once a scan finds networks.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-md flex-shrink-0">
+        <div className="hidden sm:flex items-center gap-md pr-md border-r border-border/40">
+          {metrics.map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-xs" title={`${label}: 0`}>
+              <Icon className="w-3.5 h-3.5 text-text-muted" />
+              <span className="text-small font-mono text-text-muted">{label}</span>
+              <span className="text-body font-bold font-mono tabular-nums text-text-secondary">0</span>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onScan}
+          disabled={scanning}
+          className="btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono whitespace-nowrap disabled:opacity-60"
+        >
+          {scanning ? "Scanning…" : "Start a scan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MiniStat({
   icon: Icon,
   label,
@@ -596,11 +666,17 @@ function MiniStat({
   value: number;
   color?: string;
 }) {
+  const isZero = value === 0;
   return (
     <div className="card !p-md flex items-center gap-sm">
-      <Icon className={`w-5 h-5 ${color}`} />
+      <Icon className={cn("w-5 h-5", isZero ? "text-text-muted" : color)} />
       <div>
-        <div className={`text-h3 font-bold ${color}`}>{value}</div>
+        <div className={cn(
+          "text-h3 font-bold font-mono tabular-nums",
+          isZero ? "text-text-secondary" : color
+        )}>
+          {value}
+        </div>
         <div className="text-xs text-text-muted">{label}</div>
       </div>
     </div>

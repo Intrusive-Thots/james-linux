@@ -127,7 +127,7 @@ export function PasswordCrackedOverlay({
                   transition={{ delay: 0.7 }}
                   className="text-5xl md:text-7xl font-black text-white tracking-tight"
                 >
-                  ACCESS <span className="text-transparent bg-clip-text bg-gradient-to-r from-success to-emerald-300">GRANTED</span>
+                  ACCESS <span className="text-success">GRANTED</span>
                 </motion.h1>
                 
                 <motion.p

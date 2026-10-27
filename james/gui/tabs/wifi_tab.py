@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QFrame,
     QTabWidget,
+    QStackedWidget,
     QShortcut,
     QApplication,
 )
@@ -33,7 +34,8 @@ import logging
 
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
-from james.gui.theme import LOG_STYLE, METRIC_CARD_STYLE, SURFACE_CARD_STYLE
+from james.gui.theme import LOG_STYLE, METRIC_CARD_STYLE, SURFACE_CARD_STYLE, PALETTE
+from james.gui.empty_state import EmptyState
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +289,7 @@ class WiFiArsenalTab(QWidget):
     def _build_interface_row(self) -> QWidget:
         row = QWidget()
         row.setFixedHeight(48)
-        row.setStyleSheet("background: #181818;")
+        row.setStyleSheet("background: #111827;")
         layout = QHBoxLayout(row)
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(8)
@@ -394,7 +396,14 @@ class WiFiArsenalTab(QWidget):
         self.ap_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ap_table.setAlternatingRowColors(True)
         self.ap_table.verticalHeader().setVisible(False)
-        ap_layout.addWidget(self.ap_table)
+        self._ap_empty = EmptyState(
+            "No networks detected yet",
+            "Run a scan to populate the airspace table.",
+        )
+        self._ap_stack = QStackedWidget()
+        self._ap_stack.addWidget(self._ap_empty)
+        self._ap_stack.addWidget(self.ap_table)
+        ap_layout.addWidget(self._ap_stack)
         splitter.addWidget(ap_group)
 
         cl_group = QGroupBox("Clients & Probes")
@@ -414,7 +423,14 @@ class WiFiArsenalTab(QWidget):
         self.client_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.client_table.setAlternatingRowColors(True)
         self.client_table.verticalHeader().setVisible(False)
-        cl_layout.addWidget(self.client_table)
+        self._client_empty = EmptyState(
+            "No clients observed yet",
+            "Clients and probe requests appear here during a live scan.",
+        )
+        self._client_stack = QStackedWidget()
+        self._client_stack.addWidget(self._client_empty)
+        self._client_stack.addWidget(self.client_table)
+        cl_layout.addWidget(self._client_stack)
         splitter.addWidget(cl_group)
 
         splitter.setStretchFactor(0, 3)
@@ -449,15 +465,17 @@ class WiFiArsenalTab(QWidget):
         lbl = QLabel(label)
         lbl.setObjectName("metaLabel")
         val = QLabel(value)
-        val.setStyleSheet("color: #CCCCCC; font-size: 14px; font-weight: 600;")
+        val.setStyleSheet(f"color: {PALETTE['text']}; font-size: 14px; font-weight: 600;")
         val.setObjectName(f"_metric_{label.lower().replace(' ', '_')}")
         h.addWidget(lbl)
         h.addWidget(val)
         return w
 
-    def _set_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
+    def _set_metric(self, widget: QWidget, value: str, color: str = None):
         lbl = widget.findChildren(QLabel)[1]
         lbl.setText(value)
+        if color is None:
+            color = PALETTE["text"]
         lbl.setStyleSheet(
             f"color: {color}; font-size: 14px; font-weight: 600;"
         )
@@ -533,7 +551,7 @@ class WiFiArsenalTab(QWidget):
         cap_lbl.setObjectName("dimLabel")
         cap_lbl.setMinimumWidth(52)
         self.lbl_cap_file = QLabel("None")
-        self.lbl_cap_file.setStyleSheet("color: #CCCCCC; font-size: 14px;")
+        self.lbl_cap_file.setStyleSheet("color: #E5E7EB; font-size: 14px;")
         self.btn_browse_cap = QPushButton("Browse")
         self.btn_browse_cap.setMinimumWidth(80)
 
@@ -642,9 +660,9 @@ class WiFiArsenalTab(QWidget):
         # Live stats — 3 compact metric cards
         stats_row = QHBoxLayout()
         stats_row.setSpacing(8)
-        self._k_clients = self._make_kpi("Clients", "0", "#4daafc")
-        self._k_dns = self._make_kpi("DNS Queries", "0", "#6E7681")
-        self._k_creds = self._make_kpi("Credentials", "0", "#2EA043")
+        self._k_clients = self._make_kpi("Clients", "0", "#22D3EE")
+        self._k_dns = self._make_kpi("DNS Queries", "0", "#94A3B8")
+        self._k_creds = self._make_kpi("Credentials", "0", "#10B981")
         for k in (self._k_clients, self._k_dns, self._k_creds):
             stats_row.addWidget(k)
         stats_row.addStretch()
@@ -756,7 +774,7 @@ class WiFiArsenalTab(QWidget):
             name = ifc["interface"]
             mode = ifc.get("mode", "?").lower()
             self.iface_combo.addItem(f"{name}  [{mode}]", name)
-            color = "#BB8009" if mode == "monitor" else "#2EA043"
+            color = "#F59E0B" if mode == "monitor" else "#10B981"
             self.iface_combo.setItemData(i, QColor(color), Qt.ForegroundRole)
         self.iface_combo.blockSignals(False)
         if ifaces:
@@ -844,7 +862,7 @@ class WiFiArsenalTab(QWidget):
             return
         self.btn_start_scan.setEnabled(False)
         self.btn_stop_scan.setEnabled(True)
-        self._set_metric(self._m_status, "Scanning…", "#0078D4")
+        self._set_metric(self._m_status, "Scanning…", "#2EC4B6")
         self.orchestrator.layer.run("rm -f /tmp/james_recon*")
         self.recon_proc = self.orchestrator.aircrack.start_airodump(
             iface, write_prefix="/tmp/james_recon"
@@ -919,13 +937,14 @@ class WiFiArsenalTab(QWidget):
         self._set_metric(self._m_clients, str(len(clients)))
         chans = sorted({a["channel"] for a in aps if a["channel"].isdigit()})
         self._set_metric(self._m_chan, ", ".join(chans[:4]) or "—")
-        self._set_metric(self._m_status, "Live", "#2EA043")
+        self._set_metric(self._m_status, "Live", PALETTE["green"])
 
         # Update header
         self.main_window.set_ap_count(len(aps))
 
     def _populate_ap_table(self, aps: list):
         self.ap_table.setRowCount(0)
+        self._ap_stack.setCurrentIndex(1 if aps else 0)
         for ap in aps:
             row = self.ap_table.rowCount()
             self.ap_table.insertRow(row)
@@ -941,11 +960,12 @@ class WiFiArsenalTab(QWidget):
                 item = QTableWidgetItem(val)
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 if "OPN" in ap.get("privacy", ""):
-                    item.setForeground(QColor("#3C3C3C"))
+                    item.setForeground(QColor(PALETTE["text_dim"]))
                 self.ap_table.setItem(row, col, item)
 
     def _populate_client_table(self, clients: list):
         self.client_table.setRowCount(0)
+        self._client_stack.setCurrentIndex(1 if clients else 0)
         for c in clients:
             row = self.client_table.rowCount()
             self.client_table.insertRow(row)

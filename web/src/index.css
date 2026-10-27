@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,7 +13,7 @@
   }
 
   html {
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -190,6 +188,9 @@
   }
   .status-dot-danger {
     @apply status-dot bg-danger animate-pulse;
+  }
+  .status-dot-warning {
+    @apply status-dot bg-warning;
   }
 
   /* Signal Strength Bars */

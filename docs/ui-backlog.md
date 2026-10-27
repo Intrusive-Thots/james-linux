@@ -130,12 +130,42 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     node ringed with the single reserved scanning-pulse, and done phases swapping to a
     CheckCircle2. Rendered as a semantic <ol>. Reads as a phase machine, not four
     disconnected cards; no redundant 01/02 numerals since icons+connectors carry order.)
-13. [ ] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
+13. [x] **Standalone `dashboard/wireless_soc.html`.** Bring it in line with the React
     app's palette/typography and give it an honest empty/disconnected state.
-14. [ ] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
+    (done 2026-10-26 8pm — retargeted CSS variables to the React tactical palette
+    (#0B1120 canvas, #111827 panels, #22D3EE cyan, #2EC4B6 teal, Inter + JetBrains
+    Mono); themed focus rings, caret, selection and scrollbars; added an amber
+    disconnected banner that names the recovery command (`./launch_ui.sh --api`);
+    replaced flat "No live data" rows with icon + headline + explainer empties for
+    assets and detections; muted "—" metric tiles until connected; Connect is a real
+    primary button. Verified disconnected + mock-connected at 1440 and 760.)
+14. [x] **PyQt `james/gui/` pass.** Theme consistency, spacing, and empty states in
     the desktop tabs (wifi, autopilot, airgeddon, activity, setup, troubleshoot).
-15. [ ] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
+    (done 2026-10-26 8pm — `theme.py` Design System v4 retargeted from Antigravity
+    blue (#0078D4/#4daafc/#1F1F1F) to the React tactical cyan/teal palette; primary
+    button is solid teal on dark fg (no costume gradient); bulk-swapped leftover
+    Antigravity hex literals across main_window, chat_panel, setup_wizard and every
+    tab. New shared `EmptyState` widget wired into Wi-Fi AP/Clients tables,
+    AutoPilot Targets & Loot, and Airgeddon recon table; Activity feed placeholder
+    now reads as standby with a next action. Rendered offscreen and verified.)
+15. [x] **Responsive / smaller viewports.** The dashboard is fixed to a large grid;
     verify and fix layout down to ~1280px and narrower.
+    (done 2026-10-26 21:15 — the whole app was built with fixed `grid-cols-12` /
+    `col-span-N` and `grid-cols-4`/`grid-cols-3` that never reflowed, so panels and
+    hero rows just squeezed thinner at every width. Added content-driven breakpoints:
+    the three-pane Dashboard grid is now `grid-cols-1 lg:grid-cols-2 xl:grid-cols-12`
+    (stacks <1024, 2-up 1024–1279 with the third panel full-width, full 3-col ≥1280);
+    its 7/5 lower grid and the Attacks/Recon detail two-panes are `grid-cols-1
+    lg:grid-cols-12`; AutoPilot's 8/4 split is `grid-cols-1 xl:grid-cols-12`. Hero/metric
+    rows went `grid-cols-2 xl:grid-cols-4` (Dashboard, Recon) so four tiles become 2x2
+    instead of four slivers; Handshakes/Logs stat rows `grid-cols-1 sm:grid-cols-3`;
+    AutoPilot target details `grid-cols-2 md:grid-cols-4`; Settings panels
+    `grid-cols-1 lg:grid-cols-2`. The ZeroMetricsSummary now stays stacked until `lg`
+    so its headline stops wrapping into a sliver. TopNav's runtime chip cluster
+    (IFACE/NETWORKS/CLIENTS/UPTIME) is `hidden lg:flex` so it stops clipping the
+    ONLINE/logs/activity controls below 1024 — those stats also live on the pages.
+    Verified in headless Chrome at 1440/1280/1024/768/640: ≥1280 is pixel-identical to
+    before, and everything reflows cleanly below with no overflow or clipping.)
 
 16. [x] **Dashboard stat cards when all-zero.** The four hero-metric cards
     (Networks / Handshakes / Keys / Alerts) read as identical empty tiles on a
@@ -153,40 +183,71 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     (done 2026-10-26 pm as part of #10 — idle SignalScope now renders a single flat,
     low-amplitude (amp=3, noise=0) calm frame with no animation loop, so the "STANDBY —
     activity shows during a scan" label sits unobstructed.)
-18. [ ] **Hardware Status vs backend-offline.** When the WebSocket is simply
+18. [x] **Hardware Status vs backend-offline.** When the WebSocket is simply
     disconnected the panel still says "No adapter detected" / OFFLINE; distinguish
     "backend unreachable" from "adapter genuinely absent".
+    (done 2026-10-26 ~10:17pm — Hardware Status now has three honest states:
+    connected+adapter → ONLINE; connected+no adapter → NO ADAPTER / "No adapter
+    detected"; disconnected → UNREACHABLE (warning) / "Backend unreachable" with
+    helper copy that rows stay unknown until the API is up. Engine rows show "—"
+    while unreachable so they do not pretend to be Standby.)
 
-19. [ ] **Recon metric cards vs new table.** The four MiniStat tiles above the
+19. [x] **Recon metric cards vs new table.** The four MiniStat tiles above the
     Recon table (Total APs / Encrypted / Open / Clients) use the same hero-tile
     pattern just addressed on the Dashboard; give them the same zero-state
     treatment or fold them into the table header for consistency.
+    (done 2026-10-26 ~10:17pm — empty AP list collapses the four "0" MiniStats into
+    a ZeroReconMetrics summary (phase label + IDLE/SCANNING badge + explainer +
+    compact 0 counters + "Start a scan"); with data the MiniStat grid returns,
+    now with muted zero values and tabular-nums.)
 
-20. [ ] **Password-cracked overlay gradient wordmark.** The full-screen
+20. [x] **Password-cracked overlay gradient wordmark.** The full-screen
     "ACCESS GRANTED" success overlay (PasswordCrackedOverlay) renders its
     wordmark as gradient text, which the craft floor calls out as a default to
     avoid; emphasis should come from weight/size. Re-treat the success moment
     without gradient-filled type.
-21. [ ] **Attacks workflow step numerals.** The idle Attack Workflow stepper
+    (done 2026-10-26 ~11:23pm — "GRANTED" no longer uses `bg-clip-text` gradient;
+    it is a solid `text-success` word against white "ACCESS", so emphasis reads
+    from the existing font-black weight + the success-color accent, with no
+    gradient-filled type. Detector clean.)
+21. [x] **Attacks workflow step numerals.** The idle Attack Workflow stepper
     prefixes each step with 01/02/03/04. The icons + connector already convey
     the sequence, so the numerals are redundant chrome; drop them or fold the
     ordinal into the icon badge.
+    (done 2026-10-26 ~11:23pm — dropped the 01/02/03/04 `padStart` numeral span in
+    WorkflowStep; the icon badges + vertical connector carry the sequence, and the
+    step description no longer needs the ml-[22px] numeral offset so it aligns under
+    the label.)
 
-22. [ ] **Settings groups are read-only but look interactive.** The Appearance /
+22. [x] **Settings groups are read-only but look interactive.** The Appearance /
     Notifications / Display / Session (General) and Attack Engine / Capture /
     PMKID / Paths (Advanced) groups render value labels ("Enabled", "Dark
     Tactical", …) that look like settings yet have no controls and change
     nothing. Either wire real controls (toggles/selects bound to backend) or
     relabel the blocks as a read-only "Current configuration" summary so they
     stop implying interactivity.
-23. [ ] **App font vs config mismatch.** index.css `@import`s Inter and sets
+    (done 2026-10-27 ~00:20 — each SettingsGroup header now carries a muted lock +
+    "Read-only" chip, the General/Advanced panel descriptions call out that the groups
+    are current configuration (read-only), and the value text dropped its bold weight so
+    the rows read as a status readout rather than selectable controls. Real controls
+    stay only where they exist, e.g. the editable Remote API token field.)
+23. [x] **App font vs config mismatch.** index.css `@import`s Inter and sets
     `html { font-family: Inter }`, while tailwind.config declares the sans stack
     as IBM Plex Sans. The two disagree and Inter is a flagged overused face;
     pick one intentional typeface and align the @import, the base rule, and the
     Tailwind token (self-host it per the craft floor rather than Google Fonts).
-24. [ ] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
+    (done 2026-10-27 ~01:20 — chose IBM Plex Sans + IBM Plex Mono as the intentional
+    faces (already named in Tailwind). Dropped Google Fonts `@import`s from
+    `index.css` and `index.html`; self-host via `@fontsource/ibm-plex-sans` (400/500/
+    600/700) and `@fontsource/ibm-plex-mono` (400/500) imported from `main.tsx`.
+    Base `html` rule and Tailwind `fontFamily.sans`/`mono` now agree on IBM Plex
+    with system fallbacks only; SVG node labels in AirspaceHeatmap use IBM Plex Mono.)
+24. [x] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
     glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
     give the icon/label a consistent gap like the other panel headers.
+    (done 2026-10-27 ~00:20 — the heading row used `gap-xs`, which is not a defined
+    spacing token so it collapsed to 0; switched to `gap-sm` (8px) to match the
+    SettingsGroup headers, and marked the Shield `shrink-0` so it never squeezes.)
 
 25. [x] **Filter-input focus affordance.** The search/command inputs on Recon,
     Handshakes, Logs, AgentConsole and Agent use inline Tailwind with only
@@ -206,3 +267,16 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     explainer, and four concrete clickable starter chips (scan / status / loot / help)
     that populate the command input and focus it. The panel now reads as ready and
     actionable instead of an empty void. Noticed 2026-10-26 pm while verifying #11.)
+
+27. [x] **Signal/heatmap canvas min-height on stacked layouts.** With the new
+    responsive stacking, the Recon "Map View" radar and the Dashboard
+    AirspaceHeatmap/SignalScope keep a tall fixed canvas area even when the panel
+    is full-width on a short/narrow viewport, leaving a large empty disc below the
+    empty-state copy. Give these canvases a viewport-relative or capped height so
+    the empty state sits closer to the header on small screens.
+    (done 2026-10-27 ~01:20 — RadarScanner/AirspaceHeatmap/Engagement HUD min-heights
+    now scale by breakpoint (`min-h-[220–240px]` → `xl:min-h-[360–460px]`); disc
+    max-widths similarly step down on narrow viewports (`200/220` → `260/340`).
+    AirspaceHeatmap gained a Map-View empty-state overlay so the smaller disc still
+    reads as intentional rather than a blank radar.)
+

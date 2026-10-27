@@ -27,6 +27,9 @@ interface DashboardProps {
   onNavigate: (page: PageId) => void;
   send?: (action: string, params?: Record<string, any>, id?: string) => void;
   onSelectAP?: (ap: AP | null) => void;
+  /** WebSocket link to the JAMES backend. When false, hardware rows must not
+   *  claim "no adapter" — the backend is unreachable, so adapter state is unknown. */
+  connected?: boolean;
 }
 
 const container = {
@@ -42,7 +45,7 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProps) {
+export function Dashboard({ state, onNavigate, send, onSelectAP, connected = true }: DashboardProps) {
   const { crackedCount, pendingCount } = useMemo(() => {
     let crackedCount = 0;
     let pendingCount = 0;
@@ -143,7 +146,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
               onScan={handleScanToggle}
             />
           ) : (
-            <div className="grid grid-cols-4 gap-md">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-md">
               <StatCard
                 icon={Radar}
                 label="Networks Found"
@@ -177,11 +180,11 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
         </motion.div>
 
         {/* Main Tactical Grid: 3 Columns */}
-        <div className="grid grid-cols-12 gap-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-lg">
           
           {/* Column 1 (span-4): Tactical Engagement HUD */}
-          <motion.div variants={item} className="col-span-4 flex flex-col gap-md">
-            <div className="card flex-1 flex flex-col justify-between min-h-[360px]">
+          <motion.div variants={item} className="col-span-1 xl:col-span-4 flex flex-col gap-md">
+            <div className="card flex-1 flex flex-col justify-between min-h-[220px] sm:min-h-[260px] lg:min-h-[320px] xl:min-h-[360px]">
               <div>
                 <div className="card-header mb-md pb-sm">
                   <div className="card-title text-accent-purple">
@@ -335,7 +338,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
 
           {/* Column 2 (span-4): Radar Airspace Scanner */}
-          <motion.div variants={item} className="col-span-4 flex">
+          <motion.div variants={item} className="col-span-1 xl:col-span-4 flex">
             <RadarScanner
               aps={state.aps}
               selectedAP={selectedAP}
@@ -346,7 +349,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
           </motion.div>
 
           {/* Column 3 (span-4): Quick Actions & Live Oscilloscope */}
-          <motion.div variants={item} className="col-span-4 flex flex-col gap-md">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2 xl:col-span-4 flex flex-col gap-md">
             {/* Quick Actions */}
             <div className="card flex-1 flex flex-col justify-between">
               <div>
@@ -385,49 +388,64 @@ export function Dashboard({ state, onNavigate, send, onSelectAP }: DashboardProp
         </div>
 
         {/* System Status + Activity */}
-        <div className="grid grid-cols-12 gap-lg">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-lg">
           {/* System Status Details */}
-          <motion.div variants={item} className="col-span-7 card">
+          <motion.div variants={item} className="col-span-1 xl:col-span-7 card">
             <div className="card-header mb-md pb-xs">
               <div className="card-title">
                 <Wifi className="w-5 h-5 text-accent-cyan" />
                 Hardware Status
               </div>
-              <span className={cn(
-                "badge font-mono",
-                state.adapter ? "badge-success" : "badge-danger"
-              )}>
-                {state.adapter ? "ONLINE" : "OFFLINE"}
-              </span>
+              {(() => {
+                const hwOnline = connected && !!state.adapter;
+                const hwUnreachable = !connected;
+                return (
+                  <span className={cn(
+                    "badge font-mono",
+                    hwOnline ? "badge-success" : hwUnreachable ? "badge-warning" : "badge-danger"
+                  )}>
+                    {hwOnline ? "ONLINE" : hwUnreachable ? "UNREACHABLE" : "NO ADAPTER"}
+                  </span>
+                );
+              })()}
             </div>
             
             <div className="space-y-sm">
               <StatusRow
                 label="Active Wireless Adapter"
-                value={state.adapter || "No adapter detected"}
-                status={state.adapter ? "ok" : "error"}
+                value={
+                  !connected
+                    ? "Backend unreachable"
+                    : (state.adapter || "No adapter detected")
+                }
+                status={!connected ? "warn" : state.adapter ? "ok" : "error"}
               />
               <StatusRow
                 label="Adapter Mode"
-                value={state.adapterMode?.toUpperCase() || "—"}
-                status={state.adapterMode === "monitor" ? "active" : "idle"}
+                value={!connected ? "—" : (state.adapterMode?.toUpperCase() || "—")}
+                status={!connected ? "idle" : state.adapterMode === "monitor" ? "active" : "idle"}
               />
               <StatusRow
                 label="Airspace RF Scan Engine"
-                value={state.scanning ? "Sweeping Channels" : "Standby"}
-                status={state.scanning ? "active" : "idle"}
+                value={!connected ? "—" : state.scanning ? "Sweeping Channels" : "Standby"}
+                status={!connected ? "idle" : state.scanning ? "active" : "idle"}
               />
               <StatusRow
                 label="Cracking GPU Engine"
-                value={state.attack.stage === "cracking" ? "Hashcat Running" : "Standby"}
-                status={state.attack.stage === "cracking" ? "active" : "idle"}
+                value={!connected ? "—" : state.attack.stage === "cracking" ? "Hashcat Running" : "Standby"}
+                status={!connected ? "idle" : state.attack.stage === "cracking" ? "active" : "idle"}
               />
-
+              {!connected && (
+                <p className="text-small text-warning/90 pt-xs leading-snug">
+                  Start the API to report real adapter state — until then these
+                  rows stay unknown, not absent.
+                </p>
+              )}
             </div>
           </motion.div>
 
           {/* Activity Card */}
-          <motion.div variants={item} className="col-span-5">
+          <motion.div variants={item} className="col-span-1 xl:col-span-5">
             <ActivityCard state={state} />
           </motion.div>
         </div>
@@ -497,7 +515,7 @@ function ZeroMetricsSummary({
     { icon: AlertTriangle, label: "Alerts" },
   ];
   return (
-    <div className="card flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+    <div className="card flex flex-col gap-md lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-md">
         <div className="w-12 h-12 rounded-btn bg-accent-cyan/8 border border-accent-cyan/20 flex items-center justify-center flex-shrink-0">
           <Radio className="w-6 h-6 text-accent-cyan" />
@@ -607,13 +625,14 @@ function StatusRow({
 }: {
   label: string;
   value: string;
-  status: "ok" | "active" | "idle" | "error";
+  status: "ok" | "active" | "idle" | "error" | "warn";
 }) {
   const dotClass = {
     ok: "status-dot-success",
     active: "status-dot-active",
     idle: "status-dot-idle",
     error: "status-dot-danger",
+    warn: "status-dot-warning",
   };
 
   return (

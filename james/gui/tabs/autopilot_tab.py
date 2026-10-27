@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QGroupBox,
     QTableWidget,
+    QStackedWidget,
     QTableWidgetItem,
     QHeaderView,
     QPlainTextEdit,
@@ -38,7 +39,8 @@ from PyQt5.QtGui import QKeySequence
 from PyQt5.QtGui import QColor, QFont
 
 from james.gui.toast import show_toast
-from james.gui.theme import TERMINAL_STYLE, LOG_STYLE
+from james.gui.theme import TERMINAL_STYLE, LOG_STYLE, PALETTE
+from james.gui.empty_state import EmptyState
 
 logger = logging.getLogger(__name__)
 
@@ -746,7 +748,7 @@ class AutoPilotTab(QWidget):
         phase_strip = QWidget()
         phase_strip.setFixedHeight(48)
         phase_strip.setStyleSheet(
-            "background: #181818; border: 1px solid #2B2B2B;" " border-radius: 6px;"
+            "background: #111827; border: 1px solid #1c3146;" " border-radius: 6px;"
         )
         ps = QHBoxLayout(phase_strip)
         ps.setContentsMargins(16, 0, 16, 0)
@@ -806,7 +808,14 @@ class AutoPilotTab(QWidget):
         self.loot_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         self.loot_table.verticalHeader().setVisible(False)
         self.loot_table.setAlternatingRowColors(True)
-        loot_layout.addWidget(self.loot_table)
+        self._loot_empty = EmptyState(
+            "No targets or loot yet",
+            "AutoPilot will list locked targets and recovered keys here as it runs.",
+        )
+        self._loot_stack = QStackedWidget()
+        self._loot_stack.addWidget(self._loot_empty)
+        self._loot_stack.addWidget(self.loot_table)
+        loot_layout.addWidget(self._loot_stack)
         splitter.addWidget(loot_group)
 
         splitter.setSizes([480, 480])
@@ -820,7 +829,7 @@ class AutoPilotTab(QWidget):
         val = QLabel(value)
         val.setAlignment(Qt.AlignCenter)
         val.setStyleSheet(
-            "color: #CCCCCC; font-size: 16px; font-weight: 700;"
+            "color: #E5E7EB; font-size: 16px; font-weight: 700;"
             " font-family: 'JetBrains Mono', monospace;"
         )
         cap = QLabel(label)
@@ -830,7 +839,7 @@ class AutoPilotTab(QWidget):
         v.addWidget(cap)
         return w
 
-    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#CCCCCC"):
+    def _set_strip_metric(self, widget: QWidget, value: str, color: str = "#E5E7EB"):
         lbl = widget.findChildren(QLabel)[0]
         lbl.setText(value)
         lbl.setStyleSheet(
@@ -874,6 +883,7 @@ class AutoPilotTab(QWidget):
         self.btn_stop.setEnabled(True)
         self.txt_log.clear()
         self.loot_table.setRowCount(0)
+        self._loot_stack.setCurrentIndex(0)
         self.progress_bar.setValue(0)
         self.main_window._set_idle(False)
         self.main_window.lbl_status.setText("● AUTO-PILOT")
@@ -941,6 +951,7 @@ class AutoPilotTab(QWidget):
         row = existing_row if existing_row is not None else self.loot_table.rowCount()
         if existing_row is None:
             self.loot_table.insertRow(row)
+            self._loot_stack.setCurrentIndex(1)
 
         self.loot_table.setItem(row, 0, QTableWidgetItem(ap.get("essid", "")))
         self.loot_table.setItem(row, 1, QTableWidgetItem(bssid))
@@ -950,26 +961,26 @@ class AutoPilotTab(QWidget):
         hs_item = QTableWidgetItem()
         if ap.get("skip_reason"):
             hs_item.setText("SKIP")
-            hs_item.setForeground(QColor("#3C3C3C"))
+            hs_item.setForeground(QColor(PALETTE["text_dim"]))
         elif ap.get("captured"):
             hs_item.setText("YES")
-            hs_item.setForeground(QColor("#2EA043"))
+            hs_item.setForeground(QColor(PALETTE["green"]))
         else:
             hs_item.setText("NO")
-            hs_item.setForeground(QColor("#F85149"))
+            hs_item.setForeground(QColor(PALETTE["red"]))
         self.loot_table.setItem(row, 3, hs_item)
 
         # Key status
         key_item = QTableWidgetItem()
         if ap.get("cracked"):
             key_item.setText(ap.get("key", ""))
-            key_item.setForeground(QColor("#0078D4"))
+            key_item.setForeground(QColor(PALETTE["gold"]))
         elif ap.get("captured"):
             key_item.setText("pending")
-            key_item.setForeground(QColor("#6E7681"))
+            key_item.setForeground(QColor(PALETTE["text_mid"]))
         else:
             key_item.setText("—")
-            key_item.setForeground(QColor("#3C3C3C"))
+            key_item.setForeground(QColor(PALETTE["text_dim"]))
         self.loot_table.setItem(row, 4, key_item)
 
         # Update strip metrics
@@ -988,10 +999,10 @@ class AutoPilotTab(QWidget):
         self._set_strip_metric(
             self._m_captured,
             str(captured),
-            "#2EA043" if captured else "#CCCCCC",
+            PALETTE["green"] if captured else PALETTE["text"],
         )
         self._set_strip_metric(
-            self._m_cracked, str(cracked), "#0078D4" if cracked else "#CCCCCC"
+            self._m_cracked, str(cracked), PALETTE["gold"] if cracked else PALETTE["text"]
         )
 
     def _on_finished(self, success):
@@ -1004,11 +1015,11 @@ class AutoPilotTab(QWidget):
             show_toast(self.main_window, "Auto-Pilot complete", level="success")
             self.lbl_phase.setText("Complete")
             self.lbl_phase.setStyleSheet(
-                "color: #2EA043; font-size: 16px; font-weight: 700;"
+                "color: #10B981; font-size: 16px; font-weight: 700;"
             )
         else:
             show_toast(self.main_window, "Auto-Pilot stopped", level="error")
             self.lbl_phase.setText("Stopped")
             self.lbl_phase.setStyleSheet(
-                "color: #F85149; font-size: 16px; font-weight: 700;"
+                "color: #EF4444; font-size: 16px; font-weight: 700;"
             )

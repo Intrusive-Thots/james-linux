@@ -180,7 +180,7 @@ export function Logs({ state }: LogsProps) {
         </div>
 
         {/* Summary Widgets */}
-        <div className="grid grid-cols-3 gap-md flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-md flex-shrink-0">
           <SummaryWidget
             label="Current Task"
             value={

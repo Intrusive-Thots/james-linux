@@ -37,15 +37,15 @@ logger = logging.getLogger(__name__)
 
 # ── Activity entry types and their colors ────────────────────────────
 ACTIVITY_TYPES = {
-    "TOOL":     {"icon": "⚡", "color": "#4daafc", "label": "Tool"},
-    "PHASE":    {"icon": "🔄", "color": "#BB8009", "label": "Phase"},
+    "TOOL":     {"icon": "⚡", "color": "#22D3EE", "label": "Tool"},
+    "PHASE":    {"icon": "🔄", "color": "#F59E0B", "label": "Phase"},
     "CHAIN":    {"icon": "⛓️",  "color": "#9B6DFF", "label": "Chain"},
-    "AI":       {"icon": "🧠", "color": "#2EA043", "label": "AI"},
-    "RESULT":   {"icon": "📋", "color": "#6E7681", "label": "Result"},
-    "ERROR":    {"icon": "❌", "color": "#F85149", "label": "Error"},
-    "SUCCESS":  {"icon": "✅", "color": "#2EA043", "label": "Success"},
-    "INFO":     {"icon": "ℹ️",  "color": "#6E7681", "label": "Info"},
-    "PROGRESS": {"icon": "📊", "color": "#4daafc", "label": "Progress"},
+    "AI":       {"icon": "🧠", "color": "#10B981", "label": "AI"},
+    "RESULT":   {"icon": "📋", "color": "#94A3B8", "label": "Result"},
+    "ERROR":    {"icon": "❌", "color": "#EF4444", "label": "Error"},
+    "SUCCESS":  {"icon": "✅", "color": "#10B981", "label": "Success"},
+    "INFO":     {"icon": "ℹ️",  "color": "#94A3B8", "label": "Info"},
+    "PROGRESS": {"icon": "📊", "color": "#22D3EE", "label": "Progress"},
 }
 
 SIDEBAR_EXPANDED_WIDTH = 320
@@ -97,7 +97,7 @@ class ActivitySidebar(QWidget):
         # ── Collapsed strip (shown when collapsed) ──────
         self._collapsed_strip = QWidget()
         self._collapsed_strip.setFixedWidth(SIDEBAR_COLLAPSED_WIDTH)
-        self._collapsed_strip.setStyleSheet("background: #141414;")
+        self._collapsed_strip.setStyleSheet("background: #071018;")
         cs_layout = QVBoxLayout(self._collapsed_strip)
         cs_layout.setContentsMargins(4, 8, 4, 8)
         cs_layout.setSpacing(8)
@@ -106,10 +106,10 @@ class ActivitySidebar(QWidget):
         self._btn_expand.setFixedSize(34, 34)
         self._btn_expand.setToolTip("Expand activity sidebar")
         self._btn_expand.setStyleSheet(
-            "QPushButton { background: #202020; color: #4daafc;"
-            " border: 1px solid #2B2B2B; border-radius: 6px;"
+            "QPushButton { background: #161E2E; color: #22D3EE;"
+            " border: 1px solid #1c3146; border-radius: 6px;"
             " font-size: 14px; font-weight: 700; }"
-            "QPushButton:hover { background: #2B2B2B; border-color: #4daafc; }"
+            "QPushButton:hover { background: #1c3146; border-color: #22D3EE; }"
         )
         self._btn_expand.clicked.connect(self._expand)
         cs_layout.addWidget(self._btn_expand)
@@ -118,7 +118,7 @@ class ActivitySidebar(QWidget):
         self._collapsed_dot = QLabel("●")
         self._collapsed_dot.setAlignment(Qt.AlignCenter)
         self._collapsed_dot.setStyleSheet(
-            "color: #2EA043; font-size: 14px; font-weight: 900;"
+            "color: #10B981; font-size: 14px; font-weight: 900;"
         )
         cs_layout.addWidget(self._collapsed_dot)
 
@@ -126,7 +126,7 @@ class ActivitySidebar(QWidget):
         self._collapsed_count = QLabel("0")
         self._collapsed_count.setAlignment(Qt.AlignCenter)
         self._collapsed_count.setStyleSheet(
-            "color: #3C3C3C; font-size: 11px;"
+            "color: #64748B; font-size: 11px;"
         )
         cs_layout.addWidget(self._collapsed_count)
 
@@ -136,7 +136,7 @@ class ActivitySidebar(QWidget):
 
         # ── Expanded panel ──────────────────────────────
         self._expanded_panel = QWidget()
-        self._expanded_panel.setStyleSheet("background: #141414;")
+        self._expanded_panel.setStyleSheet("background: #071018;")
         ep_layout = QVBoxLayout(self._expanded_panel)
         ep_layout.setContentsMargins(0, 0, 0, 0)
         ep_layout.setSpacing(0)
@@ -145,7 +145,7 @@ class ActivitySidebar(QWidget):
         header = QWidget()
         header.setFixedHeight(44)
         header.setStyleSheet(
-            "background: #181818; border-bottom: 1px solid #2B2B2B;"
+            "background: #111827; border-bottom: 1px solid #1c3146;"
         )
         hdr_layout = QHBoxLayout(header)
         hdr_layout.setContentsMargins(10, 0, 6, 0)
@@ -153,18 +153,18 @@ class ActivitySidebar(QWidget):
 
         self._live_dot = QLabel("●")
         self._live_dot.setStyleSheet(
-            "color: #2EA043; font-size: 14px; font-weight: 900;"
+            "color: #10B981; font-size: 14px; font-weight: 900;"
         )
         self._live_dot_visible = True
 
         title = QLabel("ACTIVITY")
         title.setStyleSheet(
-            "color: #4daafc; font-size: 11px; font-weight: 700;"
+            "color: #22D3EE; font-size: 11px; font-weight: 700;"
             " letter-spacing: 1.5px;"
         )
 
         self._lbl_count = QLabel("0")
-        self._lbl_count.setStyleSheet("color: #3C3C3C; font-size: 11px;")
+        self._lbl_count.setStyleSheet("color: #64748B; font-size: 11px;")
 
         hdr_layout.addWidget(self._live_dot)
         hdr_layout.addWidget(title)
@@ -176,9 +176,9 @@ class ActivitySidebar(QWidget):
         self._btn_collapse.setFixedSize(26, 26)
         self._btn_collapse.setToolTip("Collapse sidebar")
         self._btn_collapse.setStyleSheet(
-            "QPushButton { background: transparent; color: #3C3C3C;"
+            "QPushButton { background: transparent; color: #64748B;"
             " border: none; font-size: 12px; }"
-            "QPushButton:hover { color: #4daafc; }"
+            "QPushButton:hover { color: #22D3EE; }"
         )
         self._btn_collapse.clicked.connect(self._collapse)
         hdr_layout.addWidget(self._btn_collapse)
@@ -189,7 +189,7 @@ class ActivitySidebar(QWidget):
         self._phase_bar = QWidget()
         self._phase_bar.setFixedHeight(28)
         self._phase_bar.setStyleSheet(
-            "background: #0D1117; border-bottom: 1px solid #1B2332;"
+            "background: #071018; border-bottom: 1px solid #1B2332;"
         )
         pb_layout = QHBoxLayout(self._phase_bar)
         pb_layout.setContentsMargins(10, 0, 10, 0)
@@ -197,11 +197,11 @@ class ActivitySidebar(QWidget):
 
         self._lbl_phase = QLabel("Idle")
         self._lbl_phase.setStyleSheet(
-            "color: #6E7681; font-size: 11px; font-weight: 600;"
+            "color: #94A3B8; font-size: 11px; font-weight: 600;"
         )
         self._lbl_step = QLabel("")
         self._lbl_step.setStyleSheet(
-            "color: #3C3C3C; font-size: 11px;"
+            "color: #64748B; font-size: 11px;"
         )
 
         pb_layout.addWidget(self._lbl_phase, stretch=1)
@@ -214,10 +214,10 @@ class ActivitySidebar(QWidget):
         self._progress.setTextVisible(False)
         self._progress.setFixedHeight(3)
         self._progress.setStyleSheet(
-            "QProgressBar { background: #0D1117; border: none; }"
+            "QProgressBar { background: #071018; border: none; }"
             "QProgressBar::chunk {"
             "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            "    stop:0 #0078D4, stop:1 #4daafc);"
+            "    stop:0 #2EC4B6, stop:1 #22D3EE);"
             "}"
         )
         ep_layout.addWidget(self._progress)
@@ -229,15 +229,16 @@ class ActivitySidebar(QWidget):
         self._feed.setFont(QFont("JetBrains Mono", 11))
         self._feed.setStyleSheet(
             "QPlainTextEdit {"
-            "  background: #0D1117; color: #6E7681;"
+            "  background: #071018; color: #94A3B8;"
             "  border: none; padding: 6px;"
             "  font-family: 'JetBrains Mono', monospace;"
             "  font-size: 12px;"
-            "  selection-background-color: #0078D422;"
+            "  selection-background-color: #2EC4B622;"
             "}"
         )
         self._feed.setPlaceholderText(
-            "Activity will appear\nas JAMES runs tools…"
+            "Standby — activity appears here as JAMES runs tools.\n"
+            "Start a scan, AutoPilot, or attack to begin."
         )
         ep_layout.addWidget(self._feed, stretch=1)
 
@@ -245,7 +246,7 @@ class ActivitySidebar(QWidget):
         ctrl = QWidget()
         ctrl.setFixedHeight(32)
         ctrl.setStyleSheet(
-            "background: #181818; border-top: 1px solid #2B2B2B;"
+            "background: #111827; border-top: 1px solid #1c3146;"
         )
         ctrl_layout = QHBoxLayout(ctrl)
         ctrl_layout.setContentsMargins(6, 0, 6, 0)
@@ -256,30 +257,30 @@ class ActivitySidebar(QWidget):
         self._btn_pause.setCheckable(True)
         self._btn_pause.setToolTip("Pause/Resume feed (Ctrl+P)")
         self._btn_pause.setStyleSheet(
-            "QPushButton { background: transparent; color: #6E7681;"
+            "QPushButton { background: transparent; color: #94A3B8;"
             " border: none; font-size: 12px; }"
-            "QPushButton:hover { color: #4daafc; }"
-            "QPushButton:checked { color: #BB8009; }"
+            "QPushButton:hover { color: #22D3EE; }"
+            "QPushButton:checked { color: #F59E0B; }"
         )
         self._btn_pause.clicked.connect(self._toggle_pause)
 
         self._filter_combo = QComboBox()
         self._filter_combo.setFixedHeight(22)
         self._filter_combo.setStyleSheet(
-            "QComboBox { background: #202020; color: #6E7681;"
-            " border: 1px solid #2B2B2B; border-radius: 4px;"
+            "QComboBox { background: #161E2E; color: #94A3B8;"
+            " border: 1px solid #1c3146; border-radius: 4px;"
             " padding: 0 6px; font-size: 11px; min-width: 60px; }"
-            "QComboBox:hover { border-color: #3C3C3C; }"
+            "QComboBox:hover { border-color: #64748B; }"
             "QComboBox::drop-down { border: none; width: 16px; }"
             "QComboBox::down-arrow {"
             "  border-left: 3px solid transparent;"
             "  border-right: 3px solid transparent;"
-            "  border-top: 4px solid #6E7681; margin-right: 4px;"
+            "  border-top: 4px solid #94A3B8; margin-right: 4px;"
             "}"
             "QComboBox QAbstractItemView {"
-            "  background: #181818; color: #CCCCCC;"
-            "  border: 1px solid #2B2B2B; font-size: 11px;"
-            "  selection-background-color: #2B2B2B;"
+            "  background: #111827; color: #E5E7EB;"
+            "  border: 1px solid #1c3146; font-size: 11px;"
+            "  selection-background-color: #1c3146;"
             "}"
         )
         self._filter_combo.addItem("All", "ALL")
@@ -293,9 +294,9 @@ class ActivitySidebar(QWidget):
         btn_clear.setFixedSize(26, 24)
         btn_clear.setToolTip("Clear feed (Ctrl+L)")
         btn_clear.setStyleSheet(
-            "QPushButton { background: transparent; color: #6E7681;"
+            "QPushButton { background: transparent; color: #94A3B8;"
             " border: none; font-size: 12px; }"
-            "QPushButton:hover { color: #F85149; }"
+            "QPushButton:hover { color: #EF4444; }"
         )
         btn_clear.clicked.connect(self._clear)
 
@@ -303,9 +304,9 @@ class ActivitySidebar(QWidget):
         btn_copy.setFixedSize(26, 24)
         btn_copy.setToolTip("Copy feed (Ctrl+Shift+C)")
         btn_copy.setStyleSheet(
-            "QPushButton { background: transparent; color: #6E7681;"
+            "QPushButton { background: transparent; color: #94A3B8;"
             " border: none; font-size: 13px; }"
-            "QPushButton:hover { color: #4daafc; }"
+            "QPushButton:hover { color: #22D3EE; }"
         )
         btn_copy.clicked.connect(self._copy)
 
@@ -511,7 +512,7 @@ class ActivitySidebar(QWidget):
 
         # Timestamp
         fmt_ts = QTextCharFormat()
-        fmt_ts.setForeground(QColor("#2B2B2B"))
+        fmt_ts.setForeground(QColor("#1c3146"))
         fmt_ts.setFontFamily("JetBrains Mono")
         cursor.insertText(f"{ts} ", fmt_ts)
 
@@ -527,7 +528,7 @@ class ActivitySidebar(QWidget):
             fmt_msg.setForeground(QColor(color))
             fmt_msg.setFontWeight(QFont.Bold)
         elif activity_type == "PHASE":
-            fmt_msg.setForeground(QColor("#CCCCCC"))
+            fmt_msg.setForeground(QColor("#E5E7EB"))
         else:
             fmt_msg.setForeground(QColor("#8B949E"))
 
@@ -553,7 +554,7 @@ class ActivitySidebar(QWidget):
         self._current_step = f"{num}/{total}"
         self._lbl_phase.setText(phase)
         self._lbl_phase.setStyleSheet(
-            "color: #BB8009; font-size: 11px; font-weight: 600;"
+            "color: #F59E0B; font-size: 11px; font-weight: 600;"
         )
         self._lbl_step.setText(self._current_step)
 
@@ -561,7 +562,7 @@ class ActivitySidebar(QWidget):
             QTimer.singleShot(3000, lambda: self._progress.setVisible(False))
             self._lbl_phase.setText("Complete")
             self._lbl_phase.setStyleSheet(
-                "color: #2EA043; font-size: 11px; font-weight: 600;"
+                "color: #10B981; font-size: 11px; font-weight: 600;"
             )
 
     @pyqtSlot(dict)
@@ -573,7 +574,7 @@ class ActivitySidebar(QWidget):
         if status == "running":
             self._lbl_phase.setText(f"{tool}: {action}"[:30])
             self._lbl_phase.setStyleSheet(
-                "color: #BB8009; font-size: 11px; font-weight: 600;"
+                "color: #F59E0B; font-size: 11px; font-weight: 600;"
             )
             self._append_signal.emit(
                 f"Task started: {action} ({tool})", "TOOL"
@@ -581,12 +582,12 @@ class ActivitySidebar(QWidget):
         elif status == "done":
             self._lbl_phase.setText("Ready")
             self._lbl_phase.setStyleSheet(
-                "color: #2EA043; font-size: 11px; font-weight: 600;"
+                "color: #10B981; font-size: 11px; font-weight: 600;"
             )
         elif status == "error":
             self._lbl_phase.setText("Error")
             self._lbl_phase.setStyleSheet(
-                "color: #F85149; font-size: 11px; font-weight: 600;"
+                "color: #EF4444; font-size: 11px; font-weight: 600;"
             )
 
     # ── UI actions ───────────────────────────────────────────────
@@ -621,7 +622,7 @@ class ActivitySidebar(QWidget):
         self._collapsed_count.setText("0")
         self._lbl_phase.setText("Idle")
         self._lbl_phase.setStyleSheet(
-            "color: #6E7681; font-size: 11px; font-weight: 600;"
+            "color: #94A3B8; font-size: 11px; font-weight: 600;"
         )
         self._lbl_step.setText("")
         self._progress.setVisible(False)
@@ -634,17 +635,17 @@ class ActivitySidebar(QWidget):
     def _flash_dot(self):
         """Flash live dot on activity."""
         self._live_dot.setStyleSheet(
-            "color: #4daafc; font-size: 14px; font-weight: 900;"
+            "color: #22D3EE; font-size: 14px; font-weight: 900;"
         )
         self._collapsed_dot.setStyleSheet(
-            "color: #4daafc; font-size: 14px; font-weight: 900;"
+            "color: #22D3EE; font-size: 14px; font-weight: 900;"
         )
         QTimer.singleShot(300, lambda: (
             self._live_dot.setStyleSheet(
-                "color: #2EA043; font-size: 14px; font-weight: 900;"
+                "color: #10B981; font-size: 14px; font-weight: 900;"
             ),
             self._collapsed_dot.setStyleSheet(
-                "color: #2EA043; font-size: 14px; font-weight: 900;"
+                "color: #10B981; font-size: 14px; font-weight: 900;"
             ),
         ))
 
@@ -656,7 +657,7 @@ class ActivitySidebar(QWidget):
             self._live_dot.setStyleSheet(dim)
             self._collapsed_dot.setStyleSheet(dim)
         else:
-            bright = "color: #2EA043; font-size: 14px; font-weight: 900;"
+            bright = "color: #10B981; font-size: 14px; font-weight: 900;"
             self._live_dot.setStyleSheet(bright)
             self._collapsed_dot.setStyleSheet(bright)
         self._live_dot_visible = not self._live_dot_visible

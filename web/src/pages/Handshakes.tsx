@@ -133,7 +133,7 @@ export function Handshakes({ state, onRemoveHandshake }: HandshakesProps) {
         </motion.div>
 
         {/* Stats */}
-        <motion.div variants={item} className="grid grid-cols-3 gap-md">
+        <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-3 gap-md">
           <div className="card !p-md flex items-center gap-sm">
             <FileKey className="w-5 h-5 text-accent-purple" />
             <div>
