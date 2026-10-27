@@ -184,7 +184,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
           
           {/* Column 1 (span-4): Tactical Engagement HUD */}
           <motion.div variants={item} className="col-span-1 xl:col-span-4 flex flex-col gap-md">
-            <div className="card flex-1 flex flex-col justify-between min-h-[360px]">
+            <div className="card flex-1 flex flex-col justify-between min-h-[220px] sm:min-h-[260px] lg:min-h-[320px] xl:min-h-[360px]">
               <div>
                 <div className="card-header mb-md pb-sm">
                   <div className="card-title text-accent-purple">

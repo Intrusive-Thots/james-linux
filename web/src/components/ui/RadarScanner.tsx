@@ -83,7 +83,7 @@ export const RadarScanner = memo(function RadarScanner({
   };
 
   return (
-    <div className="card flex flex-col items-center justify-between relative overflow-hidden min-h-[360px] flex-1">
+    <div className="card flex flex-col items-center justify-between relative overflow-hidden min-h-[220px] sm:min-h-[260px] lg:min-h-[320px] xl:min-h-[360px] flex-1">
       <div className="w-full flex items-center justify-between mb-sm">
         <div className="flex flex-col">
           <span className="text-body font-semibold text-text-primary">Tactical Airspace</span>
@@ -101,7 +101,7 @@ export const RadarScanner = memo(function RadarScanner({
         </span>
       </div>
 
-      <div className="relative w-full max-w-[260px] aspect-square flex items-center justify-center my-auto">
+      <div className="relative w-full max-w-[200px] sm:max-w-[230px] lg:max-w-[260px] aspect-square flex items-center justify-center my-auto">
         <svg
           viewBox="0 0 300 300"
           className="w-full h-full text-text-muted/20 select-none"

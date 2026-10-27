@@ -145,7 +145,7 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
         </div>
       )}
 
-      <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center my-auto">
+      <div className="relative w-full max-w-[220px] sm:max-w-[280px] lg:max-w-[340px] aspect-square flex items-center justify-center my-auto">
         <svg
           viewBox="0 0 300 300"
           className="w-full h-full text-text-muted/15 select-none"
@@ -309,7 +309,7 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
                         textAnchor="middle"
                         fill="#E5E7EB"
                         fontSize="8"
-                        fontFamily="JetBrains Mono"
+                        fontFamily="IBM Plex Mono"
                         fontWeight="bold"
                         className="bg-black/80 pointer-events-none select-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
                       >
@@ -322,6 +322,18 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
             </AnimatePresence>
           </g>
         </svg>
+
+        {/* Empty / standby state — no networks plotted yet */}
+        {aps.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-md pointer-events-none">
+            <p className="text-small font-semibold text-text-primary">
+              {scanning ? "Sweeping the airspace…" : "No networks on the map yet"}
+            </p>
+            <p className="text-xs text-text-secondary mt-[2px] max-w-[200px] leading-snug">
+              Access points plot here as they are discovered.
+            </p>
+          </div>
+        )}
 
         {/* Float Glass Tooltip */}
         <AnimatePresence>
@@ -410,7 +422,7 @@ export const AirspaceHeatmap = memo(function AirspaceHeatmap({
 
   if (standalone) {
     return (
-      <div className="card flex flex-col items-center justify-between relative overflow-hidden min-h-[460px] flex-1">
+      <div className="card flex flex-col items-center justify-between relative overflow-hidden min-h-[240px] sm:min-h-[300px] lg:min-h-[380px] xl:min-h-[460px] flex-1">
         {content}
       </div>
     );

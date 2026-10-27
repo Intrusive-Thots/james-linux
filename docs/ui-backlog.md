@@ -231,11 +231,17 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     are current configuration (read-only), and the value text dropped its bold weight so
     the rows read as a status readout rather than selectable controls. Real controls
     stay only where they exist, e.g. the editable Remote API token field.)
-23. [ ] **App font vs config mismatch.** index.css `@import`s Inter and sets
+23. [x] **App font vs config mismatch.** index.css `@import`s Inter and sets
     `html { font-family: Inter }`, while tailwind.config declares the sans stack
     as IBM Plex Sans. The two disagree and Inter is a flagged overused face;
     pick one intentional typeface and align the @import, the base rule, and the
     Tailwind token (self-host it per the craft floor rather than Google Fonts).
+    (done 2026-10-27 ~01:20 — chose IBM Plex Sans + IBM Plex Mono as the intentional
+    faces (already named in Tailwind). Dropped Google Fonts `@import`s from
+    `index.css` and `index.html`; self-host via `@fontsource/ibm-plex-sans` (400/500/
+    600/700) and `@fontsource/ibm-plex-mono` (400/500) imported from `main.tsx`.
+    Base `html` rule and Tailwind `fontFamily.sans`/`mono` now agree on IBM Plex
+    with system fallbacks only; SVG node labels in AirspaceHeatmap use IBM Plex Mono.)
 24. [x] **NetworkGuard heading icon spacing.** On the Interfaces panel the Shield
     glyph sits flush against "NetworkGuard Self-Protection: ACTIVE" with no gap;
     give the icon/label a consistent gap like the other panel headers.
@@ -262,10 +268,15 @@ with a clear message. Check the box and add a one-line note. Then push `ui-polis
     that populate the command input and focus it. The panel now reads as ready and
     actionable instead of an empty void. Noticed 2026-10-26 pm while verifying #11.)
 
-27. [ ] **Signal/heatmap canvas min-height on stacked layouts.** With the new
+27. [x] **Signal/heatmap canvas min-height on stacked layouts.** With the new
     responsive stacking, the Recon "Map View" radar and the Dashboard
     AirspaceHeatmap/SignalScope keep a tall fixed canvas area even when the panel
     is full-width on a short/narrow viewport, leaving a large empty disc below the
     empty-state copy. Give these canvases a viewport-relative or capped height so
     the empty state sits closer to the header on small screens.
+    (done 2026-10-27 ~01:20 — RadarScanner/AirspaceHeatmap/Engagement HUD min-heights
+    now scale by breakpoint (`min-h-[220–240px]` → `xl:min-h-[360–460px]`); disc
+    max-widths similarly step down on narrow viewports (`200/220` → `260/340`).
+    AirspaceHeatmap gained a Map-View empty-state overlay so the smaller disc still
+    reads as intentional rather than a blank radar.)
 

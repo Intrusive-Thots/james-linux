@@ -37,8 +37,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["IBM Plex Sans", "Inter", "system-ui", "sans-serif"],
-        mono: ["IBM Plex Mono", "JetBrains Mono", "Fira Code", "monospace"],
+        sans: ["IBM Plex Sans", "system-ui", "sans-serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       fontSize: {
         "2xs": ["0.6875rem", { lineHeight: "1rem" }],
