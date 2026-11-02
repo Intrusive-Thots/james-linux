@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { AgentConsole } from './AgentConsole';
 
 // Mock dependencies
@@ -18,6 +18,8 @@ vi.mock('lucide-react', () => ({
 }));
 
 describe('AgentConsole component', () => {
+  afterEach(() => cleanup());
+
   const mockState = {
     adapter: 'wlan0',
     attack: { stage: 'idle' },
@@ -37,7 +39,7 @@ describe('AgentConsole component', () => {
       />
     );
 
-    const input = screen.getAllByPlaceholderText(/Type a command/i)[0] as HTMLInputElement;
+    const input = screen.getByPlaceholderText(/Type a command/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'some command' } });
     expect(input.value).toBe('some command');
 
@@ -59,7 +61,7 @@ describe('AgentConsole component', () => {
       />
     );
 
-    const input = screen.getAllByPlaceholderText(/Type a command/i)[0] as HTMLInputElement;
+    const input = screen.getByPlaceholderText(/Type a command/i) as HTMLInputElement;
 
     // Send first command
     fireEvent.change(input, { target: { value: 'cmd1' } });

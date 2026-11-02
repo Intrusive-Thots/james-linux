@@ -550,7 +550,6 @@ export function Attacks({
             <WorkflowStep
               key={stage.id}
               stage={stage}
-              index={idx}
               isLast={idx === stages.length - 1}
             />
           ))}
@@ -749,11 +748,9 @@ export function Attacks({
 
 function WorkflowStep({
   stage,
-  index,
   isLast,
 }: {
   stage: Stage;
-  index: number;
   isLast: boolean;
 }) {
   const Icon = stage.icon;

@@ -65,6 +65,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
   }, [state.logs]);
 
   const activeAttack = state.attack.stage !== "idle";
+  const canScan = Boolean(state.adapter);
   const selectedAP = state.selectedAP;
 
   // When nothing has happened yet, four "0" hero tiles carry no information.
@@ -80,8 +81,8 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
     if (!send) return;
     if (state.scanning) {
       send("stop_monitor", { interface: state.adapter || "" });
-    } else {
-      send("scan_aps", { interface: state.adapter || "wlan0", duration: 15 });
+    } else if (state.adapter) {
+      send("scan_aps", { interface: state.adapter, duration: 15 });
     }
   };
 
@@ -124,8 +125,10 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
           <div className="flex gap-sm">
             <button
               onClick={handleScanToggle}
+              disabled={!state.scanning && !canScan}
+              title={!state.scanning && !canScan ? "No wireless adapter reported" : undefined}
               className={cn(
-                "btn btn-sm font-mono border",
+                "btn btn-sm font-mono border disabled:opacity-50",
                 state.scanning
                   ? "bg-danger/10 text-danger border-danger/30 hover:bg-danger/20"
                   : "bg-accent-cyan/10 text-accent-cyan border-accent-cyan/30 hover:bg-accent-cyan/20"
@@ -143,6 +146,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
           {allMetricsZero ? (
             <ZeroMetricsSummary
               scanning={state.scanning}
+              canScan={canScan}
               onScan={handleScanToggle}
             />
           ) : (
@@ -285,8 +289,9 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
                         </p>
                         <button
                           onClick={handleScanToggle}
-                          disabled={state.scanning}
-                          className="mt-md btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono"
+                          disabled={state.scanning || !canScan}
+                          title={!canScan ? "No wireless adapter reported" : undefined}
+                          className="mt-md btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono disabled:opacity-50"
                         >
                           {state.scanning ? "Scanning…" : "Run a scan"}
                         </button>
@@ -344,7 +349,7 @@ export function Dashboard({ state, onNavigate, send, onSelectAP, connected = tru
               selectedAP={selectedAP}
               onSelectAP={onSelectAP ? onSelectAP : () => {}}
               scanning={state.scanning}
-              onScan={handleScanToggle}
+              onScan={canScan || state.scanning ? handleScanToggle : undefined}
             />
           </motion.div>
 
@@ -503,9 +508,11 @@ function StatCard({
  */
 function ZeroMetricsSummary({
   scanning,
+  canScan,
   onScan,
 }: {
   scanning: boolean;
+  canScan: boolean;
   onScan: () => void;
 }) {
   const metrics: { icon: React.ElementType; label: string }[] = [
@@ -531,7 +538,10 @@ function ZeroMetricsSummary({
           </div>
           <p className="text-small text-text-secondary mt-[2px] max-w-[460px] leading-snug">
             This row will track networks found, captured handshakes, cracked keys,
-            and system alerts as you operate. Run a scan to begin.
+            and system alerts as you operate.{" "}
+            {canScan || scanning
+              ? "Run a scan to begin."
+              : "A wireless adapter has to be reported before a scan can start."}
           </p>
         </div>
       </div>
@@ -548,7 +558,8 @@ function ZeroMetricsSummary({
         </div>
         <button
           onClick={onScan}
-          disabled={scanning}
+          disabled={scanning || !canScan}
+          title={!canScan ? "No wireless adapter reported" : undefined}
           className="btn btn-sm bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 font-mono whitespace-nowrap disabled:opacity-60"
         >
           {scanning ? "Scanning…" : "Run a scan"}

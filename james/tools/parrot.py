@@ -7,19 +7,40 @@ Each wrapper executes via NativeLayer and parses raw output into
 dictionaries suitable for the AI orchestrator or the GUI.
 """
 
-import json
-import re
-from typing import Optional
+from pathlib import Path
 from james.layers.native import NativeLayer
+
+_SYS_NET = Path("/sys/class/net")
+# ARPHRD_IEEE80211_RADIOTAP — monitor-mode interfaces
+_ARPHRD_RADIOTAP = 803
+
+
+def _wireless_entries() -> list[dict]:
+    """Wireless interfaces that exist on this host. Never invents a name."""
+    if not _SYS_NET.is_dir():
+        return []
+    found: list[dict] = []
+    for entry in sorted(_SYS_NET.iterdir(), key=lambda path: path.name):
+        if entry.name == "lo" or not entry.is_dir():
+            continue
+        if not (entry / "wireless").exists() and not (entry / "phy80211").exists():
+            continue
+        mode = "managed"
+        try:
+            if int((entry / "type").read_text().strip()) == _ARPHRD_RADIOTAP:
+                mode = "monitor"
+        except (OSError, ValueError):
+            mode = "managed"
+        found.append({"interface": entry.name, "iface": entry.name, "mode": mode})
+    return found
+
 
 class AircrackSuite:
     def __init__(self, layer: NativeLayer):
         self.layer = layer
 
     def list_interfaces(self) -> list[dict]:
-        result = self.layer.run("iwconfig 2>/dev/null || ip link show")
-        # Minimal parse for restore; full logic in history
-        return [{"iface": "wlan0", "mode": "managed"}]
+        return _wireless_entries()
 
 class Hashcat:
     def __init__(self, layer: NativeLayer):
@@ -38,7 +59,7 @@ class Nmap:
         self.layer = layer
 
     def os_detect(self, target: str) -> dict:
-        return {"hosts": []}
+        return {"error": "OS detection wrapper is not available."}
 
 class John:
     def __init__(self, layer: NativeLayer):
