@@ -35,6 +35,14 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
   const scrollRef = useRef<HTMLDivElement>(null);
   const commandInputRef = useShortcutFocus("k", true);
   const lastResponseTs = useRef(0);
+  const requestGen = useRef(0);
+  const responseTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (responseTimer.current !== null) window.clearTimeout(responseTimer.current);
+    };
+  }, []);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -59,6 +67,11 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
   useEffect(() => {
     if (lastAgentResponse && lastAgentResponse.ts > lastResponseTs.current) {
       lastResponseTs.current = lastAgentResponse.ts;
+      requestGen.current += 1;
+      if (responseTimer.current !== null) {
+        window.clearTimeout(responseTimer.current);
+        responseTimer.current = null;
+      }
       addMessage("agent", lastAgentResponse.response);
       setProcessing(false);
     }
@@ -85,21 +98,27 @@ export function AgentConsole({ state: _state, connected, send, addLog, lastAgent
     }
 
     setInput("");
+    setHistory((prev) => [...prev, cmd]);
+    setHistoryIdx(-1);
     addMessage("user", cmd);
     setProcessing(true);
+    const gen = ++requestGen.current;
     send("agent_command", { command: cmd });
 
-    // Safety timeout
-    setTimeout(() => setProcessing(false), 15000);
+    if (responseTimer.current !== null) window.clearTimeout(responseTimer.current);
+    responseTimer.current = window.setTimeout(() => {
+      if (requestGen.current !== gen) return;
+      setProcessing(false);
+      addMessage(
+        "agent",
+        "No response from the backend within 15 seconds. The command was not confirmed."
+      );
+    }, 15000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (input.trim()) {
-        setHistory((prev) => [...prev, input.trim()]);
-        setHistoryIdx(-1);
-      }
       handleSendCommand();
     } else if (e.key === "Escape") {
       e.preventDefault();

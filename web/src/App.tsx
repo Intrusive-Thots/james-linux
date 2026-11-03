@@ -49,10 +49,13 @@ export default function App() {
         case "init":
           if (msg.interfaces?.length > 0) {
             const iface = msg.interfaces[0];
-            setAdapter(
-              iface.interface || iface.name || "wlan0",
-              iface.mode?.toLowerCase() === "monitor" ? "monitor" : "managed"
-            );
+            const name = iface.interface || iface.iface || iface.name;
+            if (name) {
+              setAdapter(
+                name,
+                iface.mode?.toLowerCase() === "monitor" ? "monitor" : "managed"
+              );
+            }
           }
           addLog("success", "Connected to JAMES backend.");
           break;

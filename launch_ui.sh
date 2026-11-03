@@ -56,19 +56,54 @@ start_api() {
     echo -e "${GREEN}[API]${RESET} Backend PID: ${PIDS[-1]}"
 }
 
+wait_for_api() {
+    echo -e "${CYAN}[API]${RESET} Waiting for /api/health…"
+    local attempt
+    for attempt in $(seq 1 40); do
+        if python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_PORT}/api/health', timeout=1)" >/dev/null 2>&1; then
+            echo -e "${GREEN}[API]${RESET} Healthy on port ${API_PORT}"
+            return 0
+        fi
+        if ! kill -0 "${PIDS[-1]}" 2>/dev/null; then
+            echo -e "${RED}[API]${RESET} Process exited before /api/health answered." >&2
+            return 1
+        fi
+        sleep 0.25
+    done
+    echo -e "${RED}[API]${RESET} Timed out waiting for /api/health on port ${API_PORT}." >&2
+    return 1
+}
+
+ui_pm() {
+    if [ -f "$WEB_DIR/pnpm-lock.yaml" ] && command -v pnpm >/dev/null 2>&1; then
+        echo pnpm
+    else
+        echo npm
+    fi
+}
+
 start_ui() {
     echo -e "${CYAN}[UI]${RESET} Starting frontend dev server on port ${BOLD}${UI_PORT}${RESET}…"
+    local pm
+    pm="$(ui_pm)"
 
-    # Check if node_modules exist
     if [ ! -d "$WEB_DIR/node_modules" ]; then
-        echo -e "${YELLOW}[UI]${RESET} Installing npm dependencies…"
-        cd "$WEB_DIR" && npm install
+        echo -e "${YELLOW}[UI]${RESET} Installing frontend dependencies with ${pm}…"
+        if [ "$pm" = "pnpm" ]; then
+            (cd "$WEB_DIR" && pnpm install --frozen-lockfile)
+        else
+            (cd "$WEB_DIR" && npm install)
+        fi
     fi
 
     cd "$WEB_DIR"
-    npx vite --host 0.0.0.0 --port "$UI_PORT" &
+    if [ "$pm" = "pnpm" ]; then
+        pnpm exec vite --host 0.0.0.0 --port "$UI_PORT" &
+    else
+        npx vite --host 0.0.0.0 --port "$UI_PORT" &
+    fi
     PIDS+=($!)
-    echo -e "${GREEN}[UI]${RESET} Frontend PID: ${PIDS[-1]}"
+    echo -e "${GREEN}[UI]${RESET} Frontend PID: ${PIDS[-1]} (${pm})"
 }
 
 # ── Main ────────────────────────────────────────────────────────
@@ -77,13 +112,14 @@ banner
 case "${1:-}" in
     --api)
         start_api
+        wait_for_api
         ;;
     --ui)
         start_ui
         ;;
     *)
         start_api
-        sleep 2
+        wait_for_api
         start_ui
         echo ""
         echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
