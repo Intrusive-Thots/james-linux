@@ -311,8 +311,9 @@ class NativeLayer:
                 stdout=stdout,
                 stderr=stderr,
             )
-        except subprocess.TimeoutExpired:
-            logger.warning("Command timed out after %ss: %s", timeout, cmd)
+        except (subprocess.TimeoutExpired, KeyboardInterrupt) as exc:
+            if isinstance(exc, subprocess.TimeoutExpired):
+                logger.warning("Command timed out after %ss: %s", timeout, cmd)
             # Kill the entire process group to avoid zombies
             try:
                 pgid = os.getpgid(proc.pid)
@@ -320,6 +321,8 @@ class NativeLayer:
             except (ProcessLookupError, OSError):
                 proc.kill()
             stdout, stderr = proc.communicate(timeout=5)
+            if isinstance(exc, KeyboardInterrupt):
+                raise
             return CommandResult(
                 command=cmd,
                 returncode=-1,

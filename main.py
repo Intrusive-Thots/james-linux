@@ -8,6 +8,7 @@ Usage:
     python3 main.py --both           Run GUI + background FastAPI server
     python3 main.py --setup          Run first-time setup wizard
     python3 main.py --headless       Alias for --server
+    python3 main.py wifi-lab --help  Run a Wi-Fi lab exercise
 """
 
 import sys
@@ -239,6 +240,7 @@ Examples:
   python3 main.py --server        # Headless API server on :8745 (or JAMES_API_PORT)
   python3 main.py --both          # GUI + background API server
   python3 main.py --setup         # First-time setup wizard
+  python3 main.py wifi-lab --help # Wi-Fi lab exercises
 """,
     )
     mode = parser.add_mutually_exclusive_group()
@@ -266,6 +268,11 @@ Examples:
 
 
 def main():
+    if sys.argv[1:2] == ["wifi-lab"]:
+        from james.core.wifi_lab import main as wifi_lab_main
+
+        sys.exit(wifi_lab_main(sys.argv[2:]))
+
     args = _parse_args()
 
     if args.server or args.headless:
