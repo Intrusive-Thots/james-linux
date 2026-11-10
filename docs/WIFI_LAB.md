@@ -2,6 +2,14 @@
 
 JAMES runs the tutorial's radio and analysis steps as separate exercises. Use an isolated access point and client that you control. Change the access point's security, SSID broadcast, or MAC filter in its admin page to match each exercise. Reconnect the test client when prompted. [How to Hack WiFi (Part 1)](https://rumble.com/v7i16jw-how-to-hack-wifi-part-1.html)
 
+## Desktop GUI
+
+Open **Wi-Fi Lab** or press **Ctrl+5**. Choose an exercise and a dedicated adapter, then enter the lab BSSID and channel. **Use selected AP** copies those values from the access point you selected in Wi-Fi Arsenal. **Run exercise** starts the runner. **Stop** waits for the runner to restore the adapters.
+
+**Findings** shows the observed AP and clients, exercise results, and saved paths. **Packets** uses TShark with a filter for the exercise and shows up to 200 matching rows from the first 10,000 captured frames. **Run log** shows progress and tool errors. The full capture is saved in the run directory. Install `tshark` for the packet table.
+
+The desktop app uses your existing `sudo` authorization for the radio worker. If prompted to authorize it, run `sudo -v` in the terminal that launches JAMES, then start the GUI from that terminal. Elevated runs save their evidence under the root account unless you use the CLI with a different output directory.
+
 ## Start
 
 On Parrot or Kali, install `iw`, `iproute2`, and `aircrack-ng`. Install `tshark` for hidden SSID, WPA3, twin, traffic, and WPA capture filtered to a client. The second-AP exercises use `hostapd`, and the traffic exercise also uses `tcpdump`. The capture adapter starts disconnected in managed mode and must support monitor mode. The twin and traffic exercises require a second physical radio with AP mode. The runner accepts 2.4 GHz channels 1–14. Set the channel to one supported by your hardware and regulatory domain.

@@ -1,7 +1,9 @@
 """Run the Wi-Fi Part 1 exercises against one explicitly selected lab AP."""
 
 import argparse
+import csv
 import fcntl
+import io
 import json
 import os
 import re
@@ -12,6 +14,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from contextlib import ExitStack, contextmanager
 from getpass import getpass
@@ -34,6 +37,21 @@ EXERCISES = {
 }
 _PSK_AKMS = {2, 4, 6}
 _SAE_AKMS = {8, 9}
+_PREVIEW_READ_LIMIT = 10_000
+_PREVIEW_ROW_LIMIT = 200
+_PREVIEW_FILTERS = {
+    "hidden": "wlan.fc.type_subtype in {0x00 0x02 0x05 0x08}",
+    "mac-filter": "wlan.fc.type == 0",
+    "wep-replay": "wlan.fc.type_subtype == 0x0b",
+    "wep": "wlan.fc.type == 2",
+    "wpa": "eapol",
+    "twin": "eapol",
+    "wpa3": "eapol || wlan.fc.type_subtype == 0x08",
+}
+
+
+def _event(kind: str, **fields):
+    print(json.dumps({"kind": kind, **fields}), flush=True)
 
 
 class EvidenceMissing(RuntimeError):
@@ -74,6 +92,98 @@ class WifiLab:
             "output_dir": str(directory),
         }
         self.cleanup_errors: list[str] = []
+        self._capture_filter = ""
+
+    def _progress(self, message: str):
+        if self.args.event_stream:
+            _event("progress", message=message)
+        else:
+            print(message, flush=True)
+
+    def _record_capture(self, path: Path, scope: str):
+        self.report["capture"] = str(path)
+        self._capture_filter = scope
+        if self.args.event_stream:
+            _event("capture", path=str(path))
+
+    def packet_preview(self):
+        """Send a bounded TShark preview using the scope of the saved capture."""
+        path = self.report.get("handshake_capture") or self.report.get("capture")
+        if not path:
+            return
+        if not shutil.which("tshark"):
+            _event("preview_error", message="Install tshark to display packet details.")
+            return
+        scope = self._capture_filter
+        exercise_filter = _PREVIEW_FILTERS.get(self.args.exercise)
+        display_filter = f"({scope}) && ({exercise_filter})" if exercise_filter else scope
+        fields = (
+            "frame.number",
+            "frame.time_relative",
+            "wlan.sa",
+            "eth.src",
+            "wlan.da",
+            "eth.dst",
+            "_ws.col.Protocol",
+            "_ws.col.Info",
+        )
+        command = [
+            "tshark",
+            "-n",
+            "-r",
+            path,
+            "-c",
+            str(_PREVIEW_READ_LIMIT),
+            "-Y",
+            display_filter,
+            "-T",
+            "fields",
+            "-E",
+            "quote=d",
+            "-E",
+            "occurrence=f",
+        ]
+        for field in fields:
+            command.extend(["-e", field])
+        try:
+            output = self._run(*command, timeout=30).stdout
+        except (OSError, RuntimeError) as exc:
+            _event("preview_error", message=f"Packet preview unavailable. {exc}")
+            return
+        rows = []
+        for values in csv.reader(io.StringIO(output), delimiter="\t"):
+            if len(values) != len(fields):
+                continue
+            (
+                number,
+                elapsed,
+                wireless_src,
+                ethernet_src,
+                wireless_dst,
+                ethernet_dst,
+                protocol,
+                info,
+            ) = values
+            rows.append(
+                [
+                    number,
+                    elapsed,
+                    wireless_src or ethernet_src,
+                    wireless_dst or ethernet_dst,
+                    protocol,
+                    info[:240],
+                ]
+            )
+            if len(rows) == _PREVIEW_ROW_LIMIT:
+                break
+        _event(
+            "packets",
+            path=path,
+            display_filter=display_filter,
+            rows=rows,
+            read_limit=_PREVIEW_READ_LIMIT,
+            row_limit=_PREVIEW_ROW_LIMIT,
+        )
 
     def _run(self, *args: str, timeout: int = 10, check: bool = True):
         result = self.layer.run(
@@ -192,6 +302,7 @@ class WifiLab:
             write_prefix=self.directory / name,
         )
         log = f"{name}.log"
+        self._progress(f"Recording {name} on {bssid} for {seconds}s.")
         with self._process(args, seconds, log) as capture, ExitStack() as tasks:
             if action:
                 action(capture, tasks)
@@ -200,7 +311,7 @@ class WifiLab:
         path = self.directory / f"{name}-01.cap"
         if not path.is_file() or path.stat().st_size <= 24:
             raise EvidenceMissing(f"No packets from {bssid} were captured. See {log}.")
-        self.report["capture"] = str(path)
+        self._record_capture(path, f"wlan.bssid == {bssid}")
         return path
 
     def _tshark(self, capture: Path, display_filter: str, *fields: str) -> list[str]:
@@ -241,10 +352,7 @@ class WifiLab:
                         f"Targeted deauthentication failed: {(result.stderr or result.stdout).strip()[-500:]}"
                     )
 
-        print(
-            f"Capturing on {args.bssid} for {args.seconds}s. Reconnect your lab client if needed.",
-            flush=True,
-        )
+        self._progress("Reconnect your lab client during capture if needed.")
         return self._capture(
             name, args.bssid, args.seconds, action=stimulate if args.deauth or replay else None
         )
@@ -357,7 +465,7 @@ class WifiLab:
             capture, bssid=bssid, wordlist=self.args.wordlist, key_file=key, wep=wep
         )
         seconds = self.args.crack_seconds
-        print(f"Testing key recovery for up to {seconds}s.", flush=True)
+        self._progress(f"Testing key recovery for up to {seconds}s.")
         # Aircrack writes keys to stdout too. Keep the key only in the private key file.
         with self._process(args, seconds, os.devnull) as cracker:
             code = self._wait(cracker, seconds, "aircrack-ng")
@@ -410,9 +518,7 @@ class WifiLab:
             deadline = time.monotonic() + 8
             while ap.poll() is None and time.monotonic() < deadline:
                 if log.is_file() and "AP-ENABLED" in log.read_text(errors="replace"):
-                    print(
-                        f"Lab AP ready at {bssid}. Reconnect only your lab client now.", flush=True
-                    )
+                    self._progress(f"Lab AP ready at {bssid}. Reconnect your lab client now.")
                     yield
                     return
                 time.sleep(0.2)
@@ -452,7 +558,7 @@ class WifiLab:
                     with self._process(command, args.seconds, "tcpdump.log") as sniffer:
                         if self._wait(sniffer, args.seconds, "tcpdump.log") not in {0, 124}:
                             raise RuntimeError("Traffic capture failed. See tcpdump.log.")
-                self.report["capture"] = str(capture)
+                self._record_capture(capture, f"eth.addr == {args.client}")
                 self.report["client_frames"] = len(self._tshark(capture, "", "frame.number"))
                 if not self.report["client_frames"]:
                     raise EvidenceMissing(
@@ -503,6 +609,8 @@ class WifiLab:
             self.report["stations"] = sorted(
                 {s["station_mac"] for s in survey["stations"] if s["bssid"] == args.bssid}
             )
+            if args.event_stream:
+                _event("discovery", ap=ap, stations=self.report["stations"])
             ssid = ap["essid"]
             privacy = set(ap["privacy"].upper().split())
             personal = (
@@ -590,9 +698,17 @@ class WifiLab:
                         )
 
 
-def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
+class _LabParser(argparse.ArgumentParser):
+    def error(self, message):
+        if not self.exit_on_error:
+            raise ValueError(message)
+        super().error(message)
+
+
+def _parse_args(argv: list[str], *, exit_on_error: bool = True) -> argparse.Namespace:
+    parser = _LabParser(
         prog="james wifi-lab",
+        exit_on_error=exit_on_error,
         description="Run one exercise against your isolated Wi-Fi lab AP.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Exercises\n"
@@ -642,6 +758,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--key-file", type=Path, help="Use a recovered key for traffic instead of prompting"
     )
     parser.add_argument("--output-dir", type=Path, default=Path.home() / ".james/loot/wifi-lab")
+    parser.add_argument("--event-stream", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.seconds is None:
         args.seconds = 120 if args.exercise == "wep" else 30
@@ -686,27 +803,49 @@ def _stop(_signal, _frame):
     raise KeyboardInterrupt
 
 
+def _watch_gui_stop(main_thread: int, finished: threading.Event):
+    # A byte requests a stop. EOF also stops the run if its GUI disappears.
+    try:
+        os.read(sys.stdin.fileno(), 1)
+    except OSError:
+        return
+    if not finished.is_set():
+        signal.pthread_kill(main_thread, signal.SIGTERM)
+
+
+def _traffic_key(args) -> str:
+    if args.key_file:
+        key = args.key_file.read_text().rstrip("\r\n")
+    elif args.event_stream:
+        # Read just the key line and leave the stop channel available.
+        with os.fdopen(os.dup(sys.stdin.fileno()), "rb", buffering=0) as pipe:
+            key = pipe.readline(66).decode("ascii").rstrip("\r\n")
+    elif sys.stdin.isatty():
+        key = getpass("Lab WPA2 passphrase: ")
+    else:
+        raise ValueError("Provide --key-file when running traffic without a terminal")
+    if not (re.fullmatch(r"[ -~]{8,63}", key) or re.fullmatch(r"[a-fA-F0-9]{64}", key)):
+        raise ValueError("Use an 8–63 character WPA2 passphrase or a 64-digit hex key")
+    return key
+
+
 def main(argv: list[str]) -> int:
     args = _parse_args(argv)
-    if os.geteuid() != 0:
-        print("Wi-Fi Lab needs root access for radio and packet capture operations. Run with sudo.")
+
+    def failure(message):
+        if args.event_stream:
+            _event("failure", message=message)
+        else:
+            print(message)
         return 2
 
+    if os.geteuid() != 0:
+        return failure(
+            "Wi-Fi Lab needs root access for radio and packet capture operations. Run with sudo."
+        )
+
     try:
-        passphrase = None
-        if args.exercise == "traffic":
-            if not args.key_file and not sys.stdin.isatty():
-                raise ValueError("Provide --key-file when running traffic without a terminal")
-            passphrase = (
-                args.key_file.read_text().rstrip("\r\n")
-                if args.key_file
-                else getpass("Lab WPA2 passphrase: ")
-            )
-            if not (
-                re.fullmatch(r"[ -~]{8,63}", passphrase)
-                or re.fullmatch(r"[a-fA-F0-9]{64}", passphrase)
-            ):
-                raise ValueError("Use an 8–63 character WPA2 passphrase or a 64-digit hex key")
+        passphrase = _traffic_key(args) if args.exercise == "traffic" else None
         flags = os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW
         with os.fdopen(os.open("/run/lock/james-wifi-lab.lock", flags, 0o600), "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -716,18 +855,29 @@ def main(argv: list[str]) -> int:
             )
             lab = WifiLab(args, directory)
             previous = signal.signal(signal.SIGTERM, _stop)
+            finished = threading.Event()
             try:
-                lab.run(passphrase)
-                status, code = "observed", 0
-            except EvidenceMissing as exc:
-                status, code = "not_observed", 1
-                lab.report["reason"] = str(exc)
-            except (RuntimeError, OSError, ValueError) as exc:
-                status, code = "error", 2
-                lab.report["reason"] = str(exc)
+                if args.event_stream:
+                    threading.Thread(
+                        target=_watch_gui_stop, args=(threading.get_ident(), finished), daemon=True
+                    ).start()
+                try:
+                    lab._progress("Checking lab tools and adapters.")
+                    lab.run(passphrase)
+                    status, code = "observed", 0
+                except EvidenceMissing as exc:
+                    status, code = "not_observed", 1
+                    lab.report["reason"] = str(exc)
+                except (RuntimeError, OSError, ValueError) as exc:
+                    status, code = "error", 2
+                    lab.report["reason"] = str(exc)
+                if args.event_stream and lab.report.get("capture"):
+                    lab._progress("Decoding the saved capture.")
+                    lab.packet_preview()
             except KeyboardInterrupt:
                 status, code = "interrupted", 130
             finally:
+                finished.set()
                 signal.signal(signal.SIGTERM, previous)
             if lab.cleanup_errors:
                 lab.report["cleanup_errors"] = lab.cleanup_errors
@@ -735,13 +885,18 @@ def main(argv: list[str]) -> int:
             lab.report["status"] = status
             output = json.dumps(lab.report, indent=2)
             (directory / "report.json").write_text(output + "\n")
-            print(output)
+            if args.event_stream:
+                _event("report", report=lab.report)
+            else:
+                print(output)
             return code
     except BlockingIOError:
-        print("Another Wi-Fi Lab exercise is running.")
-        return 2
+        return failure("Another Wi-Fi Lab exercise is running.")
     except (OSError, ValueError, EOFError) as exc:
-        print(f"Wi-Fi Lab setup failed: {exc}")
-        return 2
+        return failure(f"Wi-Fi Lab setup failed: {exc}")
     except KeyboardInterrupt:
         return 130
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

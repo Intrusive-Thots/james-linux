@@ -15,7 +15,7 @@ Run the API server separately with `python3 main.py --server`. The default API b
 
 ## Wi-Fi Lab
 
-Run `python3 main.py wifi-lab --help` for the Wi-Fi Part 1 exercises. The runner uses a dedicated adapter and a specified lab AP and saves each run's evidence. See [Wi-Fi Lab setup and commands](docs/WIFI_LAB.md).
+Open **Wi-Fi Lab** in the desktop GUI to run the Wi-Fi Part 1 exercises and view findings and decoded packets. The same runner is available from `python3 main.py wifi-lab --help`. [Wi-Fi Lab setup and commands](docs/WIFI_LAB.md)
 
 ## Wireless SOC
 
