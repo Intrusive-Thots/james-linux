@@ -21,6 +21,7 @@ from getpass import getpass
 from pathlib import Path
 
 from james.core.net_guard import NetworkGuard
+from james.core.wifi_lab_setup import required_radio_tools
 from james.layers.native import NativeLayer
 from james.tools.wifi import AircrackSuite, interface_name, radio_address
 
@@ -574,22 +575,12 @@ class WifiLab:
 
     def run(self, passphrase: str | None = None):
         args = self.args
-        tools = {"ip", "iw", "timeout", "airodump-ng"}
-        if args.exercise in {"wpa", "wpa3", "wep", "twin"}:
-            tools.add("aircrack-ng")
-        if args.deauth or args.arp_replay or args.inject_test or args.exercise == "wep-replay":
-            tools.add("aireplay-ng")
-        if args.exercise in {"hidden", "wpa3", "traffic", "twin"} or (
-            args.exercise == "wpa" and args.client
+        if (
+            args.exercise == "traffic"
+            and not (Path("/sys/class/net") / args.bridge / "bridge").is_dir()
         ):
-            tools.add("tshark")
-        if args.ap_interface:
-            tools.add("hostapd")
-        if args.exercise == "traffic":
-            tools.add("tcpdump")
-            if not (Path("/sys/class/net") / args.bridge / "bridge").is_dir():
-                raise RuntimeError(f"Lab bridge {args.bridge} does not exist")
-        missing = sorted(tool for tool in tools if not shutil.which(tool))
+            raise RuntimeError(f"Lab bridge {args.bridge} does not exist")
+        missing = sorted(tool for tool in required_radio_tools(args) if not shutil.which(tool))
         if missing:
             raise RuntimeError(f"Required commands missing: {', '.join(missing)}")
 
@@ -818,6 +809,7 @@ def _traffic_key(args) -> str:
         key = args.key_file.read_text().rstrip("\r\n")
     elif args.event_stream:
         # Read just the key line and leave the stop channel available.
+        _event("key_request")
         with os.fdopen(os.dup(sys.stdin.fileno()), "rb", buffering=0) as pipe:
             key = pipe.readline(66).decode("ascii").rstrip("\r\n")
     elif sys.stdin.isatty():

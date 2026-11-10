@@ -15,7 +15,7 @@ Run the API server separately with `python3 main.py --server`. The default API b
 
 ## Wi-Fi Lab
 
-Open **Wi-Fi Lab** in the desktop GUI to run the Wi-Fi Part 1 exercises and view findings and decoded packets. The same runner is available from `python3 main.py wifi-lab --help`. [Wi-Fi Lab setup and commands](docs/WIFI_LAB.md)
+Run `./launch_wifi_lab.py` on Parrot or Kali to install missing dependencies, prepare the local Python environment, and open **Wi-Fi Lab** directly. The same runner is available from `python3 main.py wifi-lab --help`. [Wi-Fi Lab setup and commands](docs/WIFI_LAB.md)
 
 ## Wireless SOC
 

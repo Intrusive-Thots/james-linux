@@ -154,7 +154,7 @@ def _show_already_running_dialog():
         pass
 
 
-def run_gui():
+def run_gui(*, open_wifi_lab=False):
     """Launch the PyQt5 desktop GUI."""
     from PyQt5.QtWidgets import QApplication
     from james.gui.main_window import MainWindow
@@ -166,7 +166,7 @@ def run_gui():
     app.setStyleSheet(DARK_STYLESHEET)
 
     orchestrator = Orchestrator()
-    window = MainWindow(orchestrator)
+    window = MainWindow(orchestrator, open_wifi_lab=open_wifi_lab)
     window.show()
     sys.exit(app.exec_())
 
@@ -240,6 +240,7 @@ Examples:
   python3 main.py --server        # Headless API server on :8745 (or JAMES_API_PORT)
   python3 main.py --both          # GUI + background API server
   python3 main.py --setup         # First-time setup wizard
+  python3 main.py --wifi-lab-ui    # Open the Wi-Fi Lab desktop tab
   python3 main.py wifi-lab --help # Wi-Fi lab exercises
 """,
     )
@@ -264,6 +265,7 @@ Examples:
         action="store_true",
         help="Launch first-time setup / configuration wizard",
     )
+    mode.add_argument("--wifi-lab-ui", action="store_true", help="Open the Wi-Fi Lab desktop tab")
     return parser.parse_args()
 
 
@@ -291,6 +293,8 @@ def main():
 
     if args.both:
         run_both()
+    elif args.wifi_lab_ui:
+        run_gui(open_wifi_lab=True)
     else:
         run_gui()
 

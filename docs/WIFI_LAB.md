@@ -4,11 +4,19 @@ JAMES runs the tutorial's radio and analysis steps as separate exercises. Use an
 
 ## Desktop GUI
 
-Open **Wi-Fi Lab** or press **Ctrl+5**. Choose an exercise and a dedicated adapter, then enter the lab BSSID and channel. **Use selected AP** copies those values from the access point you selected in Wi-Fi Arsenal. **Run exercise** starts the runner. **Stop** waits for the runner to restore the adapters.
+From the checkout on Parrot or Kali, run the launcher as your regular desktop user.
+
+```bash
+./launch_wifi_lab.py
+```
+
+The launcher installs missing APT packages, creates or repairs the local `.venv`, and opens **Wi-Fi Lab** directly. It requests administrator access when installing packages. Use `./launch_wifi_lab.py --check` to inspect setup from a terminal. In an already open JAMES window, press **Ctrl+5** and use **Install missing tools** if needed.
+
+Connect a dedicated Wi-Fi adapter. JAMES selects it when exactly one managed adapter is idle. Click **Find lab AP** and choose your access point to fill in its BSSID and channel. The picker uses NetworkManager when available. **Use selected AP** copies an AP from Wi-Fi Arsenal, and both fields also accept manual input. Select an exercise and follow its setup hint, then click **Run exercise**. **Stop** waits for adapter cleanup.
 
 **Findings** shows the observed AP and clients, exercise results, and saved paths. **Packets** uses TShark with a filter for the exercise and shows up to 200 matching rows from the first 10,000 captured frames. **Run log** shows progress and tool errors. The full capture is saved in the run directory. Install `tshark` for the packet table.
 
-The desktop app uses your existing `sudo` authorization for the radio worker. If prompted to authorize it, run `sudo -v` in the terminal that launches JAMES, then start the GUI from that terminal. Elevated runs save their evidence under the root account unless you use the CLI with a different output directory.
+The radio worker uses existing `sudo` authorization or opens the system authorization dialog. On desktops without an authorization agent, run `sudo -v` from the terminal that starts JAMES. Elevated runs save evidence under the root account. The CLI accepts `--output-dir` to choose another location.
 
 ## Start
 

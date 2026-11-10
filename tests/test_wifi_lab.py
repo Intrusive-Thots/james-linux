@@ -3,6 +3,7 @@ import json
 import pytest
 
 from james.core import wifi_lab
+from james.core.wifi_lab_setup import parse_ap_list, required_radio_tools
 from james.layers.native import CommandResult
 from james.tools.wifi import AircrackSuite
 
@@ -92,3 +93,25 @@ def test_monitor_setup_failure_restores_adapter_and_networkmanager(tmp_path, mon
         ("nmcli", "device", "set", "wlan1", "managed", "yes"),
     ]
     assert not lab.cleanup_errors
+
+
+def test_ap_picker_preserves_escaped_ssids_and_excludes_overlapping_6ghz_channels():
+    results = parse_ap_list(
+        r"02\:11\:22\:33\:44\:55:Lab\:West\\A:6:2437 MHz:71:WPA2"
+        "\n"
+        r"02\:11\:22\:33\:44\:55:Lab\:West\\A:6:2437 MHz:42:WPA2"
+        "\n"
+        r"02\:11\:22\:33\:44\:77:Other band:5:5975 MHz:100:WPA3"
+    )
+    assert results == [(BSSID, "Lab:West\\A", 6, 71, "WPA2")]
+
+
+def test_setup_uses_the_exercise_dependencies():
+    sniff = wifi_lab._parse_args(["sniff", *TARGET])
+    wpa = wifi_lab._parse_args(["wpa", *TARGET, "--client", CLIENT, "--deauth"])
+    assert required_radio_tools(sniff) == {"ip", "iw", "timeout", "airodump-ng"}
+    assert required_radio_tools(wpa) - required_radio_tools(sniff) == {
+        "tshark",
+        "aircrack-ng",
+        "aireplay-ng",
+    }

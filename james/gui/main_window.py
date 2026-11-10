@@ -160,7 +160,7 @@ class MainWindow(QMainWindow):
     progress_signal = pyqtSignal(str, int, int)
     log_signal = pyqtSignal(str, str)  # (message, severity)
 
-    def __init__(self, orchestrator: Orchestrator):
+    def __init__(self, orchestrator: Orchestrator, *, open_wifi_lab=False):
         super().__init__()
         self.orchestrator = orchestrator
         self.worker = None
@@ -188,6 +188,10 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._connect_signals()
         self._build_shortcuts()
+        if open_wifi_lab:
+            self.tabs.setCurrentWidget(self.wifi_lab_tab)
+        elif SetupWizard.should_show():
+            QTimer.singleShot(500, self._show_setup_wizard)
 
         # Wire orchestrator print/progress into main log FIRST
         self.orchestrator.on_print = lambda t: self._append_log(t, "INFO")
@@ -264,10 +268,6 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(
             self._open_web_hud
         )
-
-        # Show setup wizard on first run
-        if SetupWizard.should_show():
-            QTimer.singleShot(500, self._show_setup_wizard)
 
     def _switch_tab(self, index: int):
         if index < self.tabs.count():

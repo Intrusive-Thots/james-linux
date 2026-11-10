@@ -3,11 +3,10 @@
 import argparse
 import json
 import os
-import shutil
 import sys
 from pathlib import Path
 
-from PyQt5.QtCore import QProcess, Qt, pyqtSignal
+from PyQt5.QtCore import QProcess, QProcessEnvironment, Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -16,6 +15,7 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
@@ -31,6 +31,14 @@ from PyQt5.QtWidgets import (
 )
 
 from james.core.wifi_lab import EXERCISES, _parse_args
+from james.core.wifi_lab_setup import (
+    RADIO_PACKAGES,
+    find_tool,
+    idle_adapter_state,
+    missing_radio_packages,
+    parse_ap_list,
+    required_radio_tools,
+)
 
 _ROOT = Path(__file__).resolve().parents[3]
 _MODES = {
@@ -51,6 +59,17 @@ _OUTCOMES = {
     "interrupted": "Exercise stopped",
     "cleanup_error": "Adapter cleanup failed",
 }
+_HINTS = {
+    "sniff": "Select your lab AP to start with a packet capture.",
+    "hidden": "Hide the lab SSID in the router and reconnect your lab client during capture.",
+    "mac-filter": "Use an open lab AP with a MAC allow list and a second dedicated adapter.",
+    "wep-replay": "Use shared-key WEP and reconnect the lab client during capture.",
+    "wep": "Use a WEP lab AP and generate traffic from the lab client.",
+    "wpa": "Use WPA/WPA2-Personal and reconnect the lab client when prompted.",
+    "twin": "Use a WPA/WPA2-Personal lab AP, a second radio, and your lab client's MAC.",
+    "wpa3": "Use WPA3 or WPA2/WPA3 transition mode on the lab AP.",
+    "traffic": "Use a second radio, the existing lab bridge, and the lab WPA2 passphrase.",
+}
 
 
 class WifiLabTab(QWidget):
@@ -64,6 +83,10 @@ class WifiLabTab(QWidget):
         self._key = b""
         self._stop_requested = False
         self._outcome = ""
+        self._operation = "exercise"
+        self._command: list[str] = []
+        self._elevation = ""
+        self._worker_ready = False
         self._process = QProcess(self)
         self._process.setWorkingDirectory(str(_ROOT))
         self._process.started.connect(self._started)
@@ -71,6 +94,13 @@ class WifiLabTab(QWidget):
         self._process.readyReadStandardError.connect(self._read_stderr)
         self._process.finished.connect(self._finished)
         self._process.errorOccurred.connect(self._process_error)
+        self._ap_scan = QProcess(self)
+        scan_environment = QProcessEnvironment.systemEnvironment()
+        scan_environment.insert("LC_ALL", "C")
+        self._ap_scan.setProcessEnvironment(scan_environment)
+        self._process.setProcessEnvironment(scan_environment)
+        self._ap_scan.finished.connect(self._ap_scan_finished)
+        self._ap_scan.errorOccurred.connect(self._ap_scan_error)
 
         layout = QVBoxLayout(self)
         controls = QHBoxLayout()
@@ -95,10 +125,20 @@ class WifiLabTab(QWidget):
         self.status.setTextFormat(Qt.PlainText)
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+        setup = QHBoxLayout()
+        self.setup_status = QLabel()
+        self.setup_status.setTextFormat(Qt.PlainText)
+        self.setup_status.setWordWrap(True)
+        setup.addWidget(self.setup_status, 1)
+        self.install_button = QPushButton("Install missing tools")
+        self.install_button.clicked.connect(self._install_tools)
+        setup.addWidget(self.install_button)
+        layout.addLayout(setup)
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self._build_inputs())
-        splitter.addWidget(self._build_results())
+        self.results = self._build_results()
+        splitter.addWidget(self.results)
         splitter.setSizes([295, 520])
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
@@ -106,6 +146,7 @@ class WifiLabTab(QWidget):
         self.exercise.currentIndexChanged.connect(self._update_exercise)
         self.second_adapter.currentIndexChanged.connect(self._update_fields)
         self.adapter.currentIndexChanged.connect(self._update_start_button)
+        self.bssid.textChanged.connect(self._update_start_button)
         self.refresh_adapters()
         self._update_exercise()
 
@@ -122,6 +163,9 @@ class WifiLabTab(QWidget):
             self.exercise.addItem(_MODES[mode], mode)
             self.exercise.setItemData(self.exercise.count() - 1, description, Qt.ToolTipRole)
         self.form.addRow("Exercise", self.exercise)
+        self.exercise_hint = QLabel()
+        self.exercise_hint.setWordWrap(True)
+        self.form.addRow(self.exercise_hint)
 
         self.adapter = QComboBox()
         refresh = QPushButton("Refresh")
@@ -137,6 +181,9 @@ class WifiLabTab(QWidget):
         selected.setToolTip("Use the BSSID and channel selected in Wi-Fi Arsenal")
         selected.clicked.connect(self._use_selected_ap)
         self.form.addRow("Lab BSSID", self.bssid)
+        self.find_ap_button = QPushButton("Find lab AP")
+        self.find_ap_button.clicked.connect(self._find_ap)
+        self.form.addRow("", self.find_ap_button)
         self.form.addRow("", selected)
         self.channel = QSpinBox()
         self.channel.setRange(1, 14)
@@ -223,7 +270,7 @@ class WifiLabTab(QWidget):
         if self.running:
             return
         adapters = [
-            item["interface"]
+            (item["interface"], idle_adapter_state(item["interface"]))
             for item in self.main_window.orchestrator.aircrack.list_interfaces()
             if item["mode"] == "managed"
         ]
@@ -235,18 +282,42 @@ class WifiLabTab(QWidget):
             box.blockSignals(True)
             box.clear()
             box.addItem(placeholder, None)
-            for name in adapters:
-                box.addItem(name, name)
+            for name, state in adapters:
+                box.addItem(f"{name} ({state})", name)
+                if state in {"connected", "in use"}:
+                    box.model().item(box.count() - 1).setEnabled(False)
+            available = [name for name, state in adapters if state not in {"connected", "in use"}]
+            idle = [name for name, state in adapters if state == "idle"]
+            if selected not in available:
+                selected = idle[0] if box is self.adapter and len(idle) == 1 else None
             box.setCurrentIndex(max(0, box.findData(selected)))
             box.blockSignals(False)
         self._update_fields()
+        self._update_setup()
         self._update_start_button()
 
     def _update_start_button(self):
-        self.start_button.setEnabled(not self.running and bool(self.adapter.currentData()))
+        idle = not self.running and self._ap_scan.state() == QProcess.NotRunning
+        adapter = bool(self.adapter.currentData())
+        self.start_button.setEnabled(idle and adapter and bool(self.bssid.text().strip()))
+        self.find_ap_button.setEnabled(idle and adapter and bool(find_tool("nmcli")))
+        self.find_ap_button.setToolTip(
+            "Choose your AP from the NetworkManager scan"
+            if find_tool("nmcli")
+            else "NetworkManager is unavailable. Enter the BSSID and channel directly."
+        )
+
+    def _update_setup(self):
+        packages = missing_radio_packages()
+        self.setup_status.setText(
+            f"Missing tools · {', '.join(packages)}" if packages else "Wi-Fi Lab tools ready"
+        )
+        self.install_button.setEnabled(bool(packages) and not self.running)
 
     def _update_exercise(self):
-        self.seconds.setValue(120 if self.exercise.currentData() == "wep" else 30)
+        mode = self.exercise.currentData()
+        self.exercise_hint.setText(_HINTS[mode])
+        self.seconds.setValue(120 if mode == "wep" else 30)
         self._update_fields()
 
     def _update_fields(self):
@@ -284,6 +355,77 @@ class WifiLabTab(QWidget):
             return
         self.bssid.setText(bssid)
         self.channel.setValue(channel)
+
+    def _find_ap(self):
+        nmcli = find_tool("nmcli")
+        adapter = self.adapter.currentData()
+        if not nmcli or not adapter or self.running or self._ap_scan.state() != QProcess.NotRunning:
+            return
+        self.status.setText(f"Looking for 2.4 GHz access points on {adapter}…")
+        self._ap_scan.start(
+            nmcli,
+            [
+                "--wait",
+                "10",
+                "--terse",
+                "--escape",
+                "yes",
+                "--fields",
+                "BSSID,SSID,CHAN,FREQ,SIGNAL,SECURITY",
+                "device",
+                "wifi",
+                "list",
+                "ifname",
+                adapter,
+                "--rescan",
+                "auto",
+            ],
+        )
+        self._update_start_button()
+
+    def _ap_scan_error(self, error):
+        if error == QProcess.FailedToStart:
+            self.status.setText(
+                "Could not start NetworkManager's AP scan. Enter the BSSID and channel directly."
+            )
+            self._update_start_button()
+
+    def _ap_scan_finished(self, code, _exit_status):
+        output = bytes(self._ap_scan.readAllStandardOutput()).decode(errors="replace")
+        detail = bytes(self._ap_scan.readAllStandardError()).decode(errors="replace").strip()
+        self._update_start_button()
+        if code != 0:
+            self.status.setText(
+                detail or "AP discovery failed. Enter the BSSID and channel directly."
+            )
+            return
+        aps = parse_ap_list(output)
+        if not aps:
+            self.status.setText("No 2.4 GHz APs found. Enter your lab BSSID and channel directly.")
+            return
+        choices = {
+            f"{ssid or 'Hidden SSID'} · {bssid} · ch {channel} · {security or 'Open'} · {signal}%": (
+                bssid,
+                channel,
+            )
+            for bssid, ssid, channel, signal, security in aps
+        }
+        choice, accepted = QInputDialog.getItem(
+            self,
+            "Choose your lab access point",
+            "Select the access point for this exercise",
+            list(choices),
+            editable=False,
+        )
+        if accepted:
+            bssid, channel = choices[choice]
+            self.bssid.setText(bssid)
+            self.channel.setValue(channel)
+            self.status.setText(
+                f"Lab AP selected on channel {channel}. Choose an exercise and run it."
+            )
+        else:
+            self.status.setText("Choose your lab AP or enter its BSSID and channel directly.")
 
     def _choose_wordlist(self):
         path, _ = QFileDialog.getOpenFileName(self, "Choose a lab wordlist")
@@ -330,7 +472,7 @@ class WifiLabTab(QWidget):
         return args
 
     def _start(self):
-        if self.running:
+        if self.running or self._ap_scan.state() != QProcess.NotRunning:
             return
         try:
             args = self._arguments()
@@ -338,49 +480,88 @@ class WifiLabTab(QWidget):
         except (ValueError, argparse.ArgumentError, OSError) as exc:
             self.status.setText(str(exc))
             return
+        missing = sorted(tool for tool in required_radio_tools(parsed) if not find_tool(tool))
+        if missing:
+            packages = sorted({RADIO_PACKAGES[tool] for tool in missing})
+            self.status.setText(
+                f"Install the required packages to run this exercise: {', '.join(packages)}."
+            )
+            self._update_setup()
+            return
         key = self.key.text() if parsed.exercise == "traffic" else ""
         if parsed.exercise == "traffic" and not key:
             self.status.setText("Enter the lab WPA2 passphrase.")
             return
 
-        program = sys.executable
-        arguments = ["-m", "james.core.wifi_lab", *args]
-        if os.geteuid() != 0:
-            sudo = shutil.which("sudo")
-            if not sudo:
-                self.status.setText("Wi-Fi Lab needs sudo for radio operations.")
-                return
-            program, arguments = sudo, ["-n", "--", program, *arguments]
-
-        self._stdout = b""
-        self._stderr = ""
+        self._prepare_process("exercise", "Starting Wi-Fi Lab…")
         self._key = key.encode() + b"\n" if key else b""
         self.key.clear()
-        self._stop_requested = False
-        self._outcome = ""
         self.findings.clear()
         self.packets.setRowCount(0)
         self.packet_status.setText("Waiting for a saved capture.")
         self.packet_status.setToolTip("")
+        self._start_privileged("james.core.wifi_lab", args)
+
+    def _install_tools(self):
+        if self.running or self._ap_scan.state() != QProcess.NotRunning:
+            return
+        if not missing_radio_packages():
+            self._update_setup()
+            return
+        self._prepare_process("install", "Installing missing Wi-Fi Lab tools…")
+        self.results.setCurrentWidget(self.log)
+        self._start_privileged("james.core.wifi_lab_setup", [])
+
+    def _prepare_process(self, operation, message):
+        self._operation = operation
+        self._stdout = b""
+        self._stderr = ""
+        self._key = b""
+        self._stop_requested = False
+        self._worker_ready = False
+        self._outcome = ""
         self.log.clear()
-        self.status.setText("Starting Wi-Fi Lab…")
+        self.status.setText(message)
         self.inputs.setEnabled(False)
         self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
-        self._process.start(program, arguments)
+        self.find_ap_button.setEnabled(False)
+        self.install_button.setEnabled(False)
+        self.stop_button.setEnabled(operation == "exercise")
+
+    def _start_privileged(self, module, args):
+        self._command = [sys.executable, "-m", module, *args]
+        self._elevation = ""
+        if os.geteuid() == 0:
+            self._process.start(self._command[0], self._command[1:])
+        elif sudo := find_tool("sudo"):
+            self._elevation = "sudo"
+            self._process.start(sudo, ["-n", "--", *self._command])
+        elif pkexec := find_tool("pkexec"):
+            self._start_pkexec(pkexec)
+        else:
+            self._outcome = "Wi-Fi Lab needs sudo or a system authorization agent."
+            self._finished(2, QProcess.CrashExit)
+
+    def _start_pkexec(self, executable):
+        self._elevation = "pkexec"
+        self._stderr = ""
+        self.status.setText("Authorize Wi-Fi Lab in the system dialog to continue.")
+        self._process.start(executable, ["--disable-internal-agent", "--keep-cwd", *self._command])
 
     def _started(self):
-        if self._key:
-            self._process.write(self._key)
-            self._key = b""
         if self._stop_requested:
             self._send_stop()
 
     def _send_stop(self):
         self._process.write(b"\n")
         self._process.closeWriteChannel()
+        if self._elevation == "pkexec" and not self._worker_ready:
+            self._process.terminate()
 
     def stop(self):
+        if self.running and self._operation == "install":
+            self.status.setText("Waiting for package setup to finish…")
+            return
         if self.running and not self._stop_requested:
             self._stop_requested = True
             self.stop_button.setEnabled(False)
@@ -411,7 +592,13 @@ class WifiLabTab(QWidget):
         if not isinstance(event, dict):
             return
         kind = event.get("kind")
-        if kind == "progress":
+        if kind == "key_request":
+            self._worker_ready = True
+            if not self._stop_requested:
+                self._process.write(self._key)
+                self._key = b""
+        elif kind == "progress":
+            self._worker_ready = True
             self.log.appendPlainText(event["message"])
             if not self._stop_requested:
                 self.status.setText(event["message"])
@@ -424,8 +611,9 @@ class WifiLabTab(QWidget):
         elif kind == "preview_error":
             self.packet_status.setText(event["message"])
         elif kind == "failure":
-            self._outcome = event["message"]
-            self.log.appendPlainText(self._outcome)
+            self.log.appendPlainText(event["message"])
+            if not self._stop_requested:
+                self._outcome = event["message"]
         elif kind == "report":
             report = event["report"]
             self._show_findings(report)
@@ -501,16 +689,42 @@ class WifiLabTab(QWidget):
         self._read_stderr()
         if self._stdout:
             self._handle_line(self._stdout.decode("utf-8", errors="replace"))
-        self._stdout = self._key = b""
+        self._stdout = b""
+        auth_required = any(
+            message in self._stderr
+            for message in (
+                "a password is required",
+                "a terminal is required",
+                "no tty present",
+            )
+        )
+        if (
+            code != 0
+            and self._elevation == "sudo"
+            and auth_required
+            and not self._stop_requested
+            and (pkexec := find_tool("pkexec"))
+        ):
+            self._start_pkexec(pkexec)
+            return
+        self._key = b""
+        self._command = []
         if not self._outcome:
             if code == 130 or self._stop_requested:
                 self._outcome = "Exercise stopped"
-            elif "sudo:" in self._stderr:
-                self._outcome = "Authorize sudo in the terminal that launches JAMES, then retry."
+            elif self._elevation == "pkexec" and code in {126, 127}:
+                self._outcome = "System authorization did not complete. Retry or run sudo -v in the launch terminal."
+            elif auth_required:
+                self._outcome = "Run sudo -v in the terminal that launches JAMES, then retry."
+            elif self._operation == "install":
+                self._outcome = (
+                    "Wi-Fi Lab tools installed" if code == 0 else "Tool setup failed. See Run log."
+                )
             else:
                 self._outcome = f"Wi-Fi Lab exited with code {code}. See Run log."
         self.status.setText(self._outcome)
         self.inputs.setEnabled(True)
         self.stop_button.setEnabled(False)
+        self._update_setup()
         self._update_start_button()
         self.run_finished.emit()
