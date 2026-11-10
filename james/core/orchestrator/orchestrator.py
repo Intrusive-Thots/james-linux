@@ -442,10 +442,11 @@ class Orchestrator:
         # Need to enable monitor mode
         self._print(f"[PREREQ] {interface} is in Managed mode — auto-enabling Monitor…")
         result = self.start_monitor(interface)
-        if result.get("error") or result.get("blocked"):
+        if result.get("error") or result.get("blocked") or result.get("success") is False:
+            detail = result.get("error") or result.get("stderr") or result.get("stdout")
             raise RuntimeError(
                 f"Failed to auto-enable monitor on {interface}: "
-                f"{result.get('error', 'unknown error')}"
+                f"{detail.strip() if detail else 'unknown error'}"
             )
 
         # check if airmon-ng renamed the interface

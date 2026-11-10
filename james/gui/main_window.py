@@ -46,6 +46,7 @@ from james.gui.theme import (
 from james.gui.toast import show_toast
 from james.gui.utils.worker import WorkerThread
 from james.gui.tabs.wifi_tab import WiFiArsenalTab
+from james.gui.tabs.wifi_lab_tab import WifiLabTab
 from james.gui.tabs.autopilot_tab import AutoPilotTab
 from james.gui.tabs.setup_tab import SetupTab
 from james.gui.tabs.troubleshoot_tab import TroubleshootTab
@@ -159,11 +160,12 @@ class MainWindow(QMainWindow):
     progress_signal = pyqtSignal(str, int, int)
     log_signal = pyqtSignal(str, str)  # (message, severity)
 
-    def __init__(self, orchestrator: Orchestrator):
+    def __init__(self, orchestrator: Orchestrator, *, open_wifi_lab=False):
         super().__init__()
         self.orchestrator = orchestrator
         self.worker = None
         self._cmd_worker = None
+        self._after_lab = None
 
         self.setWindowTitle("JAMES")
         self.setMinimumSize(1080, 760)
@@ -186,6 +188,10 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._connect_signals()
         self._build_shortcuts()
+        if open_wifi_lab:
+            self.tabs.setCurrentWidget(self.wifi_lab_tab)
+        elif SetupWizard.should_show():
+            QTimer.singleShot(500, self._show_setup_wizard)
 
         # Wire orchestrator print/progress into main log FIRST
         self.orchestrator.on_print = lambda t: self._append_log(t, "INFO")
@@ -263,10 +269,6 @@ class MainWindow(QMainWindow):
             self._open_web_hud
         )
 
-        # Show setup wizard on first run
-        if SetupWizard.should_show():
-            QTimer.singleShot(500, self._show_setup_wizard)
-
     def _switch_tab(self, index: int):
         if index < self.tabs.count():
             if index == self.tabs.currentIndex():
@@ -337,6 +339,8 @@ class MainWindow(QMainWindow):
         self.wifi_tab = WiFiArsenalTab(self)
         self.autopilot_tab = AutoPilotTab(self)
         self.airgeddon_tab = AirgeddonTab(self)
+        self.wifi_lab_tab = WifiLabTab(self)
+        self.wifi_lab_tab.run_finished.connect(self._on_lab_finished)
 
         # Merged Config tab (Setup + Troubleshoot)
         self.config_tab = self._build_config_tab()
@@ -353,6 +357,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
         self.tabs.setTabToolTip(3, "Evil Twin pipeline (Ctrl+4)")
 
+        self.tabs.addTab(self.wifi_lab_tab, "Wi-Fi Lab")
         self.tabs.setTabToolTip(4, "Experimental wireless assessments (Ctrl+5)")
 
         self.tabs.addTab(self.config_tab, "⚙ Config")
@@ -388,6 +393,8 @@ class MainWindow(QMainWindow):
         widget = self.tabs.widget(index)
         if hasattr(widget, "_input") and widget == self.chat_panel:
             widget._input.setFocus()
+        elif widget == self.wifi_lab_tab:
+            widget.refresh_adapters()
 
     def _build_header(self) -> QWidget:
         header = QWidget()
@@ -936,6 +943,9 @@ class MainWindow(QMainWindow):
 
     def restart_james(self):
         """Soft restart — relaunch JAMES without killing tools/interfaces."""
+        if self.wifi_lab_tab.running:
+            show_toast(self, "Stop the Wi-Fi Lab exercise before restarting JAMES.", "warning")
+            return
         reply = QMessageBox.question(
             self,
             "Restart JAMES",
@@ -982,13 +992,29 @@ class MainWindow(QMainWindow):
             "JAMES will remain open.",
             QMessageBox.Yes | QMessageBox.No,
         )
-        if reply == QMessageBox.Yes:
-            self._set_idle(False)
-            self._set_operation("Emergency Stop")
-            self._append_log("🛑 Emergency Stop initiated", "CRIT")
-            self.worker = WorkerThread(self.orchestrator.kill_james)
-            self.worker.finished.connect(self._on_emergency_stop_done)
-            self.worker.start()
+        if reply == QMessageBox.Yes and not self._stop_lab_before(self._start_emergency_stop):
+            self._start_emergency_stop()
+
+    def _start_emergency_stop(self):
+        self._set_idle(False)
+        self._set_operation("Emergency Stop")
+        self._append_log("🛑 Emergency Stop initiated", "CRIT")
+        self.worker = WorkerThread(self.orchestrator.kill_james)
+        self.worker.finished.connect(self._on_emergency_stop_done)
+        self.worker.start()
+
+    def _stop_lab_before(self, action):
+        if not self.wifi_lab_tab.running:
+            return False
+        if self._after_lab is None:
+            self._after_lab = action
+        self.wifi_lab_tab.stop()
+        return True
+
+    def _on_lab_finished(self):
+        action, self._after_lab = self._after_lab, None
+        if action is not None:
+            QTimer.singleShot(0, action)
 
     def _on_emergency_stop_done(self, result):
         self._set_idle(True)
@@ -1065,6 +1091,10 @@ class MainWindow(QMainWindow):
         # Force-quit path (from restart_james)
         if getattr(self, '_force_quit', False):
             event.accept()
+            return
+
+        if self._stop_lab_before(self.close):
+            event.ignore()
             return
 
         if self._is_tools_running():

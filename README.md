@@ -13,6 +13,10 @@ python3 main.py
 
 Run the API server separately with `python3 main.py --server`. The default API bind is loopback on port 8745. Remote binding requires an API token and TLS configuration.
 
+## Wi-Fi Lab
+
+Run `./launch_wifi_lab.py` on Parrot or Kali to install missing dependencies, prepare the local Python environment, and open **Wi-Fi Lab** directly. The same runner is available from `python3 main.py wifi-lab --help`. [Wi-Fi Lab setup and commands](docs/WIFI_LAB.md)
+
 ## Wireless SOC
 
 The standalone [Wireless SOC dashboard](dashboard/wireless_soc.html) reads live observations from the API. It starts empty and reports connection errors rather than displaying fabricated assets or alerts. Serve it from the repository root so the browser origin is allowed by the API's default CORS policy:
