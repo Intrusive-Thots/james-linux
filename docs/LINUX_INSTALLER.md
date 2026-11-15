@@ -65,3 +65,28 @@ extracted `opt/james-linux/james --server` from a different working directory, a
 check `/api/health`, `/`, and a referenced `/assets/...` file. Exercise desktop
 startup with `QT_QPA_PLATFORM=offscreen` where no display is available. A desktop
 display and supported wireless adapter are required for manual hardware checks.
+
+## Automated releases
+
+The `Linux installer release` GitHub Actions workflow builds on Debian 13 with
+Python 3.12, Node 22, and pnpm 10.34.0. It checks out the exact version tag, runs
+Python and web tests, compiles the installer, and checks the extracted API, web
+assets, WebSocket initialization, and offscreen desktop before publishing.
+
+Push a `vMAJOR.MINOR.PATCH` tag from a commit containing the workflow; the tag must
+match `james.__version__`. The release branch `release/james-linux-0.1.0` also
+triggers the initial build of the existing `v0.1.0` tag without moving that tag.
+Manual dispatch accepts an existing tag once the workflow is on the default
+branch. GitHub Actions must be enabled for the repository.
+
+Publication uses GitHub's built-in token with `contents: write` only in the
+publish job. No personal access token or cloud-environment network edits are
+needed for the GitHub-hosted job. It creates a draft, uploads and verifies the
+installer/checksum, then publishes. Existing assets are never overwritten;
+different contents with the same release filename stop publication. A failed
+upload leaves the draft available for inspection or retry. Build artifacts and
+smoke logs are retained for 14 days, including when validation fails.
+
+CI rebuilds can differ from local packages because runtime dependency versions
+are ranges. Each release has its own verified checksum and source provenance;
+do not assume a CI package is byte-identical to a local build.
