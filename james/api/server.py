@@ -1059,6 +1059,12 @@ async def _action_abort(orch):
     return {"status": "aborted"}
 
 
+from james.api.static_web import mount_web_client
+
+# The API and WebSocket routes must be registered before the static root mount.
+mount_web_client(app)
+
+
 # ── Entry point ─────────────────────────────────────────────────
 def main():
     """Run the API server with safe loopback defaults and guarded remote mode."""

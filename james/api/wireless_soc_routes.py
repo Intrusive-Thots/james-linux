@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from james.paths import data_dir
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from james.api.wireless_soc import WirelessSOCStore
 
 router = APIRouter(prefix="/api/wireless-soc", tags=["wireless-soc"])
-_default_path = Path.home() / ".james" / "wireless_soc.sqlite3"
+_default_path = data_dir() / "wireless_soc.sqlite3"
 store = WirelessSOCStore(os.environ.get("JAMES_WIRELESS_SOC_DB", str(_default_path)))
 
 

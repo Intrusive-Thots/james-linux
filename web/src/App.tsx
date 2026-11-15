@@ -14,8 +14,9 @@ import { AgentConsole } from "./pages/AgentConsole";
 import { SettingsPage } from "./pages/Settings";
 import { useAppState } from "./hooks/useAppState";
 import { useWebSocket, type WSMessage } from "./hooks/useWebSocket";
+import { webSocketUrl } from "./lib/api";
 
-const API_WS_URL = import.meta.env.VITE_API_WS_URL || "ws://localhost:8745/ws";
+const API_WS_URL = webSocketUrl(window.location.href, import.meta.env.VITE_API_WS_URL);
 
 export default function App() {
   const {

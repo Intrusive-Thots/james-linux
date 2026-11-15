@@ -1,0 +1,161 @@
+name: Linux installer release
+
+on:
+  push:
+    tags: ["v*"]
+    # Bootstrap the already-pushed v0.1.0 tag without moving it.
+    branches: ["release/james-linux-0.1.0"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: python:3.12-trixie
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Select release tag
+        id: release
+        env:
+          REQUESTED_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'v0.1.0' }}
+        run: |
+          if [[ ! "$REQUESTED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Expected a version tag such as v0.1.0' >&2
+            exit 1
+          fi
+          echo "tag=$REQUESTED_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Install native build and desktop dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git binutils dpkg-dev \
+            libgl1 libegl1 libglib2.0-0t64 libfontconfig1 libfreetype6 \
+            libx11-6 libx11-xcb1 libxcb1 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 \
+            libxcb-xkb1 libxcb-randr0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxkbcommon-x11-0
+
+      - name: Check out automation
+        uses: actions/checkout@v4
+        with:
+          path: automation
+          persist-credentials: false
+
+      - name: Check out the exact release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          path: source
+          persist-credentials: false
+
+      - name: Verify version and source
+        id: source
+        working-directory: source
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          python - <<'PY'
+          import os
+          from james import __version__
+          if os.environ['RELEASE_TAG'] != f'v{__version__}':
+              raise SystemExit('Release tag must match james.__version__')
+          PY
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          test -z "$(git status --porcelain)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.34.0"
+
+      - name: Install Python dependencies
+        working-directory: source
+        run: |
+          python -m pip install -r requirements-dev.txt -r requirements-build.txt
+          python -m pip check
+
+      - name: Run Python and release automation tests
+        working-directory: source
+        run: |
+          python -m pytest -ra
+          python -m pytest ../automation/tests/test_release_publish.py -ra
+
+      - name: Install, test, and build the web client
+        working-directory: source/web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm run build
+
+      - name: Compile Debian installer
+        working-directory: source
+        run: python scripts/build_linux_package.py --skip-web-build
+
+      - name: Validate the extracted installer
+        working-directory: source
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          python ../automation/.github/scripts/smoke_linux_package.py \
+            --package "dist/james-linux_$(python -c 'from james import __version__; print(__version__)')_debian13_amd64.deb" \
+            --source-commit "$SOURCE_SHA"
+
+      - name: Retain package and smoke logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-installer-${{ steps.release.outputs.tag }}
+          path: |
+            source/dist/*.deb
+            source/dist/*.sha256
+            source/dist/smoke-logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-linux-${{ needs.build.outputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-installer-${{ needs.build.outputs.tag }}
+          path: dist
+
+      - name: Publish verified assets without replacing existing files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 .github/scripts/publish_linux_release.py \
+            --repository "$RELEASE_REPOSITORY" --tag "$RELEASE_TAG" \
+            --package "dist/james-linux_${RELEASE_TAG#v}_debian13_amd64.deb"

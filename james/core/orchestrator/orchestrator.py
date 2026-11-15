@@ -16,6 +16,7 @@ import time
 import shlex
 from datetime import datetime
 from pathlib import Path
+from james.paths import data_dir
 import keyring
 from typing import Optional
 
@@ -96,7 +97,7 @@ class Orchestrator:
     # Project-local wordlist directory
     WORDLIST_DIR = Path(__file__).resolve().parent.parent.parent.parent / "wordlists"
 
-    LOOT_DIR = Path.home() / ".james" / "loot"
+    LOOT_DIR = data_dir() / "loot"
 
     # Cache for wordlist line counts (key: "path_mtime", value: line count)
     _wordlist_cache: dict[str, int] = {}

@@ -9,13 +9,14 @@ import json, logging, os, re, shutil, subprocess, threading, time
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
+from james.paths import data_dir
 from urllib.parse import parse_qs
 
 logger = logging.getLogger("james.pineap")
 
 PORTALS_DIR = Path(__file__).parent / "evil_portals"
-CREDS_LOG = Path.home() / ".james" / "pineap_creds.json"
-PROBES_LOG = Path.home() / ".james" / "pineap_probes.json"
+CREDS_LOG = data_dir() / "pineap_creds.json"
+PROBES_LOG = data_dir() / "pineap_probes.json"
 
 
 class _CaptiveHandler(SimpleHTTPRequestHandler):

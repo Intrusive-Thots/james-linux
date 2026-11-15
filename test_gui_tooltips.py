@@ -25,8 +25,8 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.main_window.tabs.tabToolTip(1), "Wi-Fi auditing and tools (Ctrl+2)")
         self.assertEqual(self.main_window.tabs.tabToolTip(2), "Automated routines (Ctrl+3)")
         self.assertEqual(self.main_window.tabs.tabToolTip(3), "Evil Twin pipeline (Ctrl+4)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(4), "Experimental wireless assessments (Ctrl+5)")
-        self.assertEqual(self.main_window.tabs.tabToolTip(5), "System configuration and diagnostics (Ctrl+6)")
+        self.assertEqual(self.main_window.tabs.count(), 5)
+        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration and diagnostics (Ctrl+5)")
 
         self.assertEqual(
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
@@ -130,19 +130,14 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(tab.btn_scan_start.toolTip(), "Start network scan (Ctrl+S)")
         self.assertEqual(tab.btn_scan_stop.toolTip(), "Stop network scan (Ctrl+S)")
 
-    def test_lab_tab_tooltips(self):
-        from james.gui.tabs.lab_tab import LabTab
-        tab = next(
-            (
-                self.main_window.tabs.widget(i)
-                for i in range(self.main_window.tabs.count())
-                if isinstance(self.main_window.tabs.widget(i), LabTab)
-            ),
-            None,
-        )
-        self.assertIsNotNone(tab, "LabTab not found")
-        self.assertEqual(tab.btn_run_fuzz.toolTip(), "Start SAE Fuzzing on the selected interface (Ctrl+F)")
-        self.assertEqual(tab.btn_run_down.toolTip(), "Trigger Downgrade on the selected interface (Ctrl+D)")
+    def test_config_tab_exposes_setup_and_diagnostics(self):
+        from james.gui.tabs.setup_tab import SetupTab
+        from james.gui.tabs.troubleshoot_tab import TroubleshootTab
+
+        self.assertIs(self.main_window.tabs.widget(4), self.main_window.config_tab)
+        self.assertTrue(self.main_window.config_tab.findChildren(SetupTab))
+        self.assertTrue(self.main_window.config_tab.findChildren(TroubleshootTab))
+
     def test_autopilot_tab_tooltips(self):
         from james.gui.tabs.autopilot_tab import AutoPilotTab
         tab = next(

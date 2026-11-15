@@ -19,6 +19,7 @@ import os
 import itertools
 import logging
 from pathlib import Path
+from james.paths import data_dir
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -328,7 +329,7 @@ class WifiWordlistGenerator:
       6. Mask-based patterns via hashcat masks
     """
 
-    OUTPUT_DIR = Path.home() / ".james" / "wordlists"
+    OUTPUT_DIR = data_dir() / "wordlists"
 
     def __init__(self):
         self.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

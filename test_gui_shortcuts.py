@@ -37,7 +37,7 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
-        self.assertIn("Ctrl+6", keys)
+        self.assertNotIn("Ctrl+6", keys)
         self.assertIn("Ctrl+Tab", keys)
         self.assertIn("Ctrl+Shift+Tab", keys)
 
@@ -292,22 +292,14 @@ class TestMainWindowShortcuts(unittest.TestCase):
             "Ctrl+F shortcut not found in SetupTab"
         )
 
-    def test_lab_tab_shortcuts(self):
-        from james.gui.tabs.lab_tab import LabTab
-        tab = next(
-            (
-                self.window.tabs.widget(i)
-                for i in range(self.window.tabs.count())
-                if isinstance(self.window.tabs.widget(i), LabTab)
-            ),
-            None,
-        )
-        self.assertIsNotNone(tab, "LabTab not found")
+    def test_config_tab_shortcut_selects_existing_tab(self):
+        self.assertEqual(self.window.tabs.count(), 5)
+        self.window.tabs.setCurrentIndex(0)
+        shortcuts = self.window.findChildren(QShortcut)
+        shortcut = next(s for s in shortcuts if s.key() == QKeySequence("Ctrl+5"))
+        shortcut.activated.emit()
+        self.assertIs(self.window.tabs.currentWidget(), self.window.config_tab)
 
-        shortcuts = tab.findChildren(QShortcut)
-        keys = [s.key().toString() for s in shortcuts]
-        self.assertIn("Ctrl+F", keys)
-        self.assertIn("Ctrl+D", keys)
     def test_chat_ctrl_enter(self):
         from james.gui.chat_panel import ChatPanel
 

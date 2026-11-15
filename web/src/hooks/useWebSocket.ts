@@ -33,7 +33,6 @@ export function useWebSocket({
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMessageRef = useRef(onMessage);
 
   // ⚡ Bolt: Update ref in useEffect to avoid mutating during render,
@@ -42,51 +41,60 @@ export function useWebSocket({
     onMessageRef.current = onMessage;
   }, [onMessage]);
 
-  // ⚡ Bolt: Use a named function inside useCallback so it can safely self-reference
-  // avoiding static analysis errors that break React Compiler optimization.
-  const connect = useCallback(function connectFn() {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    const wsUrl = new URL(url);
-    const apiToken = sessionStorage.getItem("james_api_token");
-    if (apiToken) wsUrl.searchParams.set("token", apiToken);
-    const ws = new WebSocket(wsUrl.toString());
-
-    ws.onopen = () => {
-      console.log("[WS] Connected to JAMES API");
-      setConnected(true);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data) as WSMessage;
-        onMessageRef.current(msg);
-      } catch (e) {
-        console.error("[WS] Failed to parse message:", e);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("[WS] Disconnected — reconnecting in", reconnectDelay, "ms");
-      setConnected(false);
-      reconnectTimer.current = setTimeout(connectFn, reconnectDelay);
-    };
-
-    ws.onerror = (err) => {
-      console.error("[WS] Error:", err);
-      ws.close();
-    };
-
-    wsRef.current = ws;
-  }, [url, reconnectDelay]);
-
   useEffect(() => {
+    let active = true;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function connect() {
+      if (!active) return;
+
+      const wsUrl = new URL(url);
+      const apiToken = sessionStorage.getItem("james_api_token");
+      if (apiToken) wsUrl.searchParams.set("token", apiToken);
+      const ws = new WebSocket(wsUrl.toString());
+
+      ws.onopen = () => {
+        if (!active || wsRef.current !== ws) return;
+        console.log("[WS] Connected to JAMES API");
+        setConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        if (!active || wsRef.current !== ws) return;
+        try {
+          const msg = JSON.parse(event.data) as WSMessage;
+          onMessageRef.current(msg);
+        } catch (e) {
+          console.error("[WS] Failed to parse message:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        if (!active || wsRef.current !== ws) return;
+        wsRef.current = null;
+        console.log("[WS] Disconnected — reconnecting in", reconnectDelay, "ms");
+        setConnected(false);
+        reconnectTimer = setTimeout(connect, reconnectDelay);
+      };
+
+      ws.onerror = (err) => {
+        if (!active || wsRef.current !== ws) return;
+        console.error("[WS] Error:", err);
+        ws.close();
+      };
+
+      wsRef.current = ws;
+    }
+
     connect();
     return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      active = false;
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
       wsRef.current?.close();
+      wsRef.current = null;
+      setConnected(false);
     };
-  }, [connect]);
+  }, [url, reconnectDelay]);
 
   const send = useCallback(
     (action: string, params: Record<string, any> = {}, id?: string) => {

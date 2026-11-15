@@ -1,6 +1,7 @@
 """JAMES — Wi-Fi Arsenal Tab (Design System v3)."""
 
 from pathlib import Path
+from james.paths import data_dir
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -1151,7 +1152,7 @@ class WiFiArsenalTab(QWidget):
 
     def _load_wordlists(self):
         self.wl_combo.clear()
-        wl_dir = Path.home() / ".james" / "wordlists"
+        wl_dir = data_dir() / "wordlists"
         if wl_dir.exists():
             for wl in sorted(wl_dir.glob("*.txt")):
                 self.wl_combo.addItem(wl.name, str(wl))

@@ -2,8 +2,9 @@ import json
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
+from james.paths import data_dir
 
-CONFIG_PATH = Path.home() / ".james" / "server_config.json"
+CONFIG_PATH = data_dir() / "server_config.json"
 
 
 @dataclass

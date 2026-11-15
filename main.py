@@ -18,12 +18,13 @@ import fcntl
 import os
 from datetime import datetime
 from pathlib import Path
+from james.paths import data_dir
 
 
 def _setup_logging():
     """Configure logging to write to both console and persistent log files."""
     try:
-        log_dir = Path.home() / ".james" / "logs"
+        log_dir = data_dir() / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
         log_dir = Path("./logs")
