@@ -15,6 +15,7 @@ import traceback
 import shlex
 import shutil
 from pathlib import Path
+from james.paths import data_dir
 
 from PyQt5.QtWidgets import (
     QWidget,
@@ -77,7 +78,7 @@ class AutoPilotWorker(QThread):
         self.auto_airgeddon = auto_airgeddon
         self.airgeddon_timeout = airgeddon_timeout * 60  # convert to seconds
 
-        self.loot_dir = Path.home() / ".james" / "loot" / "handshakes"
+        self.loot_dir = data_dir() / "loot" / "handshakes"
         self.loot_dir.mkdir(parents=True, exist_ok=True)
 
         self._mon_iface = None  # track for cleanup on crash

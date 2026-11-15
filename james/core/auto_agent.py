@@ -5,6 +5,7 @@ import subprocess
 import logging
 from typing import Optional, Dict, List
 from pathlib import Path
+from james.paths import data_dir
 
 from james.core.sedge import DecisionGraph, Node, Edge, SelfEvolvingAgent
 from james.core.ai_engine import GeminiEngine
@@ -25,7 +26,7 @@ class AutonomousAgent:
     def __init__(self, workspace: str = "."):
         self.workspace = Path(workspace)
         # Persist agent state outside the repo (P2.4)
-        self.data_dir = Path.home() / ".james" / "auto_agent"
+        self.data_dir = data_dir() / "auto_agent"
         self.memory_file = self.data_dir / "auto_agent_memory.json"
         self.graph_file = self.data_dir / "knowledge_graph.json"
         self.plan_file = self.workspace / "implementation_plan.md"

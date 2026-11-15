@@ -21,6 +21,7 @@ import re
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from james.paths import data_dir
 from typing import Optional
 import requests
 
@@ -50,7 +51,7 @@ class ResultStore:
 
     MAX_RESULTS = 50
     SUMMARY_LEN = 600  # max chars per result summary
-    MEMORY_FILE = Path.home() / ".james" / "ai_memory.json"
+    MEMORY_FILE = data_dir() / "ai_memory.json"
 
     def __init__(self):
         self._store: deque = deque(maxlen=self.MAX_RESULTS)

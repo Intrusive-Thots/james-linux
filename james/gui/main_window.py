@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from james.paths import data_dir
 
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -240,8 +241,8 @@ class MainWindow(QMainWindow):
             self.restart_james
         )
 
-        # Tabs (now 1-6)
-        for i in range(1, 7):
+        # Register only the tabs that are actually present.
+        for i in range(1, self.tabs.count() + 1):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
             shortcut.activated.connect(lambda idx=i - 1: self._switch_tab(idx))
 
@@ -353,10 +354,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.airgeddon_tab, "Airgeddon")
         self.tabs.setTabToolTip(3, "Evil Twin pipeline (Ctrl+4)")
 
-        self.tabs.setTabToolTip(4, "Experimental wireless assessments (Ctrl+5)")
-
         self.tabs.addTab(self.config_tab, "⚙ Config")
-        self.tabs.setTabToolTip(5, "System configuration and diagnostics (Ctrl+6)")
+        self.tabs.setTabToolTip(4, "System configuration and diagnostics (Ctrl+5)")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -952,13 +951,15 @@ class MainWindow(QMainWindow):
 
         # Get the command used to launch this process
         python = sys.executable
-        script = os.path.abspath(sys.argv[0])
         args = sys.argv[1:]
+        command = [python, *args] if getattr(sys, "frozen", False) else [
+            python, os.path.abspath(sys.argv[0]), *args
+        ]
 
         # Launch new instance then exit
         try:
             subprocess.Popen(
-                [python, script] + args,
+                command,
                 start_new_session=True,
             )
             # Force-close without triggering closeEvent cleanup
@@ -1097,7 +1098,7 @@ class MainWindow(QMainWindow):
     # ── Log viewer dialog ─────────────────────────────────────────────
 
     def _show_log_viewer(self):
-        log_dir = Path.home() / ".james" / "logs"
+        log_dir = data_dir() / "logs"
         if not log_dir.exists():
             show_toast(self, "No log directory found", "error")
             return

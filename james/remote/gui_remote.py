@@ -14,6 +14,7 @@ Usage:
 """
 
 import logging
+from james.paths import data_dir
 import os
 import secrets
 import subprocess
@@ -137,7 +138,7 @@ class GUIRemote:
 
     def _create_vnc_password(self) -> str:
         """Create a VNC password file and return its path."""
-        pw_dir = os.path.expanduser("~/.james")
+        pw_dir = str(data_dir())
         os.makedirs(pw_dir, exist_ok=True)
         pw_file = os.path.join(pw_dir, "vnc_passwd")
 

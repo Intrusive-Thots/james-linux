@@ -1,0 +1,4 @@
+# Packaging uses the runtime from requirements.txt and an already-built web client.
+-r requirements.txt
+PyInstaller==6.19.0
+pyinstaller-hooks-contrib==2026.10

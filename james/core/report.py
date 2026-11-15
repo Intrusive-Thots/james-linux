@@ -5,6 +5,7 @@ JAMES Report Generator — produces professional HTML pentest reports.
 import json
 from datetime import datetime
 from pathlib import Path
+from james.paths import data_dir
 
 
 def generate_html_report(
@@ -406,7 +407,7 @@ def save_report(html: str, path: str | Path | None = None) -> Path:
     """Save report HTML to disk and return the path."""
     if path is None:
         try:
-            loot_dir = Path.home() / ".james" / "loot"
+            loot_dir = data_dir() / "loot"
             loot_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = loot_dir / f"report_{timestamp}.html"

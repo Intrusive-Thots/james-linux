@@ -13,13 +13,14 @@ import signal
 import logging
 import time
 from pathlib import Path
+from james.paths import data_dir
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
 
 # Background log directory
-_BG_LOG_DIR = Path.home() / ".james" / "logs"
+_BG_LOG_DIR = data_dir() / "logs"
 
 
 @dataclass

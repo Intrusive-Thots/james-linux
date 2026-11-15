@@ -2,6 +2,8 @@
 
 JAMES is a Python desktop application with a FastAPI/WebSocket backend and a React web client.
 
+For the compiled Debian 13 amd64 package, see [Linux installer](docs/LINUX_INSTALLER.md).
+
 ## Run
 
 ```bash

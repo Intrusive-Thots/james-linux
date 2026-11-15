@@ -22,6 +22,7 @@ from datetime import datetime
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
+from james.paths import data_dir
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -293,7 +294,7 @@ class Agent:
     """
 
     MAX_HISTORY = 200  # cap conversation memory to limit RAM
-    CONTEXT_FILE = Path.home() / ".james" / "context.json"
+    CONTEXT_FILE = data_dir() / "context.json"
 
     # Keys that should persist across restarts
     _PERSIST_KEYS = {
@@ -1170,7 +1171,7 @@ class Agent:
         )
 
         # Show JAMES generated wordlists if they exist
-        james_dir = Path.home() / ".james" / "wordlists"
+        james_dir = data_dir() / "wordlists"
         if james_dir.exists():
             james_files = list(james_dir.glob("*.txt"))
             if james_files:

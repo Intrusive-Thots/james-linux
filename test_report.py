@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -63,6 +64,7 @@ class TestReport(unittest.TestCase):
 
     @patch("james.core.report.datetime")
     @patch.object(Path, "home")
+    @patch.dict(os.environ, {"JAMES_DATA_DIR": ""})
     def test_save_report_with_default_path(
         self, mock_home, mock_datetime
     ):

@@ -4,6 +4,7 @@ for Airgeddon's core workflows (Recon, Handshake, Evil Twin), built natively.
 """
 
 from pathlib import Path
+from james.paths import data_dir
 import time
 import os
 import shutil
@@ -423,7 +424,7 @@ class AirgeddonTab(QWidget):
                 self.orchestrator.layer.kill_background(proc)
 
                 if found:
-                    dest = f"{Path.home()}/.james/loot/handshakes/{essid}_{bssid.replace(':','')}.cap"
+                    dest = str(data_dir() / "loot" / "handshakes" / f"{essid}_{bssid.replace(':','')}.cap")
                     shutil.copy2(cap_file, dest)
                     return f"SUCCESS: Handshake captured and saved to {dest}"
                 return "FAIL: Could not capture handshake."
