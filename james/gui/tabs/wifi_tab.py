@@ -768,15 +768,28 @@ class WiFiArsenalTab(QWidget):
     # ── Interface ─────────────────────────────────────────────────────
 
     def _refresh_interfaces(self):
+        prev_selected = self.iface_combo.currentData()
         self.iface_combo.blockSignals(True)
         self.iface_combo.clear()
         ifaces = self.orchestrator.wifi_interfaces()
+        best_idx = 0
+        found_prev = False
         for i, ifc in enumerate(ifaces):
             name = ifc["interface"]
             mode = ifc.get("mode", "?").lower()
             self.iface_combo.addItem(f"{name}  [{mode}]", name)
             color = "#F59E0B" if mode == "monitor" else "#10B981"
             self.iface_combo.setItemData(i, QColor(color), Qt.ForegroundRole)
+            if prev_selected and name == prev_selected:
+                best_idx = i
+                found_prev = True
+            elif not found_prev:
+                if mode == "monitor":
+                    best_idx = i
+                elif self.orchestrator.net_guard.check_monitor_safe(name)[0]:
+                    best_idx = i
+        if ifaces:
+            self.iface_combo.setCurrentIndex(best_idx)
         self.iface_combo.blockSignals(False)
         if ifaces:
             self._update_iface_status(self.iface_combo.currentText())

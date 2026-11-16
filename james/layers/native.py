@@ -14,6 +14,7 @@ import logging
 import time
 from pathlib import Path
 from james.paths import data_dir
+from james.layers.network_state import NetworkState
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 
@@ -61,6 +62,7 @@ class NativeLayer:
     """
 
     def __init__(self, default_timeout: int = 120):
+        self.network_state = NetworkState(self)
         self.default_timeout = default_timeout
         self._is_root = os.geteuid() == 0
         self._sudo_pass: Optional[str] = None
@@ -122,6 +124,7 @@ class NativeLayer:
         )
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
+        merged_env.pop("JAMES_SUDO_PASS", None)
 
         # Log short utility commands at DEBUG to avoid log flooding from polling
         log_level = logging.DEBUG if effective_timeout <= 5 else logging.INFO
@@ -131,9 +134,12 @@ class NativeLayer:
 
         if on_output:
             return self._run_streaming(
-                cmd, effective_timeout, cwd, merged_env, on_output
+                cmd, effective_timeout, cwd, merged_env, on_output,
+                input_data=self._sudo_input(sudo)
             )
-        return self._run_blocking(cmd, effective_timeout, cwd, merged_env)
+        return self._run_blocking(
+            cmd, effective_timeout, cwd, merged_env, input_data=self._sudo_input(sudo)
+        )
 
     def run_background(
         self,
@@ -152,6 +158,7 @@ class NativeLayer:
         """
         cmd = self._prepare_command(command, sudo)
         merged_env = {**os.environ, **(env or {})}
+        merged_env.pop("JAMES_SUDO_PASS", None)
         logger.info("exec (bg) → %s", cmd)
 
         # Create log file for this background process
@@ -169,12 +176,24 @@ class NativeLayer:
         proc = subprocess.Popen(
             cmd,
             shell=True,
+            stdin=subprocess.PIPE if self._sudo_input(sudo) is not None else subprocess.DEVNULL,
+            text=True,
             stdout=log_fh if log_fh is not subprocess.DEVNULL else subprocess.DEVNULL,
             stderr=subprocess.STDOUT if log_fh is not subprocess.DEVNULL else subprocess.DEVNULL,
             cwd=cwd,
             env=merged_env,
             start_new_session=True,  # own process group for clean kill
         )
+
+        if proc.stdin is not None:
+            try:
+                proc.stdin.write(self._sudo_input(sudo))
+                proc.stdin.flush()
+            except BrokenPipeError:
+                pass
+            finally:
+                proc.stdin.close()
+                proc.stdin = None
 
         # Rename log with real pid for easy lookup
         if log_path is not None and log_fh is not subprocess.DEVNULL:
@@ -281,22 +300,36 @@ class NativeLayer:
         stored password via stdin to ``sudo -S``. The password must
         have been set via ``set_sudo_password()`` or the
         ``JAMES_SUDO_PASS`` environment variable.
+
+        The *entire* command (which may contain ``;``, ``&&`` or ``|``
+        chains) is run as root via ``bash -c``. Wrapping only the first
+        token would leave later statements running as the unprivileged
+        user — e.g. ``iw dev … set type monitor`` would fail with
+        "RTNETLINK answers: Operation not permitted".
         """
         if not sudo or self._is_root:
             return command
+        q_cmd = shlex.quote(command)
         if not self._sudo_pass:
             logger.warning(
                 "sudo requested but no password configured — "
                 "set via set_sudo_password() or JAMES_SUDO_PASS env var. "
                 "Attempting passwordless sudo."
             )
-            return f"sudo -n {command}"
-        return f"echo {shlex.quote(self._sudo_pass)} | sudo -S {command}"
+            return f"sudo -n bash -c {q_cmd}"
+        return f"sudo -S -p '' bash -c {q_cmd}"
 
-    def _run_blocking(self, cmd, timeout, cwd, env) -> CommandResult:
+    def _sudo_input(self, sudo: bool) -> Optional[str]:
+        """Send authentication only through a private pipe, never shell text."""
+        if sudo and not self._is_root and self._sudo_pass:
+            return self._sudo_pass + "\n"
+        return None
+
+    def _run_blocking(self, cmd, timeout, cwd, env, input_data=None) -> CommandResult:
         proc = subprocess.Popen(
             cmd,
             shell=True,
+            stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -305,15 +338,16 @@ class NativeLayer:
             start_new_session=True,  # own session for clean kill
         )
         try:
-            stdout, stderr = proc.communicate(timeout=timeout)
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout)
             return CommandResult(
                 command=cmd,
                 returncode=proc.returncode,
                 stdout=stdout,
                 stderr=stderr,
             )
-        except subprocess.TimeoutExpired:
-            logger.warning("Command timed out after %ss: %s", timeout, cmd)
+        except (subprocess.TimeoutExpired, KeyboardInterrupt) as exc:
+            if isinstance(exc, subprocess.TimeoutExpired):
+                logger.warning("Command timed out after %ss: %s", timeout, cmd)
             # Kill the entire process group to avoid zombies
             try:
                 pgid = os.getpgid(proc.pid)
@@ -321,6 +355,8 @@ class NativeLayer:
             except (ProcessLookupError, OSError):
                 proc.kill()
             stdout, stderr = proc.communicate(timeout=5)
+            if isinstance(exc, KeyboardInterrupt):
+                raise
             return CommandResult(
                 command=cmd,
                 returncode=-1,
@@ -330,7 +366,7 @@ class NativeLayer:
             )
 
     def _run_streaming(
-        self, cmd, timeout, cwd, env, on_output
+        self, cmd, timeout, cwd, env, on_output, input_data=None
     ) -> CommandResult:
         stdout_lines = []
         stderr_text = ""
@@ -344,12 +380,22 @@ class NativeLayer:
         proc = subprocess.Popen(
             cmd_args,
             shell=False,
+            stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             cwd=cwd,
             env=env,
         )
+        if proc.stdin is not None:
+            try:
+                proc.stdin.write(input_data)
+                proc.stdin.flush()
+            except BrokenPipeError:
+                pass
+            finally:
+                proc.stdin.close()
+                proc.stdin = None
         try:
             for line in proc.stdout:
                 stripped = line.rstrip("\n")
