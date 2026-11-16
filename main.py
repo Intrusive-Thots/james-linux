@@ -8,6 +8,7 @@ Usage:
     python3 main.py --both           Run GUI + background FastAPI server
     python3 main.py --setup          Run first-time setup wizard
     python3 main.py --headless       Alias for --server
+    python3 main.py wifi-lab --help  Run a Wi-Fi lab exercise
 """
 
 import sys
@@ -89,16 +90,21 @@ def acquire_singleton_lock() -> bool:
     """
     global _lock_fd
     try:
-        _lock_fd = open(LOCK_FILE, "w")
+        _lock_fd = open(LOCK_FILE, "a+")
         fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fd.seek(0)
+        _lock_fd.truncate()
         _lock_fd.write(str(os.getpid()))
         _lock_fd.flush()
         return True
     except (IOError, OSError):
+        if _lock_fd is not None:
+            _lock_fd.close()
+            _lock_fd = None
         # Another instance holds the lock
         try:
             with open(LOCK_FILE, "r") as f:
-                other_pid = f.read().strip()
+                other_pid = f.read().strip() or "unknown"
         except Exception:
             other_pid = "unknown"
         logger.warning("Another JAMES instance is running (PID %s)", other_pid)
@@ -113,7 +119,7 @@ def _show_already_running_dialog():
         app = QApplication(sys.argv)
         try:
             with open(LOCK_FILE, "r") as f:
-                other_pid = f.read().strip()
+                other_pid = f.read().strip() or "unknown"
         except Exception:
             other_pid = "?"
         msg = QMessageBox()
@@ -154,7 +160,7 @@ def _show_already_running_dialog():
         pass
 
 
-def run_gui():
+def run_gui(*, open_wifi_lab=False):
     """Launch the PyQt5 desktop GUI."""
     from PyQt5.QtWidgets import QApplication
     from james.gui.main_window import MainWindow
@@ -166,7 +172,7 @@ def run_gui():
     app.setStyleSheet(DARK_STYLESHEET)
 
     orchestrator = Orchestrator()
-    window = MainWindow(orchestrator)
+    window = MainWindow(orchestrator, open_wifi_lab=open_wifi_lab)
     window.show()
     sys.exit(app.exec_())
 
@@ -240,6 +246,8 @@ Examples:
   python3 main.py --server        # Headless API server on :8745 (or JAMES_API_PORT)
   python3 main.py --both          # GUI + background API server
   python3 main.py --setup         # First-time setup wizard
+  python3 main.py --wifi-lab-ui    # Open the Wi-Fi Lab desktop tab
+  python3 main.py wifi-lab --help # Wi-Fi lab exercises
 """,
     )
     mode = parser.add_mutually_exclusive_group()
@@ -263,10 +271,31 @@ Examples:
         action="store_true",
         help="Launch first-time setup / configuration wizard",
     )
+    mode.add_argument("--wifi-lab-ui", action="store_true", help="Open the Wi-Fi Lab desktop tab")
     return parser.parse_args()
 
 
 def main():
+    if sys.argv[1:2] == ["wifi-lab"]:
+        from james.core.wifi_lab import main as wifi_lab_main
+
+        sys.exit(wifi_lab_main(sys.argv[2:]))
+
+    if sys.argv[1:2] == ["wifi-lab-setup"]:
+        import subprocess as _sp
+        from james.core.wifi_lab_setup import (
+            install_packages,
+            missing_radio_packages,
+        )
+
+        if os.geteuid() != 0:
+            raise SystemExit("The package worker requires system administrator access.")
+        try:
+            install_packages(missing_radio_packages())
+        except (OSError, RuntimeError, _sp.CalledProcessError) as error:
+            raise SystemExit(f"Wi-Fi Lab tool setup failed: {error}") from None
+        sys.exit(0)
+
     args = _parse_args()
 
     if args.server or args.headless:
@@ -285,6 +314,8 @@ def main():
 
     if args.both:
         run_both()
+    elif args.wifi_lab_ui:
+        run_gui(open_wifi_lab=True)
     else:
         run_gui()
 

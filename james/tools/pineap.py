@@ -118,15 +118,17 @@ address=/#/10.0.0.1
         # 3. Network setup
         cmds = [
             f"ifconfig {interface} up 10.0.0.1 netmask 255.255.255.0",
-            "echo 1 > /proc/sys/net/ipv4/ip_forward",
-            "iptables --flush && iptables --table nat --flush",
             f"iptables -t nat -A PREROUTING -i {interface} -p tcp --dport 80 -j REDIRECT --to-port 8080",
             f"iptables -t nat -A PREROUTING -i {interface} -p tcp --dport 443 -j REDIRECT --to-port 8080",
             f"iptables -t nat -A POSTROUTING -o {internet_iface} -j MASQUERADE",
             f"iptables -A FORWARD -i {interface} -o {internet_iface} -j ACCEPT",
         ]
+        self.layer.network_state.enable_forwarding()
         for cmd in cmds:
-            self.layer.run(cmd, sudo=True, timeout=5)
+            if cmd.startswith("iptables "):
+                self.layer.network_state.add_rule(cmd)
+            else:
+                self.layer.run(cmd, sudo=True, timeout=5)
 
         # 4. Launch hostapd + dnsmasq
         h = self.layer.run_background(
@@ -205,9 +207,7 @@ auth_algs=1
             sudo=True,
             timeout=5,
         )
-        self.layer.run(
-            "echo 1 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5
-        )
+        self.layer.network_state.enable_forwarding()
 
         dnsmasq_conf = f"""interface={interface}
 dhcp-range=10.0.0.10,10.0.0.100,255.255.255.0,12h
@@ -467,15 +467,17 @@ auth_algs=1
         # Network setup
         cmds = [
             f"ifconfig {interface} up 10.0.0.1 netmask 255.255.255.0",
-            "echo 1 > /proc/sys/net/ipv4/ip_forward",
-            "iptables --flush && iptables --table nat --flush",
             f"iptables -t nat -A PREROUTING -i {interface} -p tcp --dport 80 -j REDIRECT --to-port 8080",
             f"iptables -t nat -A PREROUTING -i {interface} -p tcp --dport 443 -j REDIRECT --to-port 8080",
             f"iptables -t nat -A POSTROUTING -o {internet_iface} -j MASQUERADE",
             f"iptables -A FORWARD -i {interface} -o {internet_iface} -j ACCEPT",
         ]
+        self.layer.network_state.enable_forwarding()
         for cmd in cmds:
-            self.layer.run(cmd, sudo=True, timeout=5)
+            if cmd.startswith("iptables "):
+                self.layer.network_state.add_rule(cmd)
+            else:
+                self.layer.run(cmd, sudo=True, timeout=5)
 
         # dnsmasq
         dnsmasq_conf = f"""interface={interface}
@@ -569,17 +571,8 @@ address=/#/10.0.0.1
             timeout=5,
         )
 
-        # Flush iptables
-        self.layer.run(
-            "iptables --flush && iptables --table nat --flush",
-            sudo=True,
-            timeout=5,
-        )
-        self.layer.run(
-            "echo 0 > /proc/sys/net/ipv4/ip_forward", sudo=True, timeout=5
-        )
-
-        return {"status": "stopped"}
+        errors = self.layer.network_state.restore()
+        return {"status": "stopped", "errors": errors}
 
     # ── Evil Twin ────────────────────────────────────────────────
 
