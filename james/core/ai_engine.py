@@ -706,6 +706,17 @@ class GeminiEngine:
     """
 
     MAX_HISTORY = 30  # sliding window of conversation turns
+    PREFERRED_MODELS = [
+        "huihui_ai/deepseek-r1-abliterated",
+        "huihui_ai/qwen2.5-abliterated",
+        "abliterated",
+        "dolphin-mistral",
+        "dolphin",
+        "uncensored",
+        "deepseek",
+        "qwen2.5",
+        "llama3.2",
+    ]
 
     def __init__(self):
         self.available = False
@@ -714,33 +725,22 @@ class GeminiEngine:
         self.results = ResultStore()
 
         self.local_ollama_available = False
-        self.local_model = "dolphin-mistral"
+        self.local_model = "huihui_ai/deepseek-r1-abliterated:8b"
+        self.available_local_models: list[str] = []
 
-        # Check local Ollama availability
-        try:
-            r = requests.get("http://localhost:11434/api/tags", timeout=2)
-            if r.status_code == 200:
-                models = [m["name"] for m in r.json().get("models", [])]
-                # Prioritize dolphin-mistral, then llama3.2, then any model
-                target_models = ["dolphin-mistral", "llama3.2"]
-                found = False
-                for tm in target_models:
-                    for m in models:
-                        if tm in m:
-                            self.local_model = m
-                            self.local_ollama_available = True
-                            found = True
-                            break
-                    if found:
-                        break
-                if not found and models:
-                    self.local_model = models[0]
-                    self.local_ollama_available = True
-                
-                if self.local_ollama_available:
-                    logger.info("Local Ollama engine activated using model: %s", self.local_model)
-        except Exception as e:
-            logger.debug("Local Ollama service check failed: %s", e)
+        # DeepSeek Harness (dsh) integration
+        import shutil
+        self.dsh_bin = (
+            shutil.which("dsh")
+            or (str(Path.home() / ".local" / "bin" / "dsh")
+                if (Path.home() / ".local" / "bin" / "dsh").exists()
+                else None)
+        )
+        self.dsh_profile = os.environ.get("JAMES_DSH_PROFILE", "james")
+        self.dsh_available = bool(self.dsh_bin)
+        self.dsh_session_id: Optional[str] = None
+
+        self._refresh_local_ollama()
 
         if HAS_ANTIGRAVITY and os.environ.get("GEMINI_API_KEY"):
             try:
@@ -752,6 +752,116 @@ class GeminiEngine:
                 )
             except Exception as e:
                 logger.warning("GeminiEngine (Antigravity) init failed: %s", e)
+
+    def _refresh_local_ollama(self) -> bool:
+        """Check local Ollama availability and select the best abliterated model."""
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                self.available_local_models = models
+                found = False
+                for tm in self.PREFERRED_MODELS:
+                    for m in models:
+                        if tm in m.lower():
+                            self.local_model = m
+                            self.local_ollama_available = True
+                            found = True
+                            break
+                    if found:
+                        break
+                if not found and models:
+                    self.local_model = models[0]
+                    self.local_ollama_available = True
+
+                if self.local_ollama_available:
+                    logger.info(
+                        "Local Ollama engine active using model: %s (dsh=%s)",
+                        self.local_model,
+                        self.dsh_available,
+                    )
+                    return True
+        except Exception as e:
+            logger.debug("Local Ollama service check failed: %s", e)
+        return self.local_ollama_available
+
+    @staticmethod
+    def _strip_think(text: str) -> str:
+        """Remove <think>...</think> reasoning blocks when extracting final output."""
+        if not text:
+            return ""
+        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        return cleaned or text.strip()
+
+    def run_dsh(
+        self,
+        task: str,
+        context: Optional[dict] = None,
+        *,
+        timeout: int = 180,
+    ) -> Optional[str]:
+        """Run a task through DeepSeek Harness (dsh) backed by the abliterated local model."""
+        if not self.dsh_available or not self.dsh_bin:
+            return None
+        import subprocess
+        env = {**os.environ}
+        local_bin = str(Path.home() / ".local" / "bin")
+        if local_bin not in env.get("PATH", ""):
+            env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
+
+        prompt = task
+        if context:
+            ctx_summary = ", ".join(
+                f"{k}={v}" for k, v in context.items()
+                if v and k in ("target", "interface", "monitor_interface", "target_bssid", "target_ssid", "domain", "target_url")
+            )
+            if ctx_summary:
+                prompt = f"[JAMES Context: {ctx_summary}]\n{task}"
+
+        cmd = [
+            self.dsh_bin,
+            "--profile",
+            self.dsh_profile,
+            "--permission-mode",
+            "workspace-write",
+            "--approval-policy",
+            "never",
+            "--add-dir",
+            str(Path(__file__).resolve().parents[2]),
+            prompt,
+        ]
+        try:
+            logger.info("DeepSeek Harness (dsh) executing task on profile '%s'", self.dsh_profile)
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                env=env,
+                cwd=str(Path(__file__).resolve().parents[2]),
+            )
+            out = (proc.stdout or "").strip()
+            if proc.returncode == 0 and out:
+                return self._strip_think(out)
+            err = (proc.stderr or "").strip()
+            logger.warning("dsh returned code %d: %s", proc.returncode, err[:300])
+            return out or (f"[DSH Error] {err}" if err else None)
+        except Exception as e:
+            logger.error("DeepSeek Harness execution failed: %s", e)
+            return None
+
+    def get_harness_status(self) -> dict:
+        """Return status of DeepSeek Harness and local abliterated Ollama models."""
+        self._refresh_local_ollama()
+        return {
+            "dsh_available": self.dsh_available,
+            "dsh_bin": self.dsh_bin,
+            "dsh_profile": self.dsh_profile,
+            "ollama_available": self.local_ollama_available,
+            "active_model": self.local_model,
+            "available_models": self.available_local_models,
+            "gemini_available": self.available,
+        }
 
     def _create_dynamic_tools(self):
         """Dynamically build python callables for google-antigravity tools."""
@@ -815,21 +925,24 @@ class GeminiEngine:
 
     def _call_ollama(self, messages: list[dict]) -> Optional[str]:
         """Call local Ollama chat API endpoint."""
+        if not self.local_ollama_available and not self._refresh_local_ollama():
+            return None
         url = "http://localhost:11434/api/chat"
         payload = {
             "model": self.local_model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": 0.1}
+            "options": {"temperature": 0.1},
         }
         try:
-            r = requests.post(url, json=payload, timeout=60)
+            r = requests.post(url, json=payload, timeout=(3, 90))
             if r.status_code == 200:
                 res_data = r.json()
                 message = res_data.get("message", {})
                 content = message.get("content", "")
-                return content
+                return self._strip_think(content)
         except Exception as e:
+            self.local_ollama_available = False
             logger.error("Ollama API call failed: %s", e)
         return None
 
@@ -998,20 +1111,11 @@ class GeminiEngine:
     def process(self, text: str, context: dict) -> Optional[dict]:
         """
         Send user text to Gemini via google-antigravity Agent.
+        When running with local Ollama / DeepSeek Harness, returns None here
+        so JamesAgent matches fast regex intents first and uses the abliterated
+        local model / DeepSeek Harness in chat_only, analyze_result, and run_chain.
         """
         if not self.available:
-            if self.local_ollama_available:
-                system_prompt = self._build_system_prompt(context)
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text}
-                ]
-                logger.info("Ollama Session Start: model=%s", self.local_model)
-                logger.info("Ollama User Input: %s", text)
-                content = self._call_ollama(messages)
-                if content:
-                    logger.info("Ollama Chat Response: %s", content)
-                    return {"type": "chat", "message": content}
             return None
 
         async def _run():
@@ -1237,6 +1341,8 @@ class GeminiEngine:
         Conversational response using google-antigravity Agent (no tools).
         """
         if not self.available:
+            if not self.local_ollama_available:
+                self._refresh_local_ollama()
             if self.local_ollama_available:
                 system_prompt = (
                     self._build_system_prompt(context)
@@ -1255,6 +1361,8 @@ class GeminiEngine:
                 if content:
                     logger.info("Ollama Chat Only - Response: %s", content)
                     return content
+            if self.dsh_available:
+                return self.run_dsh(text, context)
             return None
 
         async def _run():

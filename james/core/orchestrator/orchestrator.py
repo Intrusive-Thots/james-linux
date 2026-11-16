@@ -443,19 +443,19 @@ class Orchestrator:
         # Need to enable monitor mode
         self._print(f"[PREREQ] {interface} is in Managed mode — auto-enabling Monitor…")
         result = self.start_monitor(interface)
-        if result.get("error") or result.get("blocked"):
+        if result.get("error") or result.get("blocked") or result.get("success") is False:
+            detail = result.get("error") or result.get("stderr") or result.get("stdout")
             raise RuntimeError(
                 f"Failed to auto-enable monitor on {interface}: "
-                f"{result.get('error', 'unknown error')}"
+                f"{detail.strip() if detail else 'unknown error'}"
             )
 
-        # check if airmon-ng renamed the interface
-        stdout = result.get("stdout", "")
-        import re
-
-        m = re.search(r"enabled on \[phy\d+\]([^\)\s]+)", stdout)
-        if m:
-            mon_iface = m.group(1)
+        # In-place transitions must be observable on the requested interface.
+        # Never fall back to an unrelated radio just because it is monitoring.
+        if not self._is_monitor_mode(interface):
+            self.stop_monitor(interface)
+            raise RuntimeError(f"Monitor mode verification failed on {interface}")
+        mon_iface = interface
 
         self._print(f"[PREREQ] Monitor mode enabled → {mon_iface} ✓")
         return mon_iface
@@ -506,6 +506,13 @@ class Orchestrator:
                     f"[PREREQ] Using monitor interface → {iface['interface']} ✓"
                 )
                 return iface["interface"]
+        # Prefer a managed interface that is safe (not providing active internet)
+        for iface in ifaces:
+            safe, _ = self.net_guard.check_monitor_safe(iface["interface"])
+            if safe:
+                selected = iface["interface"]
+                self._print(f"[PREREQ] Auto-selected interface → {selected} ✓")
+                return selected
         # Otherwise use the first managed interface
         selected = ifaces[0]["interface"]
         self._print(f"[PREREQ] Auto-selected interface → {selected} ✓")
@@ -582,8 +589,8 @@ class Orchestrator:
     def kill_james(self) -> dict:
         """
         Emergency stop — kill every tool JAMES may have spawned,
-        restore all wireless interfaces to managed mode, flush
-        iptables, restart NetworkManager, and clean temp files.
+        restore wireless interfaces to managed mode, undo owned network
+        changes, restart NetworkManager, and clean temp files.
         Returns a summary dict of what was cleaned up.
         """
         summary = {"killed": [], "interfaces_restored": [], "errors": []}
@@ -686,17 +693,15 @@ class Orchestrator:
             summary["errors"].append(f"Interface restore: {e}")
             self._print(f"  [!] Interface restore error: {e}")
 
-        # ── 3. Flush iptables rules (evil twin / MITM cleanup) ──
-        self._print("\n[KILL] Phase 3/5 — Flushing iptables & routing...")
-        self._emit_progress("Flushing iptables", 3, 5)
-        self.layer.run(
-            "iptables --flush && iptables --table nat --flush && "
-            "iptables --table mangle --flush && iptables -P FORWARD DROP && "
-            "echo 0 > /proc/sys/net/ipv4/ip_forward",
-            sudo=True,
-            timeout=10,
-        )
-        self._print("  ✓ iptables flushed, IP forwarding disabled")
+        # ── 3. Undo only network changes recorded by this process ──
+        self._print("\n[KILL] Phase 3/5 — Restoring JAMES network changes…")
+        self._emit_progress("Restoring JAMES network changes", 3, 5)
+        network_errors = self.layer.network_state.restore()
+        summary["errors"].extend(network_errors)
+        if network_errors:
+            self._print("  [!] Some JAMES network changes could not be restored")
+        else:
+            self._print("  ✓ JAMES network changes restored")
 
         # ── 4. Restart NetworkManager to reconnect Wi-Fi ────────
         self._print("\n[KILL] Phase 4/5 — Restarting NetworkManager...")
@@ -1011,12 +1016,21 @@ class Orchestrator:
 
         entry = self._log("start_monitor", "aircrack", {"interface": interface})
 
-        # Warn if check_kill will disrupt Wi-Fi
-        _, ck_warning = self.net_guard.check_check_kill_safe()
-        if ck_warning:
-            self._print(ck_warning)
+        # Only run global `airmon-ng check kill` if we are NOT connected via Wi-Fi
+        # on another interface (otherwise check kill severs the active Wi-Fi).
+        conn = self.net_guard.get_active_connection()
+        if conn.is_wifi and conn.interface and conn.interface != interface:
+            self._print(
+                f"[PREREQ] Preserving active Wi-Fi on {conn.interface} ({conn.ssid or 'connected'}) — "
+                f"detaching only {interface} from NetworkManager…"
+            )
+        else:
+            ck_safe, ck_warning = self.net_guard.check_check_kill_safe()
+            if ck_warning:
+                self._print(ck_warning)
+            if ck_safe:
+                self.aircrack.check_kill()
 
-        self.aircrack.check_kill()
         result = self.aircrack.enable_monitor(interface)
         self._finish(entry, result.as_dict())
         return result.as_dict()
@@ -1863,9 +1877,9 @@ class Orchestrator:
         self._print("━" * 50)
         self._print("🔧 Auto-installing dependencies...")
         self._print("━" * 50)
-        script = Path(__file__).resolve().parent.parent.parent / "install_deps.sh"
+        script = Path(__file__).resolve().parents[3] / "install_deps.sh"
         if script.exists():
-            cmd = f"bash {script}"
+            cmd = f"bash {shlex.quote(str(script))}"
         else:
             # Inline minimal install
             packages = (

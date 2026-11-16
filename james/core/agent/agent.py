@@ -541,8 +541,36 @@ class Agent:
         re.IGNORECASE,
     )
 
+    _DSH_STATUS_PATTERNS = re.compile(
+        r"^(?:dsh|deepseek|harness|ai|model)\s+(?:status|info)$",
+        re.IGNORECASE,
+    )
+
+    _DSH_TASK_PATTERNS = re.compile(
+        r"^(?:dsh|deepseek|harness)\s+(.+)$",
+        re.IGNORECASE,
+    )
+
     def _check_recall_query(self, text: str) -> Optional[str]:
-        """Check if user is asking about past results or plan status."""
+        """Check if user is asking about past results, plan status, or DeepSeek Harness."""
+        if self._DSH_STATUS_PATTERNS.match(text):
+            st = self.ai.get_harness_status()
+            models_str = ", ".join(st["available_models"]) if st["available_models"] else "none loaded yet"
+            return (
+                f"🧠 JAMES AI & DeepSeek Harness Status\n"
+                f"  • DeepSeek Harness (dsh): {'✓ Ready' if st['dsh_available'] else '✗ Missing'} "
+                f"(profile={st['dsh_profile']}, bin={st['dsh_bin']})\n"
+                f"  • Local Ollama Engine:    {'✓ Online' if st['ollama_available'] else '✗ Offline'}\n"
+                f"  • Active Abliterated LLM: {st['active_model']}\n"
+                f"  • Installed Local Models: {models_str}"
+            )
+
+        m_dsh = self._DSH_TASK_PATTERNS.match(text)
+        if m_dsh:
+            task = m_dsh.group(1).strip()
+            out = self.ai.run_dsh(task, self.context)
+            return out or "⚠ DeepSeek Harness returned no output."
+
         # Plan queries
         if self._PLAN_PATTERNS.search(text):
             return self._do_show_plan(None, text)
