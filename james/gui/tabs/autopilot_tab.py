@@ -464,12 +464,27 @@ class AutoPilotWorker(QThread):
                     from james.tools.pineap import CREDS_LOG
 
                     deauth_mon = None
-                    if hasattr(self, "iface_combo"):
-                        for i in range(self.iface_combo.count()):
-                            name = self.iface_combo.itemData(i)
-                            if name != portal_iface and "mon" in name:
-                                deauth_mon = name
-                                break
+                    # Pick a second adapter (not the portal one, and not the
+                    # interface carrying our own connection) for continuous
+                    # deauth, then put it into monitor mode. Interfaces keep
+                    # their original names now (no airmon-ng "mon" suffix), so
+                    # select by monitor-safety rather than by name.
+                    for ifc in ifaces:
+                        name = ifc["interface"]
+                        if name == portal_iface:
+                            continue
+                        safe, _ = self.orchestrator.net_guard.check_monitor_safe(name)
+                        if not safe:
+                            continue
+                        try:
+                            deauth_mon = self.orchestrator.ensure_monitor_mode(name)
+                        except Exception as exc:
+                            self._log(
+                                f"  ⚠ Could not enable monitor on {name} for deauth: {exc}"
+                            )
+                            deauth_mon = None
+                            continue
+                        break
 
                     for ap_data, cap_path in uncracked:
                         if self._aborted():
