@@ -25,8 +25,9 @@ class TestGUITooltips(unittest.TestCase):
         self.assertEqual(self.main_window.tabs.tabToolTip(1), "Wi-Fi auditing and tools (Ctrl+2)")
         self.assertEqual(self.main_window.tabs.tabToolTip(2), "Automated routines (Ctrl+3)")
         self.assertEqual(self.main_window.tabs.tabToolTip(3), "Evil Twin pipeline (Ctrl+4)")
-        self.assertEqual(self.main_window.tabs.count(), 5)
-        self.assertEqual(self.main_window.tabs.tabToolTip(4), "System configuration and diagnostics (Ctrl+5)")
+        self.assertEqual(self.main_window.tabs.count(), 6)
+        self.assertEqual(self.main_window.tabs.tabToolTip(4), "Experimental wireless assessments (Ctrl+5)")
+        self.assertEqual(self.main_window.tabs.tabToolTip(5), "System configuration and diagnostics (Ctrl+6)")
 
         self.assertEqual(
             self.main_window._btn_logs.toolTip(), "View log files (Ctrl+L)"
@@ -134,9 +135,14 @@ class TestGUITooltips(unittest.TestCase):
         from james.gui.tabs.setup_tab import SetupTab
         from james.gui.tabs.troubleshoot_tab import TroubleshootTab
 
-        self.assertIs(self.main_window.tabs.widget(4), self.main_window.config_tab)
+        self.assertIs(self.main_window.tabs.widget(5), self.main_window.config_tab)
         self.assertTrue(self.main_window.config_tab.findChildren(SetupTab))
         self.assertTrue(self.main_window.config_tab.findChildren(TroubleshootTab))
+
+    def test_lab_tab_tooltips(self):
+        tab = self.main_window.wifi_lab_tab
+        self.assertEqual(tab.start_button.toolTip(), "Run the selected Wi-Fi Lab exercise")
+        self.assertEqual(tab.stop_button.toolTip(), "Stop the exercise and restore the adapters")
 
     def test_autopilot_tab_tooltips(self):
         from james.gui.tabs.autopilot_tab import AutoPilotTab

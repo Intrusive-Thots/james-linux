@@ -37,7 +37,7 @@ class TestMainWindowShortcuts(unittest.TestCase):
         self.assertIn("Ctrl+3", keys)
         self.assertIn("Ctrl+4", keys)
         self.assertIn("Ctrl+5", keys)
-        self.assertNotIn("Ctrl+6", keys)
+        self.assertIn("Ctrl+6", keys)
         self.assertIn("Ctrl+Tab", keys)
         self.assertIn("Ctrl+Shift+Tab", keys)
 
@@ -293,12 +293,24 @@ class TestMainWindowShortcuts(unittest.TestCase):
         )
 
     def test_config_tab_shortcut_selects_existing_tab(self):
-        self.assertEqual(self.window.tabs.count(), 5)
+        self.assertEqual(self.window.tabs.count(), 6)
         self.window.tabs.setCurrentIndex(0)
         shortcuts = self.window.findChildren(QShortcut)
-        shortcut = next(s for s in shortcuts if s.key() == QKeySequence("Ctrl+5"))
+        shortcut = next(s for s in shortcuts if s.key() == QKeySequence("Ctrl+6"))
         shortcut.activated.emit()
         self.assertIs(self.window.tabs.currentWidget(), self.window.config_tab)
+
+    def test_lab_tab_shortcuts(self):
+        from james.gui.tabs.wifi_lab_tab import WifiLabTab
+
+        tab = self.window.wifi_lab_tab
+        self.assertIsInstance(tab, WifiLabTab)
+        shortcut = next(
+            item for item in self.window.findChildren(QShortcut)
+            if item.key() == QKeySequence("Ctrl+5")
+        )
+        shortcut.activated.emit()
+        self.assertIs(self.window.tabs.currentWidget(), tab)
 
     def test_chat_ctrl_enter(self):
         from james.gui.chat_panel import ChatPanel
