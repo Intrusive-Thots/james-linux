@@ -96,22 +96,31 @@ CORE_PKGS=(
     python3-scapy
 )
 
-apt-get update -qq
+# Refresh package metadata only when at least one package is missing.
+MISSING_PKGS=()
+for pkg in "${CORE_PKGS[@]}"; do
+    if [ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null)" != "install ok installed" ]; then
+        MISSING_PKGS+=("$pkg")
+    fi
+done
+if [ "${#MISSING_PKGS[@]}" -gt 0 ]; then
+    apt-get update -qq
+fi
 
 INSTALLED=0
 FAILED=0
 
 for pkg in "${CORE_PKGS[@]}"; do
-    if dpkg -s "$pkg" &>/dev/null; then
+    if [ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null)" = "install ok installed" ]; then
         ok "$pkg (already installed)"
-        ((INSTALLED++))
+        INSTALLED=$((INSTALLED + 1))
     else
         if apt-get install -y -qq "$pkg" &>/dev/null; then
             ok "$pkg (installed)"
-            ((INSTALLED++))
+            INSTALLED=$((INSTALLED + 1))
         else
             warn "$pkg (not available — skipping)"
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
         fi
     fi
 done
